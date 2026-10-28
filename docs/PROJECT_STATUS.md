@@ -277,6 +277,17 @@ Still needed before the requested end state is proven:
 - Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: run `git diff --check`, inspect and commit/push these changes. Then physical-device test landscape/portrait Vision boxes and selected-subject tracking-loss recovery.
 
+## Follow-up Turn — 2026-10-28 (preview-to-Vision tap coordinates)
+
+- Audit found the tap gesture divided actual preview coordinates by a fixed `640×480` size, even though the displayed preview is portrait and aspect-filled. This could normalize taps incorrectly or outside the expected range.
+- `CameraPreview` now handles taps in UIKit and converts layer coordinates through `AVCaptureVideoPreviewLayer.captureDevicePointConverted(fromLayerPoint:)`, which accounts for the preview layer's display geometry. The returned device point is transformed for Vision's orientation and bottom-left normalized coordinate convention.
+- Analysis output is explicitly unmirrored so its pixels stay in capture-device coordinates. The visible front preview can still mirror; session analysis remains unrotated and Vision applies the orientation mapping.
+- Added `VisionTapPointMapper` tests for up, left, right orientation and clamping out-of-range input. Initial test run failed due exact floating-point equality (`0.19999999999999996` vs `0.2`); changed that assertion to a tolerance. Initial generic build also warned that UIKit tap access was main-actor isolated; marked the gesture callback `@MainActor`, and the rerun emitted no such warning.
+- Simulator suite passed 12/12. Generic iOS build succeeded. Only AppIntents metadata extraction warning. `git diff --check` remains to run.
+- Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Physical preview conversion, front mirroring, and correct subject selection remain unverified without an iPhone camera.
+- Exact next smallest step: run final diff check/review and commit/push, then verify taps on a visible subject in portrait/landscape on the iPhone 12.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.

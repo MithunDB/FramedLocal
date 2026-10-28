@@ -26,12 +26,10 @@ struct ContentView: View {
 
             if camera.authorization == .authorized && camera.importedImage == nil {
                 CameraPreview(session: camera.session, rotationAngle: camera.previewRotationAngle,
-                              isMirrored: camera.isFrontCamera)
+                              isMirrored: camera.isFrontCamera) { capturePoint in
+                    camera.selectSubject(atCaptureDevicePoint: capturePoint)
+                }
                     .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture(coordinateSpace: .local) { point in
-                        camera.selectSubject(at: point, in: camera.previewSize)
-                    }
             } else if camera.importedImage != nil {
                 Color.black.ignoresSafeArea()
             } else {
@@ -416,8 +414,6 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     var importedImage: Data?
     @MainActor @Published
     var guidanceText = "Searching for a subject"
-    @MainActor
-    var previewSize = CGSize(width: 640, height: 480)
     @MainActor @Published
     var horizonTilt = 0.0
     @MainActor @Published
@@ -593,9 +589,9 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     }
 
     @MainActor
-    func selectSubject(at point: CGPoint, in viewSize: CGSize) {
-        guard viewSize.width > 0, viewSize.height > 0 else { return }
-        let normalized = CGPoint(x: point.x / viewSize.width, y: 1 - point.y / viewSize.height)
+    func selectSubject(atCaptureDevicePoint point: CGPoint) {
+        let normalized = VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: point,
+                                                          orientation: visionOrientation)
         captureMessage = "Finding selected subject…"
         analysisDelegate.selectSubject(normalizedPoint: normalized, orientation: visionOrientation, on: analysisQueue)
     }
@@ -660,10 +656,16 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                analysisConnection.isVideoRotationAngleSupported(0) {
                 analysisConnection.videoRotationAngle = 0
             }
-            [self.photoOutput.connection(with: .video), self.analysisOutput.connection(with: .video)].forEach { connection in
-                guard let connection, connection.isVideoMirroringSupported else { return }
-                connection.automaticallyAdjustsVideoMirroring = false
-                connection.isVideoMirrored = mirrored
+            if let photoConnection = self.photoOutput.connection(with: .video),
+               photoConnection.isVideoMirroringSupported {
+                photoConnection.automaticallyAdjustsVideoMirroring = false
+                photoConnection.isVideoMirrored = mirrored
+            }
+            if let analysisConnection = self.analysisOutput.connection(with: .video),
+               analysisConnection.isVideoMirroringSupported {
+                // Match Vision coordinates to the unmirrored capture-device point.
+                analysisConnection.automaticallyAdjustsVideoMirroring = false
+                analysisConnection.isVideoMirrored = false
             }
         }
     }
@@ -710,6 +712,10 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             analysisOutput.setSampleBufferDelegate(analysisDelegate, queue: analysisQueue)
             if let connection = analysisOutput.connection(with: .video) {
                 if connection.isVideoRotationAngleSupported(0) { connection.videoRotationAngle = 0 }
+                if connection.isVideoMirroringSupported {
+                    connection.automaticallyAdjustsVideoMirroring = false
+                    connection.isVideoMirrored = false
+                }
             }
             guard session.canAddOutput(analysisOutput) else { throw CameraError.cannotAddAnalysisOutput }
             session.addOutput(analysisOutput)
@@ -811,9 +817,17 @@ private struct CameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
     let rotationAngle: CGFloat
     let isMirrored: Bool
+    let onTap: (CGPoint) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onTap: onTap)
+    }
 
     func makeUIView(context: Context) -> PreviewView {
         let view = PreviewView()
+        view.addGestureRecognizer(UITapGestureRecognizer(target: context.coordinator,
+                                                          action: #selector(Coordinator.handleTap(_:))))
+        context.coordinator.previewView = view
         view.previewLayer.session = session
         view.previewLayer.videoGravity = .resizeAspectFill
         if let connection = view.previewLayer.connection {
@@ -829,6 +843,8 @@ private struct CameraPreview: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: PreviewView, context: Context) {
+        context.coordinator.onTap = onTap
+        context.coordinator.previewView = uiView
         if uiView.previewLayer.session !== session {
             uiView.previewLayer.session = session
         }
@@ -842,6 +858,22 @@ private struct CameraPreview: UIViewRepresentable {
                 connection.automaticallyAdjustsVideoMirroring = false
                 connection.isVideoMirrored = isMirrored
             }
+        }
+    }
+
+    final class Coordinator: NSObject {
+        weak var previewView: PreviewView?
+        var onTap: (CGPoint) -> Void
+
+        init(onTap: @escaping (CGPoint) -> Void) {
+            self.onTap = onTap
+        }
+
+        @MainActor @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
+            guard let previewView else { return }
+            let layerPoint = recognizer.location(in: previewView)
+            let capturePoint = previewView.previewLayer.captureDevicePointConverted(fromLayerPoint: layerPoint)
+            onTap(capturePoint)
         }
     }
 }

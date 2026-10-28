@@ -60,6 +60,29 @@ struct AnalysisResult: Sendable {
     let guidance: String
 }
 
+enum VisionTapPointMapper {
+    /// Converts the capture-device point (normalized, top-left origin) to Vision's
+    /// normalized, bottom-left coordinate space after the requested image orientation.
+    static func visionPoint(fromCaptureDevicePoint point: CGPoint,
+                            orientation: CGImagePropertyOrientation) -> CGPoint {
+        let x = min(max(point.x, 0), 1)
+        let y = min(max(point.y, 0), 1)
+        let oriented: CGPoint
+        switch orientation {
+        case .up: oriented = CGPoint(x: x, y: y)
+        case .upMirrored: oriented = CGPoint(x: 1 - x, y: y)
+        case .down: oriented = CGPoint(x: 1 - x, y: 1 - y)
+        case .downMirrored: oriented = CGPoint(x: x, y: 1 - y)
+        case .left: oriented = CGPoint(x: y, y: 1 - x)
+        case .leftMirrored: oriented = CGPoint(x: y, y: x)
+        case .right: oriented = CGPoint(x: 1 - y, y: x)
+        case .rightMirrored: oriented = CGPoint(x: 1 - y, y: 1 - x)
+        @unknown default: oriented = CGPoint(x: x, y: y)
+        }
+        return CGPoint(x: oriented.x, y: 1 - oriented.y)
+    }
+}
+
 /// Runs Vision and pixel sampling on a worker queue. Only small observations cross to UI.
 final class CompositionAnalyzer: @unchecked Sendable {
     private let queue = DispatchQueue(label: "local.mithundb.framed.vision", qos: .userInitiated)
