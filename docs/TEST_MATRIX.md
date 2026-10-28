@@ -21,7 +21,7 @@
 | Capture completion | Processing error, capture-level error, or missing photo data | Delegate completes once and clears capture busy state | Result resolution passed in simulator unit tests; physical AVFoundation callback check pending |
 | Photos export | Add-only allowed | First asset and Framed album are created together; later assets join when the album can be resolved | Code updated; physical-device runtime check pending |
 | Photos export | Existing album unavailable to add-only fetch | Save still succeeds to Photos Recents and UI reports destination accurately | Recents status message unit test passed; runtime check pending |
-| Photos export integrity | Asset placeholder unavailable / album mutation fails | Never report success without an asset; fallback only after failed album mutation | Transaction-state logic passed in simulator unit tests; PhotoKit runtime check pending |
+| Photos export integrity | Asset placeholder unavailable / album mutation fails | Never report success without an asset; fallback only after failed album mutation; report album vs Recents destination accurately | Transaction outcome branches passed in simulator unit tests; PhotoKit runtime check pending |
 | Presets | Five local looks | Preview and export use selected look | Implemented; visual/device check pending |
 | Frames | Three layouts, date on/off | Preview and export match | Implemented; visual/device check pending |
 | Renderer | Portrait and landscape input, date on/off | Output pixel dimensions preserve orientation; date adds canvas space; output has no rotation tag | Passed in simulator unit tests |

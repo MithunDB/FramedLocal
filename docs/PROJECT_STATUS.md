@@ -24,6 +24,10 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Extracted PhotoKit transaction recovery into `PhotoSaveTransactionOutcome`, now used by the production completion handler. It requires a created asset before reporting any success or retry, distinguishes album/Recents success, retries asset-only only after an album mutation failure, and reports other failures. Added branch tests in `FramedLocalTests/GuidanceEngineTests.swift`; changed `FramedLocal/PhotoLibraryService.swift`.
+- Verification: iOS 27.1 simulator hosted suite passed (38 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted only simulator build-number `invalidDigitCount` diagnostics. PhotoKit transactions themselves still require a physical-device run.
+- Exact next smallest step: commit this policy/test change, then continue auditing camera/Photos interaction and prepare the physical-device install path.
+
 - Hardened asynchronous camera startup/recovery in `FramedLocal/ContentView.swift`: verify the session generation before calling `startRunning()` and again after it returns; if Stop/backgrounding/editor transition invalidated the request while start was in flight, stop the session immediately and do not resume Vision. This closes a hardware/privacy race where stale callbacks were ignored but the physical capture session could still start.
 - Verification: iOS 27.1 simulator suite passed (37 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Existing session-generation unit coverage validates stale request invalidation; physical timing and camera power state still need device verification. Xcode logged only `invalidDigitCount` simulator metadata diagnostics.
 - Committed and pushed as `39153ad` (`Guard stale camera session starts`).
@@ -182,6 +186,9 @@ Still needed before the requested end state is proven:
 - `docs/PROJECT_STATUS.md`
 
 ## Current Turn Errors And Attempts
+
+- An initial test-file patch targeted nonexistent `FramedLocal/FramedLocalTests/GuidanceEngineTests.swift`; `apply_patch` returned `No such file or directory` and made no changes. Retargeted the patch to repository-root `FramedLocalTests/GuidanceEngineTests.swift`; tests then passed.
+- No build/test failures after correcting the path. Simulator suite passed 38/38, generic device build passed, and `git diff --check` passed. Xcode emitted recurring non-fatal simulator metadata `invalidDigitCount` diagnostics.
 
 - No compile or test failures. Simulator suite passed 37/37; generic iOS build and `git diff --check` passed. Xcode emitted the recurring `IDESchemeActionSDKRecord` / `IDESchemeActionDeviceRecord` `invalidDigitCount` simulator metadata diagnostics.
 

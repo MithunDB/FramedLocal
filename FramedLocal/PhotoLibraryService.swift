@@ -6,6 +6,22 @@ struct PhotoSaveTransactionSnapshot: Equatable, Sendable {
     let albumMutationAttempted: Bool
 }
 
+enum PhotoSaveTransactionOutcome: Equatable {
+    case savedInAlbum
+    case savedToRecents
+    case retryAssetOnly
+    case failed
+
+    static func resolve(photoLibrarySucceeded: Bool,
+                        transaction: PhotoSaveTransactionSnapshot) -> PhotoSaveTransactionOutcome {
+        guard transaction.assetCreated else { return .failed }
+        if photoLibrarySucceeded {
+            return transaction.albumMutationAttempted ? .savedInAlbum : .savedToRecents
+        }
+        return transaction.albumMutationAttempted ? .retryAssetOnly : .failed
+    }
+}
+
 enum PhotoSaveDestination {
     static func statusMessage(savedInAlbum: Bool) -> String {
         savedInAlbum ? "Saved to Photos · Framed album" : "Saved to Photos Recents"
@@ -103,27 +119,28 @@ actor PhotoLibraryService {
                 }
             } completionHandler: { success, error in
                 let transaction = transactionState.snapshot()
-                if success {
-                    guard transaction.assetCreated else {
-                        continuation.resume(throwing: SaveError.photoWriteFailed("Photos did not create an asset for this image."))
-                        return
-                    }
-                    continuation.resume(returning: transaction.albumMutationAttempted)
-                } else {
-                    if transaction.albumMutationAttempted {
-                        UserDefaults.standard.removeObject(forKey: self.albumIdentifierKey)
-                        UserDefaults.standard.set(false, forKey: self.albumCreationAttemptedKey)
-                        self.saveAssetOnly(from: temporaryURL) { fallbackSuccess, fallbackError in
-                            if fallbackSuccess {
-                                continuation.resume(returning: false)
-                            } else {
-                                continuation.resume(throwing: SaveError.photoWriteFailed(
-                                    fallbackError?.localizedDescription ?? error?.localizedDescription ?? "Unknown error"))
-                            }
+                switch PhotoSaveTransactionOutcome.resolve(photoLibrarySucceeded: success,
+                                                            transaction: transaction) {
+                case .savedInAlbum:
+                    continuation.resume(returning: true)
+                case .savedToRecents:
+                    continuation.resume(returning: false)
+                case .retryAssetOnly:
+                    UserDefaults.standard.removeObject(forKey: self.albumIdentifierKey)
+                    UserDefaults.standard.set(false, forKey: self.albumCreationAttemptedKey)
+                    self.saveAssetOnly(from: temporaryURL) { fallbackSuccess, fallbackError in
+                        if fallbackSuccess {
+                            continuation.resume(returning: false)
+                        } else {
+                            continuation.resume(throwing: SaveError.photoWriteFailed(
+                                fallbackError?.localizedDescription ?? error?.localizedDescription ?? "Unknown error"))
                         }
-                    } else {
-                        continuation.resume(throwing: SaveError.photoWriteFailed(error?.localizedDescription ?? "Unknown error"))
                     }
+                case .failed:
+                    let reason = success
+                        ? "Photos did not create an asset for this image."
+                        : error?.localizedDescription ?? "Unknown error"
+                    continuation.resume(throwing: SaveError.photoWriteFailed(reason))
                 }
             }
         }

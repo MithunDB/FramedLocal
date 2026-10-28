@@ -169,6 +169,30 @@ final class GuidanceEngineTests: XCTestCase {
                                                                        albumMutationAttempted: true))
     }
 
+    func testPhotoSaveOutcomeSeparatesAlbumRecentsFallbackAndFailure() {
+        let albumTransaction = PhotoSaveTransactionSnapshot(assetCreated: true,
+                                                            albumMutationAttempted: true)
+        let assetOnlyTransaction = PhotoSaveTransactionSnapshot(assetCreated: true,
+                                                                 albumMutationAttempted: false)
+        let noAssetTransaction = PhotoSaveTransactionSnapshot(assetCreated: false,
+                                                               albumMutationAttempted: false)
+        let invalidAlbumWithoutAsset = PhotoSaveTransactionSnapshot(assetCreated: false,
+                                                                      albumMutationAttempted: true)
+
+        XCTAssertEqual(PhotoSaveTransactionOutcome.resolve(photoLibrarySucceeded: true,
+                                                             transaction: albumTransaction), .savedInAlbum)
+        XCTAssertEqual(PhotoSaveTransactionOutcome.resolve(photoLibrarySucceeded: true,
+                                                             transaction: assetOnlyTransaction), .savedToRecents)
+        XCTAssertEqual(PhotoSaveTransactionOutcome.resolve(photoLibrarySucceeded: false,
+                                                             transaction: albumTransaction), .retryAssetOnly)
+        XCTAssertEqual(PhotoSaveTransactionOutcome.resolve(photoLibrarySucceeded: false,
+                                                             transaction: assetOnlyTransaction), .failed)
+        XCTAssertEqual(PhotoSaveTransactionOutcome.resolve(photoLibrarySucceeded: true,
+                                                             transaction: noAssetTransaction), .failed)
+        XCTAssertEqual(PhotoSaveTransactionOutcome.resolve(photoLibrarySucceeded: false,
+                                                             transaction: invalidAlbumWithoutAsset), .failed)
+    }
+
     func testPhotoSaveStatusNamesTheActualDestination() {
         XCTAssertEqual(PhotoSaveDestination.statusMessage(savedInAlbum: true), "Saved to Photos · Framed album")
         XCTAssertEqual(PhotoSaveDestination.statusMessage(savedInAlbum: false), "Saved to Photos Recents")
