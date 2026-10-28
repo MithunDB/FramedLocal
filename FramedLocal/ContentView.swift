@@ -718,6 +718,17 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                     if self.session.isRunning { self.session.stopRunning() }
                     return
                 }
+                guard CaptureSessionStartOutcome.resolve(isRunning: self.session.isRunning) == .started else {
+                    Task { @MainActor in
+                        guard self.sessionGeneration.isCurrent(generation) else { return }
+                        self.sessionIsRunning = false
+                        self.isConfiguring = false
+                        self.isSessionRunning = false
+                        self.cameraStartupFailed = true
+                        self.captureMessage = "The camera did not start. Tap Retry camera."
+                    }
+                    return
+                }
                 self.analysisDelegate.resume(on: self.analysisQueue, orientation: visionOrientation,
                                              while: { [weak self] in self?.sessionGeneration.isCurrent(generation) ?? false }) {
                     Task { @MainActor in
@@ -790,6 +801,18 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             guard let self else { return }
             do {
                 try self.configureSession(position: position, rotationAngle: angle)
+                guard CaptureSessionStartOutcome.resolve(isRunning: self.session.isRunning) == .started else {
+                    Task { @MainActor in
+                        guard self.sessionGeneration.isCurrent(generation) else { return }
+                        self.isFrontCamera = position == .back
+                        self.sessionIsRunning = false
+                        self.isConfiguring = false
+                        self.isSessionRunning = false
+                        self.cameraStartupFailed = true
+                        self.captureMessage = "The camera stopped while switching lenses. Tap Retry camera."
+                    }
+                    return
+                }
                 self.analysisDelegate.resume(on: self.analysisQueue, orientation: visionOrientation,
                                              while: { [weak self] in self?.sessionGeneration.isCurrent(generation) ?? false }) {
                     Task { @MainActor in
@@ -1166,6 +1189,15 @@ enum SessionRecoveryPolicy {
                              mediaServicesWereReset: Bool) -> SessionRecoveryAction {
         guard shouldBeRunning else { return .ignore }
         return mediaServicesWereReset ? .resumeAutomatically : .showRetry
+    }
+}
+
+enum CaptureSessionStartOutcome: Equatable {
+    case started
+    case failed
+
+    static func resolve(isRunning: Bool) -> CaptureSessionStartOutcome {
+        isRunning ? .started : .failed
     }
 }
 

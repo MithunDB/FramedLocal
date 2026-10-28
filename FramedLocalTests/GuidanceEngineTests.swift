@@ -115,6 +115,11 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertEqual(SessionRecoveryPolicy.runtimeError(shouldBeRunning: false, mediaServicesWereReset: true), .ignore)
     }
 
+    func testCameraReadinessRequiresRunningCaptureSession() {
+        XCTAssertEqual(CaptureSessionStartOutcome.resolve(isRunning: true), .started)
+        XCTAssertEqual(CaptureSessionStartOutcome.resolve(isRunning: false), .failed)
+    }
+
     func testPhotoCaptureResolverPrefersTerminalCaptureError() {
         let data = Data([0xFF, 0xD8])
         let processingError = NSError(domain: "PhotoProcessing", code: 1,

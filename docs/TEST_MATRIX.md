@@ -11,6 +11,7 @@
 | Camera permission | Deny/revoke | Clear explanation and Settings route | Implemented; runtime check pending |
 | Camera selection | Rear and front | Correct camera preview and still | Explicit front mirroring configured for preview/analysis/still; physical-device check pending |
 | Camera UI state | Permission, session, guidance, and capture transitions | SwiftUI refreshes from controller changes | Controller now publishes UI state; physical camera interaction pending |
+| Camera readiness | Initial startup and lens reconfiguration when AVFoundation fails to start | Do not publish a ready session unless `AVCaptureSession.isRunning` is true; expose Retry on failure | Startup and lens-switch checks plus readiness policy unit test passed; physical failure injection pending |
 | Camera readiness | Capture/switch during startup or after startup failure | Controls stay disabled until the session runs; retry available after failure | Implemented; physical-device check pending |
 | Camera recovery | Configuration fails after adding part of a session | Partial inputs/outputs are removed so a retry can configure cleanly | Rollback implemented; needs runtime failure injection/device check |
 | Camera lifecycle | Stop/background/editor transition during queued startup or recovery, then restart | Stale generation cannot start/resume camera or publish running state after stop; session can start on the next current request | Session generation unit test and pre/post-start generation guards passed build; physical lifecycle timing check pending |

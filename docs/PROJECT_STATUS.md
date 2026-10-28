@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Verified that the camera session is actually running before publishing readiness after initial startup and lens reconfiguration. If AVFoundation returns with the session stopped, the camera UI now exposes Retry instead of enabling capture. Added a unit test for the readiness outcome policy.
+- Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. Physical startup/lens failure injection is still pending.
+- Changed files: `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: commit and push this verified camera-readiness slice, then continue reviewing capture/export recovery without claiming physical-device validation.
+
 - Hardened the PhotoKit asset-only fallback. It now records whether `PHAssetCreationRequest` produced an asset placeholder and resolves the fallback through the same transaction outcome policy as the album save. A success callback without an actually-created asset is treated as failure, so the UI cannot report a false Photos save.
 - Verification: iOS 27.1 simulator hosted suite passed (47 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. Actual PhotoKit transaction/fallback behavior remains a physical-device runtime check.
 - Changed files: `FramedLocal/PhotoLibraryService.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
