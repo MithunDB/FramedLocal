@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Closed a stale-output risk in the editor. Starting any new preset/crop/frame/date render now clears both the prior export JPEG and preview before work begins. If the new render fails, the Save button cannot become enabled with bytes from the previous editor settings.
+- Verification: iOS 27.1 simulator hosted suite passed (44 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. The new render-failure UI transition still needs runtime interaction coverage.
+- Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: add the render-failure/save interaction to the matrix and commit/push; then continue reviewing camera/editor lifecycle edges.
+
 - Added low-memory recovery for the shared Core Image renderer. The app now observes UIKit memory warnings and asks `FilmRenderer` to clear its `CIContext` intermediate caches. Added a regression test that clears the cache and confirms a subsequent preset render still produces JPEG output.
 - Verification: iOS 27.1 simulator hosted suite passed (44 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged the recurring simulator metadata `invalidDigitCount` diagnostics only. Memory-warning delivery and cache-reclamation effect require device/runtime measurement.
 - Changed files: `FramedLocal/FilmRenderer.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.

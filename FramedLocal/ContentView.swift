@@ -443,6 +443,8 @@ struct ContentView: View {
         let taskID = UUID()
         camera.renderTaskID = taskID
         camera.renderError = nil
+        camera.renderedCapture = nil
+        previewImage = nil
         isRendering = true
         return Task {
             do {
