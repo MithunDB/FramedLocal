@@ -812,8 +812,10 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         clearSubjectSelection()
         sessionQueue.async { [weak self] in
             guard let self else { return }
+            guard self.sessionGeneration.isCurrent(generation) else { return }
             do {
                 try self.configureSession(position: position, rotationAngle: angle)
+                guard self.sessionGeneration.isCurrent(generation) else { return }
                 guard CaptureSessionStartOutcome.resolve(isRunning: self.session.isRunning) == .started else {
                     Task { @MainActor in
                         guard self.sessionGeneration.isCurrent(generation) else { return }
