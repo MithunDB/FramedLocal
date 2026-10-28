@@ -632,7 +632,12 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         analysisDelegate.pause()
         sessionQueue.async { [weak self] in
             guard let self else { return }
+            guard self.sessionGeneration.isCurrent(generation) else { return }
             if !self.session.isRunning { self.session.startRunning() }
+            guard self.sessionGeneration.isCurrent(generation) else {
+                if self.session.isRunning { self.session.stopRunning() }
+                return
+            }
             let resumed = self.session.isRunning
             if resumed {
                 self.analysisDelegate.resume(on: self.analysisQueue, orientation: visionOrientation,
@@ -676,7 +681,12 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             guard let self else { return }
             do {
                 try self.configureSession(position: position, rotationAngle: angle)
+                guard self.sessionGeneration.isCurrent(generation) else { return }
                 self.session.startRunning()
+                guard self.sessionGeneration.isCurrent(generation) else {
+                    if self.session.isRunning { self.session.stopRunning() }
+                    return
+                }
                 self.analysisDelegate.resume(on: self.analysisQueue, orientation: visionOrientation,
                                              while: { [weak self] in self?.sessionGeneration.isCurrent(generation) ?? false }) {
                     Task { @MainActor in
