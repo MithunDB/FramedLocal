@@ -116,6 +116,7 @@ struct ContentView: View {
                         cropPositionControl
                         framePicker
                     }
+                    .disabled(camera.isSaving)
                     .padding(.bottom, 20)
                 }
 
@@ -149,6 +150,7 @@ struct ContentView: View {
                             restartCamera()
                         }
                         .foregroundStyle(.white)
+                        .disabled(camera.isSaving)
                         Button("Save to Photos") {
                             camera.saveLatestCapture()
                         }
@@ -166,6 +168,7 @@ struct ContentView: View {
                             cancelImport()
                         }
                         .foregroundStyle(.white)
+                        .disabled(camera.isSaving)
                         Button("Export New Copy") {
                             camera.saveLatestCapture()
                         }

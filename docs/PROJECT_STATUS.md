@@ -24,10 +24,14 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Prevented leaving/changing the editor while a Photos write is in flight: preset, crop, position, frame, and date controls are disabled during save; Retake/Cancel are also disabled. This prevents an asynchronous save completion message from appearing after the user has left the result screen. Changed `FramedLocal/ContentView.swift`.
+- Verification: iOS 27.1 simulator hosted suite passed (38 tests, 0 failures); generic unsigned iOS build passed; `git diff --check` passed. Only recurring simulator metadata `invalidDigitCount` diagnostics appeared. Physical Photos-save interaction remains device-only.
+- Exact next smallest step: continue auditing memory/cancellation and Photos-picker/editor lifecycle; physical camera, PhotoKit, and UI interaction checks await an iPhone connection.
+
 - Extracted PhotoKit transaction recovery into `PhotoSaveTransactionOutcome`, now used by the production completion handler. It requires a created asset before reporting any success or retry, distinguishes album/Recents success, retries asset-only only after an album mutation failure, and reports other failures. Added branch tests in `FramedLocalTests/GuidanceEngineTests.swift`; changed `FramedLocal/PhotoLibraryService.swift`.
 - Verification: iOS 27.1 simulator hosted suite passed (38 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted only simulator build-number `invalidDigitCount` diagnostics. PhotoKit transactions themselves still require a physical-device run.
 - Committed and pushed as `47a843b` (`Test Photos save recovery outcomes`).
-- Exact next smallest step: commit this policy/test change, then continue auditing camera/Photos interaction and prepare the physical-device install path.
+- Status follow-up was pushed as `e1c2b1e` (`Record Photos save policy status`).
 
 - Hardened asynchronous camera startup/recovery in `FramedLocal/ContentView.swift`: verify the session generation before calling `startRunning()` and again after it returns; if Stop/backgrounding/editor transition invalidated the request while start was in flight, stop the session immediately and do not resume Vision. This closes a hardware/privacy race where stale callbacks were ignored but the physical capture session could still start.
 - Verification: iOS 27.1 simulator suite passed (37 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Existing session-generation unit coverage validates stale request invalidation; physical timing and camera power state still need device verification. Xcode logged only `invalidDigitCount` simulator metadata diagnostics.
@@ -187,6 +191,8 @@ Still needed before the requested end state is proven:
 - `docs/PROJECT_STATUS.md`
 
 ## Current Turn Errors And Attempts
+
+- No code/test failures this turn. Simulator suite passed 38/38, generic device build passed, and `git diff --check` passed; Xcode emitted non-fatal simulator metadata `invalidDigitCount` diagnostics.
 
 - An initial test-file patch targeted nonexistent `FramedLocal/FramedLocalTests/GuidanceEngineTests.swift`; `apply_patch` returned `No such file or directory` and made no changes. Retargeted the patch to repository-root `FramedLocalTests/GuidanceEngineTests.swift`; tests then passed.
 - No build/test failures after correcting the path. Simulator suite passed 38/38, generic device build passed, and `git diff --check` passed. Xcode emitted recurring non-fatal simulator metadata `invalidDigitCount` diagnostics.
