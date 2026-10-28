@@ -1,6 +1,7 @@
 import XCTest
 import UIKit
 import ImageIO
+import UniformTypeIdentifiers
 @testable import FramedLocal
 
 final class RendererTests: XCTestCase {
@@ -66,6 +67,18 @@ final class RendererTests: XCTestCase {
         XCTAssertLessThanOrEqual(max(size.width, size.height), CGFloat(FrameRenderer.maximumPixelDimension))
     }
 
+    func testFilmRendererAppliesImportedEXIFOrientationToPixels() async throws {
+        let landscapePixels = try sampleJPEG(size: CGSize(width: 320, height: 180))
+        let rotatedSource = try jpegWithEXIFOrientation(landscapePixels, orientation: 6)
+        let output = try await FilmRenderer.shared.render(rotatedSource, preset: .natural)
+        let size = try imageSize(output)
+
+        XCTAssertGreaterThan(size.height, size.width)
+        let imageSource = try XCTUnwrap(CGImageSourceCreateWithData(output as CFData, nil))
+        let properties = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any])
+        XCTAssertNil(properties[kCGImagePropertyOrientation])
+    }
+
     private func sampleJPEG(size: CGSize = CGSize(width: 320, height: 240)) throws -> Data {
         let renderer = UIGraphicsImageRenderer(size: size)
         return try XCTUnwrap(renderer.image { context in
@@ -83,5 +96,18 @@ final class RendererTests: XCTestCase {
         let width = try XCTUnwrap(properties[kCGImagePropertyPixelWidth] as? NSNumber).doubleValue
         let height = try XCTUnwrap(properties[kCGImagePropertyPixelHeight] as? NSNumber).doubleValue
         return CGSize(width: width, height: height)
+    }
+
+    private func jpegWithEXIFOrientation(_ data: Data, orientation: Int) throws -> Data {
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
+        let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        let output = NSMutableData()
+        let destination = try XCTUnwrap(CGImageDestinationCreateWithData(output, UTType.jpeg.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, image, [
+            kCGImagePropertyOrientation: orientation,
+            kCGImageDestinationLossyCompressionQuality: 0.9
+        ] as CFDictionary)
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+        return output as Data
     }
 }

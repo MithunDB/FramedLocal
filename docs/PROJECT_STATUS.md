@@ -242,6 +242,15 @@ Still needed before the requested end state is proven:
 - This bounds intermediate/output dimensions; peak memory and latency on an actual iPhone still need measurement.
 - Exact next smallest step: run generic iOS build, `git diff --check`, inspect current diff, then commit/push. Continue physical device tests when iPhone 12 connects.
 
+## Follow-up Turn — 2026-10-28 (imported EXIF orientation)
+
+- Audited imported image orientation handling: Core Image applies orientation metadata before scaling, but no test covered a source whose pixels and EXIF orientation differ.
+- Added `testFilmRendererAppliesImportedEXIFOrientationToPixels`, generating JPEG with landscape pixels and EXIF orientation 6, then verifying output pixels are portrait and the output has no rotation tag. This proves the film render normalizes that fixture; it does not exercise PhotosPicker transfer/runtime or all HEIC variants.
+- First test build failed with exact error `cannot find 'UTType' in scope` in the test helper; imported `UniformTypeIdentifiers`, then reran successfully.
+- Simulator suite now passes 9/9 (2 guidance, 7 renderer). Generic iOS device build succeeded. `git diff --check` passed. `devicectl` still lists only simulators; physical iPhone 12, signing/install, camera, and PhotoKit behavior remain pending.
+- Changed files: `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: review diff and commit/push. For device test, connect/trust iPhone 12, then import a rotated portrait and landscape asset, export a copy, and compare the original remains unchanged.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.
