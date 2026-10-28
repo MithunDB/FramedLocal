@@ -74,6 +74,23 @@ struct ContentView: View {
                     }
             .disabled(camera.authorization != .authorized || !camera.isSessionRunning || camera.isCapturing || camera.isSaving || isImporting)
 
+                    Button {
+                        camera.setHapticsEnabled(!camera.hapticsEnabled)
+                    } label: {
+                        Image(systemName: "hand.tap")
+                            .font(.system(size: 18, weight: .regular))
+                            .overlay(alignment: .topTrailing) {
+                                if !camera.hapticsEnabled {
+                                    Image(systemName: "slash.circle.fill")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .offset(x: 5, y: -4)
+                                }
+                            }
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel(camera.hapticsEnabled ? "Turn guidance haptics off" : "Turn guidance haptics on")
+                    .accessibilityValue(camera.hapticsEnabled ? "On" : "Off")
+
                     PhotosPicker(selection: $photoPickerItem, matching: .images, photoLibrary: .shared()) {
                         Image(systemName: "photo.on.rectangle")
                             .font(.system(size: 19, weight: .regular))
@@ -415,6 +432,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor @Published
     var guidanceText = "Searching for a subject"
     @MainActor @Published
+    private(set) var hapticsEnabled = UserDefaults.standard.object(forKey: "FramedLocal.guidanceHapticsEnabled") as? Bool ?? true
+    @MainActor @Published
     var horizonTilt = 0.0
     @MainActor @Published
     var previewRotationAngle: CGFloat = 90
@@ -438,6 +457,12 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         }
 
         authorization = granted ? .authorized : .denied
+    }
+
+    @MainActor
+    func setHapticsEnabled(_ enabled: Bool) {
+        hapticsEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: "FramedLocal.guidanceHapticsEnabled")
     }
 
     @MainActor
@@ -726,7 +751,9 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                 Task { @MainActor in
                     let message = abs(self.horizonTilt) > 0.10 && result.guidance == "Suggested framing" ? "Level the phone" : result.guidance
                     self.guidanceText = message
-                    if message == "Hold steady" && self.lastGuidanceHapticMessage != message {
+                    if GuidanceHaptics.shouldTrigger(message: message,
+                                                     previousMessage: self.lastGuidanceHapticMessage,
+                                                     enabled: self.hapticsEnabled) {
                         UINotificationFeedbackGenerator().notificationOccurred(.warning)
                     }
                     self.lastGuidanceHapticMessage = message

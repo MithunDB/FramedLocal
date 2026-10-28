@@ -100,6 +100,12 @@ enum ExposureGuidance {
     }
 }
 
+enum GuidanceHaptics {
+    static func shouldTrigger(message: String, previousMessage: String?, enabled: Bool) -> Bool {
+        enabled && message == "Hold steady" && previousMessage != message
+    }
+}
+
 enum VisionTapPointMapper {
     /// Converts the capture-device point (normalized, top-left origin) to Vision's
     /// normalized, bottom-left coordinate space after the requested image orientation.

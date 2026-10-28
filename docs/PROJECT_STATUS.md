@@ -357,3 +357,12 @@ Read this file first after context compression. Then inspect `git status`, the l
 - Physical iPhone 12 remains unavailable in the current device list; camera runtime, permission prompts, orientation, PhotoKit writes, and live guidance still require user device testing later.
 - Changed files in this turn: `FramedLocal/FilmRenderer.swift`, `FramedLocal/CompositionAnalysis.swift`, `FramedLocal/PhotoLibraryService.swift`, `FramedLocalTests/RendererTests.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: review/commit/push the verified local work; then continue source-level interruption, cancellation, and capture/export recovery review until physical device testing can resume.
+
+## Follow-up Turn — 2026-10-28 (optional guidance haptics)
+
+- Added a persisted camera-screen toggle for guidance haptics (`FramedLocal.guidanceHapticsEnabled`); haptics default on and can be silenced without hiding visual guidance. The toggle has an off-state slash indicator and accessible on/off value.
+- Extracted `GuidanceHaptics.shouldTrigger` and added tests proving haptics only fire when entering “Hold steady,” do not repeat while the message stays stable, and respect the off setting.
+- Simulator hosted tests passed 19/19. Generic iOS device build succeeded. `git diff --check` passed. Existing simulator Core Image pixel-buffer and Xcode build-version diagnostics remain non-fatal.
+- No manual device validation was attempted, per user preference. The physical iPhone is still needed later for end-to-end camera, haptic, orientation, and Photos checks.
+- Changed files: `FramedLocal/ContentView.swift`, `FramedLocal/CompositionAnalysis.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: record 19 passing tests and review/push this change; continue local review of session lifecycle and interrupted capture behavior while physical testing is deferred.

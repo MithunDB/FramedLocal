@@ -49,6 +49,13 @@ final class GuidanceEngineTests: XCTestCase {
                                               clippedShadowRatio: 0.1))
     }
 
+    func testGuidanceHapticsAreOptionalAndOnlyTriggerOnEntry() {
+        XCTAssertTrue(GuidanceHaptics.shouldTrigger(message: "Hold steady", previousMessage: "Suggested framing", enabled: true))
+        XCTAssertFalse(GuidanceHaptics.shouldTrigger(message: "Hold steady", previousMessage: "Hold steady", enabled: true))
+        XCTAssertFalse(GuidanceHaptics.shouldTrigger(message: "Hold steady", previousMessage: "Suggested framing", enabled: false))
+        XCTAssertFalse(GuidanceHaptics.shouldTrigger(message: "Move a little closer", previousMessage: "Suggested framing", enabled: true))
+    }
+
     func testTapPointMapsFromCaptureCoordinatesIntoVisionOrientation() {
         let point = CGPoint(x: 0.2, y: 0.3)
         XCTAssertEqual(VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: point, orientation: .up),
