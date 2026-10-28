@@ -27,7 +27,8 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 - Moved PhotoKit-picker image downsampling/orientation baking and JPEG encoding onto a dedicated `PhotoImportWorker` actor so large image conversion does not run on the UI actor. Updated the large data-backed and file-backed import tests to exercise the actor worker path.
 - Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Photos provider transfer/runtime responsiveness remains a physical-device check.
 - Changed files: `FramedLocal/PhotoImportService.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
-- Exact next smallest step: commit and push this off-main import conversion, then continue source-level performance and recovery review; physical picker/device tests remain pending.
+- Code committed and pushed as `96a02a1` (`Move photo import conversion off UI actor`).
+- Exact next smallest step: continue source-level performance and recovery review; physical picker/device tests remain pending.
 
 - Fixed the lens-switch configuration-error retry path. A thrown reconfiguration now stops the damaged AVFoundation session and clears the desired-running flag before exposing Retry, allowing `startIfAuthorized()` to configure the prior lens again instead of returning early.
 - Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Physical reconfiguration failure/retry remains pending.
