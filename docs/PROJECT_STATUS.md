@@ -221,6 +221,17 @@ Still needed before the requested end state is proven:
 - Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: inspect final diff, run `git diff --check`, then commit/push. Next physical-device checks include configuration retry, front-camera mirroring, and camera orientation.
 
+## Follow-up Turn — 2026-10-28 (camera state observation and preview mirroring)
+
+- Audit found `CameraController` was stored in SwiftUI `@State` but did not conform to `ObservableObject` or `@Observable`; mutations from capture/permission callbacks therefore had no reliable view invalidation contract. Also, setting mirroring on session output connections did not explicitly configure the `AVCaptureVideoPreviewLayer` connection.
+- Changed `FramedLocal/ContentView.swift`: controller now conforms to `ObservableObject`, user-visible state is `@Published` and main-actor isolated, and the view owns it via `@StateObject`. Front/rear selection is published and passed to `CameraPreview`, which explicitly applies supported rotation and mirroring to the preview-layer connection on create/update.
+- The same audit found queue closures reading main-actor camera state. Facing and orientation are now snapshotted before session-queue work and supplied to configuration/capture calls; failed camera switch restores the selected-facing state and exposes stopped state for retry.
+- One initial generic build after actor-isolating orientation state failed with exact error `main actor-isolated property 'deviceOrientation' can not be referenced from a nonisolated context` at the `visionOrientation` computed property. Marked that getter `@MainActor`; generic build then succeeded.
+- Generic iOS device build succeeded. Simulator suite passed 7/7. `git diff --check` passed before doc updates; rerun before commit. Only non-fatal warning: AppIntents metadata extraction skipped because the app has no AppIntents dependency.
+- Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- No camera is available in the simulator. Published updates compile and tests pass, but preview mirroring, permission prompts, session restart, and capture remain physical-device checks.
+- Exact next smallest step: inspect diff and run final whitespace check, then commit/push; next device check is front/rear switch after foreground/background and verify the displayed preview and still agree.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.

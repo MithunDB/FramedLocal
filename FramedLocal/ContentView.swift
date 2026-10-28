@@ -1,5 +1,5 @@
 import AVFoundation
-import Observation
+import Combine
 import SwiftUI
 import UIKit
 import PhotosUI
@@ -8,7 +8,7 @@ import CoreMotion
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @State private var camera = CameraController()
+    @StateObject private var camera = CameraController()
     @State private var selectedPreset: FilmPreset = .natural
     @State private var selectedFrame: FrameLayout = .whiteBorder
     @State private var includesDateStamp = true
@@ -25,7 +25,8 @@ struct ContentView: View {
             Color.black.ignoresSafeArea()
 
             if camera.authorization == .authorized && camera.importedImage == nil {
-                CameraPreview(session: camera.session, rotationAngle: camera.previewRotationAngle)
+                CameraPreview(session: camera.session, rotationAngle: camera.previewRotationAngle,
+                              isMirrored: camera.isFrontCamera)
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture(coordinateSpace: .local) { point in
@@ -368,7 +369,7 @@ struct ContentView: View {
     }
 }
 
-final class CameraController: NSObject, @unchecked Sendable {
+final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     enum Authorization {
         case unknown, authorized, denied
     }
@@ -384,42 +385,42 @@ final class CameraController: NSObject, @unchecked Sendable {
     private var activeInput: AVCaptureDeviceInput?
     private var isConfigured = false
     @MainActor private var isConfiguring = false
-    private var useFrontCamera = false
-    private var sessionIsRunning = false
+    @MainActor @Published private(set) var isFrontCamera = false
+    @MainActor private var sessionIsRunning = false
     private let motionManager = CMMotionManager()
-    private var deviceOrientation: UIDeviceOrientation = .portrait
+    @MainActor private var deviceOrientation: UIDeviceOrientation = .portrait
     private let motionQueue = OperationQueue()
     @MainActor private var orientationObserver: NSObjectProtocol?
 
-    @MainActor
+    @MainActor @Published
     var authorization: Authorization = .unknown
-    @MainActor
+    @MainActor @Published
     var isCapturing = false
-    @MainActor
+    @MainActor @Published
     var captureMessage: String?
-    @MainActor
+    @MainActor @Published
     var latestCapture: Data?
-    @MainActor
+    @MainActor @Published
     var isSaving = false
-    @MainActor
+    @MainActor @Published
     var renderedCapture: Data?
-    @MainActor
+    @MainActor @Published
     var renderError: String?
-    @MainActor
+    @MainActor @Published
     var renderTaskID = UUID()
-    @MainActor
+    @MainActor @Published
     var importedImage: Data?
-    @MainActor
+    @MainActor @Published
     var guidanceText = "Searching for a subject"
     @MainActor
     var previewSize = CGSize(width: 640, height: 480)
-    @MainActor
+    @MainActor @Published
     var horizonTilt = 0.0
-    @MainActor
+    @MainActor @Published
     var previewRotationAngle: CGFloat = 90
-    @MainActor
+    @MainActor @Published
     var cameraStartupFailed = false
-    @MainActor
+    @MainActor @Published
     var isSessionRunning = false
     @MainActor
     private var lastGuidanceHapticMessage: String?
@@ -445,11 +446,13 @@ final class CameraController: NSObject, @unchecked Sendable {
         sessionIsRunning = true
         isConfiguring = true
         isSessionRunning = false
+        let position: AVCaptureDevice.Position = isFrontCamera ? .front : .back
+        let angle = rotationAngle(for: deviceOrientation)
 
         sessionQueue.async { [weak self] in
             guard let self else { return }
             do {
-                try self.configureSession(position: .back)
+                try self.configureSession(position: position, rotationAngle: angle)
                 self.session.startRunning()
                 Task { @MainActor in
                     self.isConfiguring = false
@@ -488,19 +491,25 @@ final class CameraController: NSObject, @unchecked Sendable {
 
     @MainActor
     func toggleCamera() {
-        useFrontCamera.toggle()
-        let position: AVCaptureDevice.Position = useFrontCamera ? .front : .back
+        isFrontCamera.toggle()
+        let position: AVCaptureDevice.Position = isFrontCamera ? .front : .back
+        let angle = rotationAngle(for: deviceOrientation)
         guard sessionIsRunning else {
-            useFrontCamera.toggle()
+            isFrontCamera.toggle()
             captureMessage = "Start the camera before switching lenses."
             return
         }
         sessionQueue.async { [weak self] in
             guard let self else { return }
             do {
-                try self.configureSession(position: position)
+                try self.configureSession(position: position, rotationAngle: angle)
             } catch {
-                Task { @MainActor in self.captureMessage = error.localizedDescription }
+                Task { @MainActor in
+                    self.isFrontCamera = position == .back
+                    self.sessionIsRunning = false
+                    self.isSessionRunning = false
+                    self.captureMessage = error.localizedDescription
+                }
             }
         }
     }
@@ -513,6 +522,8 @@ final class CameraController: NSObject, @unchecked Sendable {
         }
         isCapturing = true
         captureMessage = nil
+        let angle = rotationAngle(for: deviceOrientation)
+        let mirrored = isFrontCamera
         sessionQueue.async { [weak self] in
             guard let self else { return }
             let delegate = PhotoCaptureDelegate()
@@ -537,11 +548,10 @@ final class CameraController: NSObject, @unchecked Sendable {
                 }
             }
             if let connection = self.photoOutput.connection(with: .video) {
-                let angle = self.rotationAngle(for: self.deviceOrientation)
                 if connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
                 if connection.isVideoMirroringSupported {
                     connection.automaticallyAdjustsVideoMirroring = false
-                    connection.isVideoMirrored = self.useFrontCamera
+                    connection.isVideoMirrored = mirrored
                 }
             }
             self.photoOutput.capturePhoto(with: settings, delegate: delegate)
@@ -586,7 +596,7 @@ final class CameraController: NSObject, @unchecked Sendable {
         analysisDelegate.selectSubject(normalizedPoint: normalized, orientation: visionOrientation, on: analysisQueue)
     }
 
-    private var visionOrientation: CGImagePropertyOrientation {
+    @MainActor private var visionOrientation: CGImagePropertyOrientation {
         switch deviceOrientation {
         case .landscapeLeft: .up
         case .landscapeRight: .down
@@ -633,6 +643,7 @@ final class CameraController: NSObject, @unchecked Sendable {
     @MainActor
     private func updateConnectionsOrientation() {
         let angle = rotationAngle(for: deviceOrientation)
+        let mirrored = isFrontCamera
         previewRotationAngle = angle
         sessionQueue.async { [weak self] in
             guard let self else { return }
@@ -642,13 +653,13 @@ final class CameraController: NSObject, @unchecked Sendable {
                 }
                 if let connection, connection.isVideoMirroringSupported {
                     connection.automaticallyAdjustsVideoMirroring = false
-                    connection.isVideoMirrored = self.useFrontCamera
+                    connection.isVideoMirrored = mirrored
                 }
             }
         }
     }
 
-    nonisolated private func configureSession(position: AVCaptureDevice.Position) throws {
+    nonisolated private func configureSession(position: AVCaptureDevice.Position, rotationAngle angle: CGFloat) throws {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
         do {
@@ -689,7 +700,6 @@ final class CameraController: NSObject, @unchecked Sendable {
             analysisDelegate.analyzer = compositionAnalyzer
             analysisOutput.setSampleBufferDelegate(analysisDelegate, queue: analysisQueue)
             if let connection = analysisOutput.connection(with: .video) {
-                let angle = rotationAngle(for: deviceOrientation)
                 if connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
             }
             guard session.canAddOutput(analysisOutput) else { throw CameraError.cannotAddAnalysisOutput }
@@ -791,14 +801,20 @@ private final class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegat
 private struct CameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
     let rotationAngle: CGFloat
+    let isMirrored: Bool
 
     func makeUIView(context: Context) -> PreviewView {
         let view = PreviewView()
         view.previewLayer.session = session
         view.previewLayer.videoGravity = .resizeAspectFill
-        if let connection = view.previewLayer.connection,
-           connection.isVideoRotationAngleSupported(rotationAngle) {
-            connection.videoRotationAngle = rotationAngle
+        if let connection = view.previewLayer.connection {
+            if connection.isVideoRotationAngleSupported(rotationAngle) {
+                connection.videoRotationAngle = rotationAngle
+            }
+            if connection.isVideoMirroringSupported {
+                connection.automaticallyAdjustsVideoMirroring = false
+                connection.isVideoMirrored = isMirrored
+            }
         }
         return view
     }
@@ -807,10 +823,16 @@ private struct CameraPreview: UIViewRepresentable {
         if uiView.previewLayer.session !== session {
             uiView.previewLayer.session = session
         }
-        if let connection = uiView.previewLayer.connection,
-           connection.isVideoRotationAngleSupported(rotationAngle),
-           connection.videoRotationAngle != rotationAngle {
-            connection.videoRotationAngle = rotationAngle
+        if let connection = uiView.previewLayer.connection {
+            if connection.isVideoRotationAngleSupported(rotationAngle),
+               connection.videoRotationAngle != rotationAngle {
+                connection.videoRotationAngle = rotationAngle
+            }
+            if connection.isVideoMirroringSupported,
+               connection.isVideoMirrored != isMirrored {
+                connection.automaticallyAdjustsVideoMirroring = false
+                connection.isVideoMirrored = isMirrored
+            }
         }
     }
 }

@@ -9,6 +9,7 @@
 | Camera permission | First launch, allow | Live preview appears | Runtime device check pending |
 | Camera permission | Deny/revoke | Clear explanation and Settings route | Implemented; runtime check pending |
 | Camera selection | Rear and front | Correct camera preview and still | Explicit front mirroring configured for preview/analysis/still; physical-device check pending |
+| Camera UI state | Permission, session, guidance, and capture transitions | SwiftUI refreshes from controller changes | Controller now publishes UI state; physical camera interaction pending |
 | Camera readiness | Capture/switch during startup or after startup failure | Controls stay disabled until the session runs; retry available after failure | Implemented; physical-device check pending |
 | Camera recovery | Configuration fails after adding part of a session | Partial inputs/outputs are removed so a retry can configure cleanly | Rollback implemented; needs runtime failure injection/device check |
 | Capture | Portrait and landscape | Camera JPEG pixels/EXIF match device orientation | Rotation angle and mirroring are explicitly configured; physical-device capture check pending; renderer output separately verified upright |
