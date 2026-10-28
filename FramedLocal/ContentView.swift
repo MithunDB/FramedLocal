@@ -826,11 +826,12 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                     }
                 }
             } catch {
+                if self.session.isRunning { self.session.stopRunning() }
                 Task { @MainActor in
                     guard self.sessionGeneration.isCurrent(generation) else { return }
                     self.isFrontCamera = position == .back
-                    self.isConfiguring = false
                     self.sessionIsRunning = false
+                    self.isConfiguring = false
                     self.isSessionRunning = false
                     self.cameraStartupFailed = true
                     self.captureMessage = error.localizedDescription

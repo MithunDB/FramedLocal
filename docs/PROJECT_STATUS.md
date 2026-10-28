@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Fixed the lens-switch configuration-error retry path. A thrown reconfiguration now stops the damaged AVFoundation session and clears the desired-running flag before exposing Retry, allowing `startIfAuthorized()` to configure the prior lens again instead of returning early.
+- Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Physical reconfiguration failure/retry remains pending.
+- Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: commit and push this camera retry recovery, then continue the local code audit; physical-device runtime checks remain with the user.
+
 - Fixed Photos-picker retry state: clear the selected item after import success/failure, explicit cancel, and view dismissal. This allows a failed or canceled image to be selected again and keeps stale selections from blocking a same-image retry.
 - Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only; no build/test failure.
 - Changed files: `FramedLocal/ContentView.swift`, `docs/PROJECT_STATUS.md`.
