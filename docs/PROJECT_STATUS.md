@@ -366,3 +366,13 @@ Read this file first after context compression. Then inspect `git status`, the l
 - No manual device validation was attempted, per user preference. The physical iPhone is still needed later for end-to-end camera, haptic, orientation, and Photos checks.
 - Changed files: `FramedLocal/ContentView.swift`, `FramedLocal/CompositionAnalysis.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: record 19 passing tests and review/push this change; continue local review of session lifecycle and interrupted capture behavior while physical testing is deferred.
+
+## Follow-up Turn — 2026-10-28 (camera lifecycle stale callback guard)
+
+- Source audit found a startup/background race: `stop()` can enqueue session shutdown while configuration/startup is already queued, then an older MainActor completion could publish `isSessionRunning = true` after stop. A quick restart made callback ordering even harder to reason about.
+- Added `SessionGeneration`. Starting the camera captures the current generation; stopping advances it. Startup success and failure callbacks now update UI state only if their generation is still current, so an old callback cannot overwrite a newer lifecycle state.
+- Added a regression test proving stop/restart generations invalidate earlier startup callbacks.
+- Simulator hosted tests passed 20/20. Generic iOS device build succeeded. `git diff --check` passed. Existing benign Xcode simulator build-version and renderer Core Image diagnostics remain.
+- No physical-device checks were attempted. Interruption/runtime-error notifications and actual background/foreground camera behavior still need validation on the iPhone when available.
+- Changed files: `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: record 20 passing tests, commit/push the lifecycle guard, then add AVFoundation interruption/runtime-error recovery handling with deterministic state tests before physical verification.

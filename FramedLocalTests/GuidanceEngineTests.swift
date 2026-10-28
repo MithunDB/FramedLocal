@@ -56,6 +56,19 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertFalse(GuidanceHaptics.shouldTrigger(message: "Move a little closer", previousMessage: "Suggested framing", enabled: true))
     }
 
+    func testSessionGenerationInvalidatesCallbacksAfterStopOrRestart() {
+        var generation = SessionGeneration()
+        let firstStart = generation.advance()
+        XCTAssertTrue(generation.isCurrent(firstStart))
+
+        _ = generation.advance() // stop invalidates an in-flight startup callback
+        XCTAssertFalse(generation.isCurrent(firstStart))
+
+        let restarted = generation.advance()
+        XCTAssertTrue(generation.isCurrent(restarted))
+        XCTAssertFalse(generation.isCurrent(firstStart))
+    }
+
     func testTapPointMapsFromCaptureCoordinatesIntoVisionOrientation() {
         let point = CGPoint(x: 0.2, y: 0.3)
         XCTAssertEqual(VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: point, orientation: .up),

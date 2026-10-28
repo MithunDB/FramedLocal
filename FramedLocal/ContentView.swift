@@ -403,6 +403,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     private var inProgressPhotoCaptures: [Int64: PhotoCaptureDelegate] = [:]
     private var activeInput: AVCaptureDeviceInput?
     private var isConfigured = false
+    @MainActor private var sessionGeneration = SessionGeneration()
     @MainActor private var isConfiguring = false
     @MainActor @Published private(set) var isFrontCamera = false
     @MainActor private var sessionIsRunning = false
@@ -471,6 +472,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         sessionIsRunning = true
         isConfiguring = true
         isSessionRunning = false
+        let generation = sessionGeneration.advance()
         let position: AVCaptureDevice.Position = isFrontCamera ? .front : .back
         let angle = rotationAngle(for: deviceOrientation)
 
@@ -480,6 +482,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                 try self.configureSession(position: position, rotationAngle: angle)
                 self.session.startRunning()
                 Task { @MainActor in
+                    guard self.sessionGeneration.isCurrent(generation) else { return }
                     self.isConfiguring = false
                     self.cameraStartupFailed = false
                     self.isSessionRunning = true
@@ -487,6 +490,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                 }
             } catch {
                 Task { @MainActor in
+                    guard self.sessionGeneration.isCurrent(generation) else { return }
                     self.sessionIsRunning = false
                     self.isConfiguring = false
                     self.isSessionRunning = false
@@ -499,6 +503,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
 
     @MainActor
     func stop() {
+        _ = sessionGeneration.advance()
         motionManager.stopDeviceMotionUpdates()
         if let orientationObserver {
             NotificationCenter.default.removeObserver(orientationObserver)
@@ -782,6 +787,19 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             case .cannotAddAnalysisOutput: "Camera analysis is unavailable."
             }
         }
+    }
+}
+
+struct SessionGeneration: Sendable {
+    private(set) var value: UInt64 = 0
+
+    mutating func advance() -> UInt64 {
+        value &+= 1
+        return value
+    }
+
+    func isCurrent(_ candidate: UInt64) -> Bool {
+        value == candidate
     }
 }
 
