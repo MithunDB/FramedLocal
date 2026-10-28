@@ -6,7 +6,7 @@ This is the living status record for the private/local FramedLocal iOS app.
 
 - Date: 2026-10-28
 - Phase: 7 — simulator checks pass; physical-device verification and Photos album behavior remain
-- Branch: unavailable; this folder is not a Git repository
+- Branch: `main`, tracking `origin/main` (`fc4c733`, private GitHub `MithunDB/FramedLocal`)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
 - iOS SDK: 27.1; installed simulator runtimes: iOS 26.2, 27.0, 27.1
@@ -53,11 +53,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Current Problem
 
-The local Xcode project is not connected to the private GitHub repository. No physical iPhone is connected. Camera hardware, physical orientation behavior, and PhotoKit writes cannot be verified on the simulator. Simulator app build succeeds, but the newly added hosted unit-test target still fails at link time with undefined app symbols (`FilmPreset.allCases`, `FrameLayout.allCases`, `FilmRenderer.shared`, `FrameRenderer.shared`, and `GuidanceEngine`). Earlier test-target wiring errors were corrected; the remaining linker issue is not resolved.
+No physical iPhone is connected. Camera hardware, physical orientation behavior, and PhotoKit writes cannot be verified on the simulator. The local folder is connected to the private GitHub repository and tracks `main`. Simulator app build, generic-device build, and hosted tests pass.
 
 ## Next Smallest Step
 
-Resolve the hosted test target link configuration with a minimal testable app/module setup, then run the unit tests. After local test/build checks, connect iPhone 12 to verify front/rear capture, portrait/landscape output, permissions, presets, framing, subject guidance, Photos import, and add-only album export.
+Connect iPhone 12, select the installed Apple Development identity/team in Xcode, then install and run. Verify front/rear capture orientation and add-only Photos export/album behavior first; no physical iPhone currently appears in `xcrun devicectl list devices`.
 
 ## Verification
 
@@ -95,7 +95,7 @@ Resolve the hosted test target link configuration with a minimal testable app/mo
 ## Known Issues
 
 - Physical device run is still unavailable because no iPhone 12 is connected.
-- GitHub CLI is not authenticated; the folder has no Git remote or repository metadata.
+- Local Git is connected to `origin` at `https://github.com/MithunDB/FramedLocal.git`; current branch tracks `origin/main`.
 - No physical iPhone is connected.
 
 ## Remaining Implementation And Verification
@@ -117,7 +117,7 @@ Still needed before the requested end state is proven:
 4. Test live Vision detection, tap selection, tracking loss/reacquisition, confidence/debounce behavior, and horizon cue in representative scenes.
 5. Complete interruption, low-storage/write-failure, permission, cancellation, memory, repeated-capture, performance, and no-network checks; record actual device results in `docs/TEST_MATRIX.md`.
 6. Configure signing for iPhone, install and launch the local build, and record the signing/team outcome.
-7. Initialize/connect this folder to the private GitHub repository and preserve implementation changes there once repository access is available.
+7. Keep implementation and status changes committed to the connected private GitHub repository as work continues.
 
 ## Blockers And Failed Attempts
 
@@ -150,7 +150,9 @@ Still needed before the requested end state is proven:
 - Non-fatal simulator test-link warnings: `CoreAudioTypes` and `UIUtilities` auto-linked frameworks not found; direct linking of `SwiftUICore` is not allowed. AppIntents metadata extraction was skipped because the target has no AppIntents dependency. The tests still passed.
 - Generic device build passed with `-destination 'generic/platform=iOS'`; only warning was skipped AppIntents metadata extraction.
 - Apple documentation review confirms add-only means the app may add items; `PHAssetCollectionChangeRequest` supports album creation and adding assets inside a Photos change block. The app's existing-album enumeration under add-only still needs a physical-device check.
-- No physical iPhone was connected. This folder still has no `.git` metadata or configured private remote.
+- Initially, the workspace had no checkout. Confirmed account `MithunDB` access with `gh auth status` and `git ls-remote`; the GitHub connector committed the app to `main`, then the workspace initialized Git and checked out that exact commit. `git status` is clean and `build/` is ignored.
+- Private repository commit `fc4c7337f20251c651d7f2b85dcd31d83dde59da` (`Build local Framed iOS camera app`) is at `origin/main` and contains app code, tests, `.gitignore`, and status/docs.
+- No physical iPhone was connected. `xcrun devicectl list devices` lists simulators only.
 
 ## Exact Next Smallest Step
 
