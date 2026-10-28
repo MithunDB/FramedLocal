@@ -27,7 +27,8 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 - Hardened the PhotoKit asset-only fallback. It now records whether `PHAssetCreationRequest` produced an asset placeholder and resolves the fallback through the same transaction outcome policy as the album save. A success callback without an actually-created asset is treated as failure, so the UI cannot report a false Photos save.
 - Verification: iOS 27.1 simulator hosted suite passed (47 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. Actual PhotoKit transaction/fallback behavior remains a physical-device runtime check.
 - Changed files: `FramedLocal/PhotoLibraryService.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
-- Exact next smallest step: record fallback placeholder verification in the matrix and commit/push; continue end-to-end PhotoKit and camera device readiness.
+- Code committed and pushed as `c0a1db7` (`Verify Photos fallback asset creation`).
+- Exact next smallest step: continue end-to-end PhotoKit and camera device readiness.
 
 - Reduced camera-interruption sensor work and rejected stale sensor callbacks. Camera interruption, unrecoverable runtime error, and explicit stop now stop Core Motion and device-orientation notifications, clear horizon state, and reset its stability timer. Motion/orientation callbacks carry a generation token so queued samples from a prior session cannot repopulate stale tilt or reconfigure camera connections after stop. Normal startup/recovery restarts updates.
 - Verification: iOS 27.1 simulator hosted suite passed (47 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. Actual interruption/motion sensor behavior needs physical-device validation.
