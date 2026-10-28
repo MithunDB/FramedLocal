@@ -338,8 +338,8 @@ final class CompositionAnalyzer: @unchecked Sendable {
         return message
     }
 
-    private static func edgeDistances(_ rect: CGRect) -> EdgeDistances {
-        EdgeDistances(top: rect.maxY, right: 1 - rect.maxX, bottom: rect.minY, left: rect.minX)
+    static func edgeDistances(_ rect: CGRect) -> EdgeDistances {
+        EdgeDistances(top: 1 - rect.maxY, right: 1 - rect.maxX, bottom: rect.minY, left: rect.minX)
     }
 
     private static func sampleLuminance(_ buffer: CVPixelBuffer) -> (brightness: Double, highlights: Double, shadows: Double) {

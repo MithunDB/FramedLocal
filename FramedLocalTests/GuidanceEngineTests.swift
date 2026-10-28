@@ -49,6 +49,16 @@ final class GuidanceEngineTests: XCTestCase {
                                               clippedShadowRatio: 0.1))
     }
 
+    func testVisionSubjectEdgeDistancesRespectBottomLeftCoordinates() {
+        let nearTop = CompositionAnalyzer.edgeDistances(CGRect(x: 0.25, y: 0.78, width: 0.5, height: 0.18))
+        XCTAssertEqual(nearTop.top, 0.04, accuracy: 0.000_001)
+        XCTAssertEqual(nearTop.bottom, 0.78, accuracy: 0.000_001)
+
+        let nearBottom = CompositionAnalyzer.edgeDistances(CGRect(x: 0.25, y: 0.04, width: 0.5, height: 0.18))
+        XCTAssertEqual(nearBottom.top, 0.78, accuracy: 0.000_001)
+        XCTAssertEqual(nearBottom.bottom, 0.04, accuracy: 0.000_001)
+    }
+
     func testGuidanceHapticsAreOptionalAndOnlyTriggerOnEntry() {
         XCTAssertTrue(GuidanceHaptics.shouldTrigger(message: "Hold steady", previousMessage: "Suggested framing", enabled: true))
         XCTAssertFalse(GuidanceHaptics.shouldTrigger(message: "Hold steady", previousMessage: "Hold steady", enabled: true))

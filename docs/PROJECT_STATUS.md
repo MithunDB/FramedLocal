@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Corrected composition edge metrics to account for Vision's bottom-left normalized coordinates (`top = 1 - maxY`). Previously a subject near the top could be mistaken for one near the bottom, reversing vertical guidance. Added top/bottom edge regression assertions.
+- Verification: iOS 27.1 simulator suite passed (50 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Live camera guidance still requires iPhone validation.
+- Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: commit and push the coordinate correction; continue auditing guidance geometry and then await physical scene validation.
+
 - Hardened `FrameRenderer` to use an orientation-aware ImageIO thumbnail capped at 2,400 px before drawing its canvas. This avoids decoding oversized sources at full resolution before reducing them and bakes EXIF orientation into output pixels. Added a large EXIF-rotated-source regression test.
 - Verification: iOS 27.1 simulator suite passed (49 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Recurring Xcode `invalidDigitCount` simulator metadata diagnostics remain non-fatal.
 - Changed files: `FramedLocal/FrameRenderer.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
