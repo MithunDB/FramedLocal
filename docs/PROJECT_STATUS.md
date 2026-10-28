@@ -24,6 +24,10 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Completed a release/privacy configuration audit. Simulator and device-built Info.plists contain `local.mithundb.framed`, display name `Framed`, camera usage text, and add-only Photos usage text; no full-library read usage key exists. Source scan found no app network client, analytics, or cloud SDK references. `assetutil` confirms the 1024×1024 AppIcon rendition is compiled. Automatic signing is enabled but no development team is selected, so signed physical installation still requires account/team setup.
+- Changed files: `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.
+- Exact next smallest step: select the user's Apple development team in Xcode and pair the iPhone; then produce a signed device build and work through the physical acceptance matrix. No other planned feature is currently identified as missing from source; runtime proof remains outstanding.
+
 - Added original app-icon artwork and connected it in the universal iOS asset catalog (`AppIcon.png`, 1024×1024). Simulator and generic iOS device asset-catalog builds pass. The previous icon set contained no image entries.
 - Changed files: `FramedLocal/Assets.xcassets/AppIcon.appiconset/Contents.json`, `FramedLocal/Assets.xcassets/AppIcon.appiconset/AppIcon.png`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Code committed and pushed as `319c57f` (`Add original FramedLocal app icon`).
