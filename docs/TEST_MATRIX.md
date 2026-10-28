@@ -5,7 +5,7 @@
 | Build | iOS 27.1 simulator | App builds without signing | Passed |
 | Build | Generic iOS device destination | App builds without signing | Passed |
 | Unit tests | iOS 27.1 simulator | Guidance debounce/confidence and preset/frame JPEG-copy checks pass | Passed (29 tests, 0 failures) |
-| Launch | iOS 27.1 simulator | App installs and launches | Passed |
+| Launch | iOS 27.1 simulator | App installs and launches; permission prompt and camera-unavailable fallback are presented | Passed simulator install/launch; simulator has no camera; physical launch/capture pending |
 | Camera permission | First launch, allow | Live preview appears | Runtime device check pending |
 | Camera permission | Deny/revoke | Clear explanation and Settings route | Implemented; runtime check pending |
 | Camera selection | Rear and front | Correct camera preview and still | Explicit front mirroring configured for preview/analysis/still; physical-device check pending |
