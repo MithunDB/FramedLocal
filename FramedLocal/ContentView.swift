@@ -7,6 +7,7 @@ import CoreVideo
 import CoreMotion
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var camera = CameraController()
     @State private var selectedPreset: FilmPreset = .natural
     @State private var selectedFrame: FrameLayout = .whiteBorder
@@ -14,6 +15,9 @@ struct ContentView: View {
     @State private var previewImage: UIImage?
     @State private var photoPickerItem: PhotosPickerItem?
     @State private var isImporting = false
+    @State private var importTask: Task<Void, Never>?
+    @State private var importTaskID = UUID()
+    @State private var isRendering = false
     @State private var renderTask: Task<Void, Never>?
 
     var body: some View {
@@ -21,7 +25,7 @@ struct ContentView: View {
             Color.black.ignoresSafeArea()
 
             if camera.authorization == .authorized && camera.importedImage == nil {
-                CameraPreview(session: camera.session)
+                CameraPreview(session: camera.session, rotationAngle: camera.previewRotationAngle)
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture(coordinateSpace: .local) { point in
@@ -69,7 +73,7 @@ struct ContentView: View {
                             .font(.system(size: 20, weight: .regular))
                             .frame(width: 44, height: 44)
                     }
-                    .disabled(camera.authorization != .authorized)
+                    .disabled(camera.authorization != .authorized || camera.isCapturing || camera.isSaving || isImporting)
 
                     PhotosPicker(selection: $photoPickerItem, matching: .images, photoLibrary: .shared()) {
                         Image(systemName: "photo.on.rectangle")
@@ -77,6 +81,7 @@ struct ContentView: View {
                             .frame(width: 44, height: 44)
                     }
                     .accessibilityLabel("Choose a photo to edit")
+                    .disabled(isImporting || camera.isSaving)
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 22)
@@ -84,7 +89,7 @@ struct ContentView: View {
 
                 Spacer()
 
-                if camera.latestCapture == nil && camera.importedImage == nil {
+            if !isImporting || camera.latestCapture != nil || camera.importedImage != nil {
                     VStack(spacing: 10) {
                         presetPicker
                         framePicker
@@ -98,6 +103,20 @@ struct ContentView: View {
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                         .padding(.bottom, 10)
+                    if camera.cameraStartupFailed {
+                        Button("Retry camera") {
+                            Task { await camera.startIfAuthorized() }
+                        }
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.bottom, 8)
+                    }
+                }
+                if isImporting {
+                    Button("Cancel import", action: cancelImport)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.bottom, 8)
                 }
 
                 if camera.latestCapture != nil {
@@ -115,14 +134,13 @@ struct ContentView: View {
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
                         .background(.white, in: Capsule())
-                        .disabled(camera.isSaving)
+                        .disabled(camera.isSaving || isRendering || camera.renderedCapture == nil)
                     }
                     .padding(.bottom, 12)
                 } else if camera.importedImage != nil {
                     HStack(spacing: 18) {
                         Button("Cancel") {
-                            camera.discardCapture()
-                            previewImage = nil
+                            cancelImport()
                         }
                         .foregroundStyle(.white)
                         Button("Export New Copy") {
@@ -133,7 +151,7 @@ struct ContentView: View {
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
                         .background(.white, in: Capsule())
-                        .disabled(camera.isSaving || camera.renderedCapture == nil)
+                        .disabled(camera.isSaving || isRendering || camera.renderedCapture == nil)
                     }
                     .padding(.bottom, 12)
                 }
@@ -164,7 +182,12 @@ struct ContentView: View {
             await camera.startIfAuthorized()
         }
         .onChange(of: camera.latestCapture) { _, data in
-            guard let data else { previewImage = nil; return }
+            guard let data else {
+                renderTask?.cancel()
+                isRendering = false
+                previewImage = nil
+                return
+            }
             renderTask?.cancel()
             renderTask = renderPreview(data)
         }
@@ -186,29 +209,66 @@ struct ContentView: View {
         .onChange(of: includesDateStamp) { _, _ in
             if let data = camera.latestCapture ?? camera.importedImage { renderTask?.cancel(); renderTask = renderPreview(data) }
         }
-        .onDisappear { camera.stop() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task {
+                    await camera.requestPermissionAndStart()
+                    await camera.startIfAuthorized()
+                }
+            } else if phase == .background {
+                camera.stop()
+            }
+        }
+        .onDisappear {
+            importTask?.cancel()
+            renderTask?.cancel()
+            isRendering = false
+            camera.stop()
+        }
     }
 
     private func importPhoto(_ item: PhotosPickerItem) {
+        importTask?.cancel()
+        let taskID = UUID()
+        importTaskID = taskID
         isImporting = true
+        renderTask?.cancel()
+        isRendering = false
         camera.discardCapture()
         previewImage = nil
         camera.captureMessage = "Loading selected photo…"
-        Task {
+        importTask = Task {
             do {
                 let data = try await PhotoImportService.loadJPEG(from: item)
+                try Task.checkCancellation()
                 await MainActor.run {
+                    guard importTaskID == taskID else { return }
                     camera.importedImage = data
                     camera.captureMessage = "Original kept unchanged · edit a new copy"
                     isImporting = false
+                    importTask = nil
                 }
             } catch {
+                if Task.isCancelled { return }
                 await MainActor.run {
+                    guard importTaskID == taskID else { return }
                     camera.captureMessage = error.localizedDescription
                     isImporting = false
+                    importTask = nil
                 }
             }
         }
+    }
+
+    private func cancelImport() {
+        importTask?.cancel()
+        importTaskID = UUID()
+        importTask = nil
+        isImporting = false
+        renderTask?.cancel()
+        isRendering = false
+        camera.discardCapture()
+        previewImage = nil
     }
 
     @ViewBuilder
@@ -272,18 +332,28 @@ struct ContentView: View {
         let taskID = UUID()
         camera.renderTaskID = taskID
         camera.renderError = nil
+        isRendering = true
         return Task {
             do {
                 let graded = try await FilmRenderer.shared.render(data, preset: preset)
                 try Task.checkCancellation()
                 let framed = try await FrameRenderer.shared.render(graded, layout: frame, dateStamp: dateStamp)
                 try Task.checkCancellation()
-                guard let image = UIImage(data: framed) else { return }
+                guard let image = UIImage(data: framed) else {
+                    await MainActor.run {
+                        guard camera.renderTaskID == taskID else { return }
+                        camera.renderError = "The rendered preview could not be displayed."
+                        camera.captureMessage = camera.renderError
+                        isRendering = false
+                    }
+                    return
+                }
                 await MainActor.run {
                     guard camera.renderTaskID == taskID,
                           (camera.latestCapture != nil && sourceID == "capture") || (camera.importedImage != nil && sourceID == "import") else { return }
                     previewImage = image
                     camera.renderedCapture = framed
+                    isRendering = false
                 }
             } catch {
                 if Task.isCancelled { return }
@@ -291,6 +361,7 @@ struct ContentView: View {
                     guard camera.renderTaskID == taskID else { return }
                     camera.renderError = error.localizedDescription
                     camera.captureMessage = error.localizedDescription
+                    isRendering = false
                 }
             }
         }
@@ -309,6 +380,7 @@ final class CameraController: NSObject, @unchecked Sendable {
     private let analysisQueue = DispatchQueue(label: "local.mithundb.framed.analysis-frames", qos: .userInitiated)
     private let sessionQueue = DispatchQueue(label: "local.mithundb.framed.camera-session")
     private var photoOutput = AVCapturePhotoOutput()
+    private var inProgressPhotoCaptures: [Int64: PhotoCaptureDelegate] = [:]
     private var activeInput: AVCaptureDeviceInput?
     private var isConfigured = false
     private var useFrontCamera = false
@@ -316,6 +388,7 @@ final class CameraController: NSObject, @unchecked Sendable {
     private let motionManager = CMMotionManager()
     private var deviceOrientation: UIDeviceOrientation = .portrait
     private let motionQueue = OperationQueue()
+    @MainActor private var orientationObserver: NSObjectProtocol?
 
     @MainActor
     var authorization: Authorization = .unknown
@@ -341,8 +414,12 @@ final class CameraController: NSObject, @unchecked Sendable {
     var previewSize = CGSize(width: 640, height: 480)
     @MainActor
     var horizonTilt = 0.0
-
-    private let captureDelegate = PhotoCaptureDelegate()
+    @MainActor
+    var previewRotationAngle: CGFloat = 90
+    @MainActor
+    var cameraStartupFailed = false
+    @MainActor
+    private var lastGuidanceHapticMessage: String?
 
     @MainActor
     func requestPermissionAndStart() async {
@@ -369,10 +446,14 @@ final class CameraController: NSObject, @unchecked Sendable {
             do {
                 try self.configureSession(position: .back)
                 self.session.startRunning()
-                Task { @MainActor in self.startMotionUpdates() }
+                Task { @MainActor in
+                    self.cameraStartupFailed = false
+                    self.startMotionUpdates()
+                }
             } catch {
                 Task { @MainActor in
-                    self.authorization = .denied
+                    self.sessionIsRunning = false
+                    self.cameraStartupFailed = true
                     self.captureMessage = error.localizedDescription
                 }
             }
@@ -382,10 +463,15 @@ final class CameraController: NSObject, @unchecked Sendable {
     @MainActor
     func stop() {
         motionManager.stopDeviceMotionUpdates()
+        if let orientationObserver {
+            NotificationCenter.default.removeObserver(orientationObserver)
+            self.orientationObserver = nil
+        }
+        UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        sessionIsRunning = false
         sessionQueue.async { [weak self] in
             guard let self, self.session.isRunning else { return }
             self.session.stopRunning()
-            self.sessionIsRunning = false
         }
     }
 
@@ -411,7 +497,14 @@ final class CameraController: NSObject, @unchecked Sendable {
         sessionQueue.async { [weak self] in
             guard let self else { return }
             let delegate = PhotoCaptureDelegate()
+            let settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
+            settings.photoQualityPrioritization = .quality
+            let captureID = settings.uniqueID
+            self.inProgressPhotoCaptures[captureID] = delegate
             delegate.didCapture = { [weak self] result in
+                self?.sessionQueue.async { [weak self] in
+                    self?.inProgressPhotoCaptures.removeValue(forKey: captureID)
+                }
                 Task { @MainActor in
                     guard let self else { return }
                     self.isCapturing = false
@@ -424,8 +517,6 @@ final class CameraController: NSObject, @unchecked Sendable {
                     }
                 }
             }
-            let settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
-            settings.photoQualityPrioritization = .quality
             if let connection = self.photoOutput.connection(with: .video) {
                 let angle = self.rotationAngle(for: self.deviceOrientation)
                 if connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
@@ -469,7 +560,7 @@ final class CameraController: NSObject, @unchecked Sendable {
         guard viewSize.width > 0, viewSize.height > 0 else { return }
         let normalized = CGPoint(x: point.x / viewSize.width, y: 1 - point.y / viewSize.height)
         captureMessage = "Finding selected subject…"
-        analysisDelegate.selectSubject(normalizedPoint: normalized, orientation: visionOrientation)
+        analysisDelegate.selectSubject(normalizedPoint: normalized, orientation: visionOrientation, on: analysisQueue)
     }
 
     private var visionOrientation: CGImagePropertyOrientation {
@@ -494,14 +585,17 @@ final class CameraController: NSObject, @unchecked Sendable {
     private func startMotionUpdates() {
         UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         deviceOrientation = UIDevice.current.orientation
-        NotificationCenter.default.addObserver(forName: UIDevice.orientationDidChangeNotification,
-                                               object: nil, queue: .main) { [weak self] _ in
+        updateConnectionsOrientation()
+        if orientationObserver == nil {
+            orientationObserver = NotificationCenter.default.addObserver(forName: UIDevice.orientationDidChangeNotification,
+                                                                          object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 let current = UIDevice.current.orientation
                 guard current.isPortrait || current.isLandscape else { return }
                 self.deviceOrientation = current
                 self.updateConnectionsOrientation()
+            }
             }
         }
         guard motionManager.isDeviceMotionAvailable else { return }
@@ -513,8 +607,10 @@ final class CameraController: NSObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     private func updateConnectionsOrientation() {
         let angle = rotationAngle(for: deviceOrientation)
+        previewRotationAngle = angle
         sessionQueue.async { [weak self] in
             guard let self else { return }
             [self.photoOutput.connection(with: .video), self.analysisOutput.connection(with: .video)].forEach { connection in
@@ -571,7 +667,10 @@ final class CameraController: NSObject, @unchecked Sendable {
             Task { @MainActor in
                 let message = abs(self.horizonTilt) > 0.10 && result.guidance == "Suggested framing" ? "Level the phone" : result.guidance
                 self.guidanceText = message
-                if message == "Hold steady" { UINotificationFeedbackGenerator().notificationOccurred(.warning) }
+                if message == "Hold steady" && self.lastGuidanceHapticMessage != message {
+                    UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                }
+                self.lastGuidanceHapticMessage = message
             }
         }
         isConfigured = true
@@ -604,9 +703,12 @@ private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSam
         }
     }
 
-    func selectSubject(normalizedPoint: CGPoint, orientation: CGImagePropertyOrientation = .right) {
-        guard let mostRecentPixelBuffer else { return }
-        analyzer?.selectSubject(at: normalizedPoint, in: mostRecentPixelBuffer, orientation: orientation)
+    func selectSubject(normalizedPoint: CGPoint, orientation: CGImagePropertyOrientation = .right,
+                       on queue: DispatchQueue) {
+        queue.async { [weak self] in
+            guard let self, let mostRecentPixelBuffer = self.mostRecentPixelBuffer else { return }
+            self.analyzer?.selectSubject(at: normalizedPoint, in: mostRecentPixelBuffer, orientation: orientation)
+        }
     }
 }
 
@@ -633,17 +735,27 @@ private final class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegat
 
 private struct CameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
+    let rotationAngle: CGFloat
 
     func makeUIView(context: Context) -> PreviewView {
         let view = PreviewView()
         view.previewLayer.session = session
         view.previewLayer.videoGravity = .resizeAspectFill
+        if let connection = view.previewLayer.connection,
+           connection.isVideoRotationAngleSupported(rotationAngle) {
+            connection.videoRotationAngle = rotationAngle
+        }
         return view
     }
 
     func updateUIView(_ uiView: PreviewView, context: Context) {
         if uiView.previewLayer.session !== session {
             uiView.previewLayer.session = session
+        }
+        if let connection = uiView.previewLayer.connection,
+           connection.isVideoRotationAngleSupported(rotationAngle),
+           connection.videoRotationAngle != rotationAngle {
+            connection.videoRotationAngle = rotationAngle
         }
     }
 }
