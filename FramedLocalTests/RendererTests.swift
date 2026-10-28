@@ -278,6 +278,25 @@ final class RendererTests: XCTestCase {
         XCTAssertEqual(CropAspect.square.movementAxis(for: portraitAspect), .vertical)
     }
 
+    func testEXIFRotatedCropPositionMovesAlongDisplayedVerticalAxis() async throws {
+        let landscapePixels = try splitColorJPEG(size: CGSize(width: 320, height: 180))
+        let rotatedSource = try jpegWithEXIFOrientation(landscapePixels, orientation: 6)
+        let original = rotatedSource
+        let top = try await FilmRenderer.shared.render(
+            rotatedSource, preset: .natural, cropAspect: .square,
+            cropPosition: CropPosition(vertical: -1))
+        let bottom = try await FilmRenderer.shared.render(
+            rotatedSource, preset: .natural, cropAspect: .square,
+            cropPosition: CropPosition(vertical: 1))
+        let topSize = try imageSize(top)
+        let bottomSize = try imageSize(bottom)
+
+        XCTAssertEqual(topSize, CGSize(width: 180, height: 180))
+        XCTAssertEqual(bottomSize, topSize)
+        XCTAssertNotEqual(top, bottom)
+        XCTAssertEqual(rotatedSource, original)
+    }
+
     func testCropSourceAspectRespectsImportedEXIFRotation() throws {
         let landscapePixels = try sampleJPEG(size: CGSize(width: 320, height: 180))
         let rotatedSource = try jpegWithEXIFOrientation(landscapePixels, orientation: 6)
@@ -316,6 +335,18 @@ final class RendererTests: XCTestCase {
             context.fill(CGRect(x: size.width * 0.22, y: size.height * 0.2,
                                 width: size.width * 0.31, height: size.height * 0.5))
         }.jpegData(compressionQuality: 0.9))
+    }
+
+    private func splitColorJPEG(size: CGSize) throws -> Data {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        return try XCTUnwrap(renderer.image { context in
+            UIColor.systemRed.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: size.width / 2, height: size.height))
+            UIColor.systemBlue.setFill()
+            context.fill(CGRect(x: size.width / 2, y: 0, width: size.width / 2, height: size.height))
+        }.jpegData(compressionQuality: 1))
     }
 
     private func imageSize(_ data: Data) throws -> CGSize {
