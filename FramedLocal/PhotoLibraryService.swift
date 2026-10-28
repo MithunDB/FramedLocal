@@ -155,11 +155,18 @@ actor PhotoLibraryService {
     }
 
     nonisolated private func saveAssetOnly(from url: URL, completion: @escaping @Sendable (Bool, Error?) -> Void) {
+        let transactionState = PhotoSaveTransactionState()
         PHPhotoLibrary.shared().performChanges {
             let creation = PHAssetCreationRequest.forAsset()
             creation.addResource(with: .photo, fileURL: url, options: nil)
+            if creation.placeholderForCreatedAsset != nil {
+                transactionState.markAssetCreated()
+            }
         } completionHandler: { success, error in
-            completion(success, error)
+            let outcome = PhotoSaveTransactionOutcome.resolve(
+                photoLibrarySucceeded: success,
+                transaction: transactionState.snapshot())
+            completion(outcome == .savedToRecents, error)
         }
     }
 
