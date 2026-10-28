@@ -456,6 +456,7 @@ struct ContentView: View {
                                                                    dateStamp: dateStamp, stampDate: stampDate)
                 try Task.checkCancellation()
                 let cgImage = try await PreviewImageDecoder.shared.decode(framed)
+                try Task.checkCancellation()
                 await MainActor.run {
                     guard camera.renderTaskID == taskID,
                           (camera.latestCapture != nil && sourceID == "capture") || (camera.importedImage != nil && sourceID == "import") else { return }

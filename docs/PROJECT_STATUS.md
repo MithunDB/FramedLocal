@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Tightened render cancellation at the UI publication boundary. After `PreviewImageDecoder` completes its synchronous ImageIO thumbnail work, the render task now checks cancellation again before moving the resulting image into SwiftUI state. This prevents a render cancelled during thumbnail decoding (such as editor disappearance or a newer render) from publishing stale preview data.
+- Verification: iOS 27.1 simulator hosted suite passed (45 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Cancellation during actual ImageIO decode still needs device/runtime timing validation.
+- Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: record cancellation after preview decode in the matrix and commit/push; continue checking editor source lifetimes and camera/export behavior.
+
 - Hardened Photos-picker temporary-file cleanup. The `FileRepresentation` adapter now checks task cancellation immediately after copying the provider’s file and removes the destination on any copy/cancellation error before rethrowing. The caller’s existing `defer` still removes successfully returned temporary files after decode/downsample completes.
 - Verification: iOS 27.1 simulator hosted suite passed (45 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. Provider cancellation/temporary-file cleanup has no direct UI/provider integration test and still needs runtime validation.
 - Changed files: `FramedLocal/PhotoImportService.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
