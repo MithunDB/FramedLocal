@@ -99,14 +99,19 @@ actor PreviewImageDecoder {
     static let maximumPreviewPixelDimension = 1_800
 
     func decode(_ data: Data) throws -> CGImage {
+        try decode(data, maximumPixelDimension: Self.maximumPreviewPixelDimension)
+    }
+
+    func decode(_ data: Data, maximumPixelDimension: Int) throws -> CGImage {
         try Task.checkCancellation()
+        guard maximumPixelDimension > 0 else { throw FrameRenderer.RenderError.invalidImage }
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
             throw FrameRenderer.RenderError.invalidImage
         }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: Self.maximumPreviewPixelDimension,
+            kCGImageSourceThumbnailMaxPixelSize: maximumPixelDimension,
             kCGImageSourceShouldCacheImmediately: true
         ]
         guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {

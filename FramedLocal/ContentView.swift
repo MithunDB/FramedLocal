@@ -204,7 +204,7 @@ struct ContentView: View {
         }
         .preferredColorScheme(.dark)
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
-            Task { await FilmRenderer.shared.clearCaches() }
+            handleMemoryWarning()
         }
         .task {
             await camera.requestPermissionAndStart()
@@ -471,6 +471,25 @@ struct ContentView: View {
                     camera.captureMessage = error.localizedDescription
                     isRendering = false
                 }
+            }
+        }
+    }
+
+    private func handleMemoryWarning() {
+        let renderID = camera.renderTaskID
+        let renderedData = camera.renderedCapture
+        previewImage = nil
+        Task {
+            await FilmRenderer.shared.clearCaches()
+            guard let renderedData else { return }
+            do {
+                let image = try await PreviewImageDecoder.shared.decode(renderedData,
+                                                                        maximumPixelDimension: 1_000)
+                guard camera.renderTaskID == renderID, camera.renderedCapture != nil else { return }
+                previewImage = UIImage(cgImage: image)
+            } catch {
+                guard camera.renderTaskID == renderID else { return }
+                camera.renderError = error.localizedDescription
             }
         }
     }

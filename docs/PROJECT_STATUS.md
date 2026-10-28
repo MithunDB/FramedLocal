@@ -5,7 +5,7 @@ This is the living status record for the private/local FramedLocal iOS app.
 ## Current State
 
 - Date: 2026-10-28
-- Phase: 7 — editor crop/aspect, bounded import/preview, Core Image memory-warning cache clearing, and paused-analysis buffer release implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
+- Phase: 7 — editor crop/aspect, bounded import/preview, memory-warning recovery, and paused-analysis buffer release implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
 - Branch: `main`, tracking `origin/main` (private GitHub `MithunDB/FramedLocal`)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
@@ -23,6 +23,11 @@ This is the living status record for the private/local FramedLocal iOS app.
 Continue the private/local FramedLocal implementation through physical iPhone validation of camera capture, orientation, guidance, editing, and Photos export. Keep this file current so work can resume after context or usage limits.
 
 ## Last Completed Step
+
+- Extended memory-warning handling to release the in-memory editor preview image. On warning, the view drops its `UIImage`, clears Core Image caches, and recreates the display preview at 1,000 px from the already-rendered JPEG. Export bytes and imported/captured source data remain available; a generation check prevents a delayed low-memory decode from restoring a preview after the user discards or changes the render. Added a decoder test for the smaller preview bound.
+- Verification: iOS 27.1 simulator hosted suite passed (45 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Actual memory-warning delivery/reclamation and on-device preview appearance remain to be checked on iPhone.
+- Changed files: `FramedLocal/FrameRenderer.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: update the memory-warning matrix row with preview release/recreation, then commit/push; continue remaining camera and export reliability review.
 
 - Closed a camera analysis frame-retention edge. `VideoAnalysisDelegate` now checks its generation gate before retaining the latest pixel buffer; callbacks arriving while paused clear/ignore the buffer. Pausing also queues buffer release and subject-selection cleanup on the serial analysis queue, avoiding cross-queue access and releasing the last preview frame after stop/interruption/lens reconfiguration.
 - Verification: iOS 27.1 simulator hosted suite passed (44 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. Physical camera interruption and memory behavior remain unverified.
