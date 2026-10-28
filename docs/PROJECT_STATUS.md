@@ -26,6 +26,7 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 - Stop the AVFoundation camera session and motion updates when a captured or imported image enters the editor, instead of leaving a hidden preview/analysis stream active. Reset the unavailable horizon sample on stop; Retake and editor Cancel explicitly re-request/start the camera session. Changed `FramedLocal/ContentView.swift`.
 - Verification: iOS 27.1 simulator hosted suite passed (37 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged simulator build-number `invalidDigitCount` diagnostics. Simulator tests cannot verify physical camera shutdown/restart.
+- Committed and pushed as `a7d2519` (`Stop camera while editing photos`).
 - Exact next smallest step: inspect PhotoKit and camera session failure/recovery behavior for testable edge cases; physical iPhone installation/capture/Photos verification remains required.
 
 - Added adjustable crop positioning to the editor. The position control selects horizontal or vertical movement from the source's EXIF-aware aspect ratio, supports centering/reset, clamps movement to valid crop bounds, and rerenders after the slider gesture ends. `FilmRenderer` now accepts a `CropPosition`; changed `FramedLocal/ContentView.swift`, `FramedLocal/FilmRenderer.swift`, and `FramedLocalTests/RendererTests.swift`.
