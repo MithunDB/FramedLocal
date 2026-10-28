@@ -404,6 +404,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     private var activeInput: AVCaptureDeviceInput?
     private var isConfigured = false
     @MainActor private var sessionGeneration = SessionGeneration()
+    @MainActor private var hasInstalledSessionObservers = false
+    @MainActor private var interruptionObservers: [NSObjectProtocol] = []
     @MainActor private var isConfiguring = false
     @MainActor @Published private(set) var isFrontCamera = false
     @MainActor private var sessionIsRunning = false
@@ -467,8 +469,105 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     }
 
     @MainActor
+    private func installSessionObserversIfNeeded() {
+        guard !hasInstalledSessionObservers else { return }
+        hasInstalledSessionObservers = true
+        let center = NotificationCenter.default
+        interruptionObservers.append(center.addObserver(
+            forName: AVCaptureSession.wasInterruptedNotification,
+            object: session,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.handleSessionInterruption() }
+        })
+        interruptionObservers.append(center.addObserver(
+            forName: AVCaptureSession.interruptionEndedNotification,
+            object: session,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.handleSessionInterruptionEnded() }
+        })
+        interruptionObservers.append(center.addObserver(
+            forName: AVCaptureSession.runtimeErrorNotification,
+            object: session,
+            queue: .main
+        ) { [weak self] notification in
+            let error = notification.userInfo?[AVCaptureSessionErrorKey] as? NSError
+            let domain = error?.domain ?? "AVFoundation"
+            let code = error?.code ?? 0
+            let message = error?.localizedDescription ?? "The camera stopped unexpectedly."
+            Task { @MainActor [weak self] in
+                self?.handleSessionRuntimeError(domain: domain, code: code, message: message)
+            }
+        })
+    }
+
+    @MainActor
+    private func handleSessionInterruption() {
+        guard sessionIsRunning else { return }
+        isSessionRunning = false
+        captureMessage = "Camera temporarily unavailable. It will resume when available."
+    }
+
+    @MainActor
+    private func handleSessionInterruptionEnded() {
+        switch SessionRecoveryPolicy.interruptionEnded(shouldBeRunning: sessionIsRunning) {
+        case .ignore: return
+        case .resumeAutomatically:
+            resumeSessionAfterSystemEvent(failureMessage: "Camera did not resume. Tap Retry camera.")
+        case .showRetry: return
+        }
+    }
+
+    @MainActor
+    private func handleSessionRuntimeError(domain: String, code: Int, message: String) {
+        let isMediaServicesReset = domain == AVFoundationErrorDomain
+            && code == AVError.mediaServicesWereReset.rawValue
+        switch SessionRecoveryPolicy.runtimeError(shouldBeRunning: sessionIsRunning,
+                                                  mediaServicesWereReset: isMediaServicesReset) {
+        case .ignore:
+            return
+        case .resumeAutomatically:
+            resumeSessionAfterSystemEvent(failureMessage: "Camera could not resume after a system reset. Tap Retry camera.")
+        case .showRetry:
+            _ = sessionGeneration.advance()
+            sessionIsRunning = false
+            isSessionRunning = false
+            isConfiguring = false
+            cameraStartupFailed = true
+            captureMessage = "Camera stopped unexpectedly: \(message)"
+        }
+    }
+
+    @MainActor
+    private func resumeSessionAfterSystemEvent(failureMessage: String) {
+        let generation = sessionGeneration.advance()
+        isConfiguring = true
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            if !self.session.isRunning { self.session.startRunning() }
+            let resumed = self.session.isRunning
+            Task { @MainActor in
+                guard self.sessionGeneration.isCurrent(generation) else { return }
+                self.isConfiguring = false
+                self.isSessionRunning = resumed
+                if resumed {
+                    self.cameraStartupFailed = false
+                    self.captureMessage = nil
+                    self.startMotionUpdates()
+                } else {
+                    self.sessionIsRunning = false
+                    self.cameraStartupFailed = true
+                    self.captureMessage = failureMessage
+                }
+            }
+        }
+    }
+
+    @MainActor
     func startIfAuthorized() async {
         guard authorization == .authorized, !sessionIsRunning, !isConfiguring else { return }
+        installSessionObserversIfNeeded()
         sessionIsRunning = true
         isConfiguring = true
         isSessionRunning = false
@@ -800,6 +899,24 @@ struct SessionGeneration: Sendable {
 
     func isCurrent(_ candidate: UInt64) -> Bool {
         value == candidate
+    }
+}
+
+enum SessionRecoveryAction: Equatable {
+    case ignore
+    case resumeAutomatically
+    case showRetry
+}
+
+enum SessionRecoveryPolicy {
+    static func interruptionEnded(shouldBeRunning: Bool) -> SessionRecoveryAction {
+        shouldBeRunning ? .resumeAutomatically : .ignore
+    }
+
+    static func runtimeError(shouldBeRunning: Bool,
+                             mediaServicesWereReset: Bool) -> SessionRecoveryAction {
+        guard shouldBeRunning else { return .ignore }
+        return mediaServicesWereReset ? .resumeAutomatically : .showRetry
     }
 }
 

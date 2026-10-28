@@ -69,6 +69,14 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertFalse(generation.isCurrent(firstStart))
     }
 
+    func testSessionRecoveryPolicyResumesOnlyWhenCameraWasRequested() {
+        XCTAssertEqual(SessionRecoveryPolicy.interruptionEnded(shouldBeRunning: true), .resumeAutomatically)
+        XCTAssertEqual(SessionRecoveryPolicy.interruptionEnded(shouldBeRunning: false), .ignore)
+        XCTAssertEqual(SessionRecoveryPolicy.runtimeError(shouldBeRunning: true, mediaServicesWereReset: true), .resumeAutomatically)
+        XCTAssertEqual(SessionRecoveryPolicy.runtimeError(shouldBeRunning: true, mediaServicesWereReset: false), .showRetry)
+        XCTAssertEqual(SessionRecoveryPolicy.runtimeError(shouldBeRunning: false, mediaServicesWereReset: true), .ignore)
+    }
+
     func testTapPointMapsFromCaptureCoordinatesIntoVisionOrientation() {
         let point = CGPoint(x: 0.2, y: 0.3)
         XCTAssertEqual(VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: point, orientation: .up),

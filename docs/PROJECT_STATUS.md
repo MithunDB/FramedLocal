@@ -376,3 +376,14 @@ Read this file first after context compression. Then inspect `git status`, the l
 - No physical-device checks were attempted. Interruption/runtime-error notifications and actual background/foreground camera behavior still need validation on the iPhone when available.
 - Changed files: `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: record 20 passing tests, commit/push the lifecycle guard, then add AVFoundation interruption/runtime-error recovery handling with deterministic state tests before physical verification.
+
+## Follow-up Turn — 2026-10-28 (AVFoundation interruption and runtime-error recovery)
+
+- Added observers for `AVCaptureSession.wasInterruptedNotification`, `interruptionEndedNotification`, and `runtimeErrorNotification`.
+- On interruption, the UI explains that the camera is temporarily unavailable while preserving the user's intent to run. On interruption end, the session queue attempts to resume and the UI clears the message only after checking `session.isRunning`.
+- On `AVError.mediaServicesWereReset`, the app attempts one automatic restart. Other runtime errors stop the desired-running state, show the underlying error, and expose the existing Retry camera action.
+- Recovery work uses the session serial queue and `SessionGeneration`, so stop/background actions invalidate stale recovery callbacks. Added pure policy tests for ignored events after stop, automatic resume after interruption/reset, and retry on other runtime errors.
+- Simulator hosted tests passed 21/21. Generic iOS device build succeeded. `git diff --check` passed. Existing benign Xcode simulator-version and Core Image test diagnostics remain.
+- Physical interruption behavior and media-services reset cannot be induced/verified on the current simulator reliably; test on iPhone remains pending.
+- Changed files: `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: record 21 passing tests and push; next audit should cover still-photo capture cancellation/failure completion and ensure UI state recovers if AVFoundation never delivers photo data.
