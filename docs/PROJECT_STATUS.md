@@ -26,6 +26,7 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 - Made date stamps stable for an editor source: `FrameRenderer` accepts an explicit stamp date, and `ContentView` captures that date when a new capture/import is selected. Re-rendering after changing crop, preset, or frame now keeps the same date. Added deterministic stamp coverage in `FramedLocalTests/RendererTests.swift`; changed `FramedLocal/FrameRenderer.swift` and `FramedLocal/ContentView.swift`.
 - Verification: latest iOS 27.1 simulator result bundle reports 31 tests passed, 0 failed; generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged simulator build-number parsing diagnostics (`invalidDigitCount`) but exited successfully. No physical phone connected.
+- Committed and pushed as `12052b4` (`Keep editor date stamps stable per image`); code and status are on `origin/main`.
 - Exact next smallest step: add automated coverage for source-date metadata / editor date behavior if desired, then prioritize physical iPhone signing, installation, camera capture, and PhotoKit runtime checks as soon as the device is available.
 
 - Added non-destructive center-crop/aspect choices (`Original`, `Square`, `4:3`, `16:9`) to the editor pipeline. `FilmRenderer` crops its decoded CIImage copy before applying a preset; original imported bytes are not changed. Added UI controls and geometry/source-integrity coverage in `FramedLocal/ContentView.swift`, `FramedLocal/FilmRenderer.swift`, and `FramedLocalTests/RendererTests.swift`.
