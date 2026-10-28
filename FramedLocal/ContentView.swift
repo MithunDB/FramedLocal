@@ -707,6 +707,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             session.addOutput(photoOutput)
             photoOutput.maxPhotoQualityPrioritization = .quality
             analysisOutput.alwaysDiscardsLateVideoFrames = true
+            // Keep Vision and metric sampling on preview-sized frames, not sensor-resolution frames.
+            analysisOutput.automaticallyConfiguresOutputBufferDimensions = true
             analysisOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
             analysisDelegate.analyzer = compositionAnalyzer
             analysisOutput.setSampleBufferDelegate(analysisDelegate, queue: analysisQueue)

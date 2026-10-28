@@ -306,6 +306,14 @@ Still needed before the requested end state is proven:
 - Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: run `git diff --check`, review, then commit/push. Verify tapping blank space clears tracking on iPhone 12.
 
+## Follow-up Turn — 2026-10-28 (bound analysis buffer dimensions)
+
+- Reviewed sharpness and luminance sampling cost. `AVCaptureVideoDataOutput` had a pixel format but no explicit dimension policy; Apple documents that it commonly delivers full active-format frames unless output buffer dimensions are configured automatically.
+- Set `analysisOutput.automaticallyConfiguresOutputBufferDimensions = true` so the Vision/metrics stream uses preview-sized buffers while still-photo output remains high-resolution. `alwaysDiscardsLateVideoFrames` remains enabled and Vision remains throttled at ~7 Hz.
+- Generic iOS device build succeeded; simulator suite passed 14/14. Only warning was skipped AppIntents metadata extraction. No physical-device buffer dimensions or performance measurements are available yet.
+- Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- `git diff --check` and current device inventory still need checking before commit. Exact next step: run those checks, commit/push, then inspect delivered pixel buffer dimensions and preview responsiveness on iPhone 12.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.
