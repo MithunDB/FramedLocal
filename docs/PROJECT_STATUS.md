@@ -5,7 +5,7 @@ This is the living status record for the private/local FramedLocal iOS app.
 ## Current State
 
 - Date: 2026-10-28
-- Phase: 7 — editor crop/aspect and bounded, file-backed import working copy implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
+- Phase: 7 — editor crop/aspect and bounded import plus reduced-memory preview decode implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
 - Branch: `main`, tracking `origin/main` (private GitHub `MithunDB/FramedLocal`)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
@@ -23,6 +23,11 @@ This is the living status record for the private/local FramedLocal iOS app.
 Continue the private/local FramedLocal implementation through physical iPhone validation of camera capture, orientation, guidance, editing, and Photos export. Keep this file current so work can resume after context or usage limits.
 
 ## Last Completed Step
+
+- Reduced decoded preview memory independently of export quality. `PreviewImageDecoder` now creates an orientation-aware ImageIO thumbnail capped at 1,800 pixels on the long edge, while `renderedCapture` still retains the full bounded JPEG (up to 2,400 px) for export. Added coverage for small-image dimension preservation and bounding a large preview decode.
+- Verification: iOS 27.1 simulator hosted suite passed (43 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Physical rendering latency and perceived preview sharpness need device review.
+- Changed files: `FramedLocal/FrameRenderer.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: record bounded preview decode in the matrix and commit/push; then continue reviewing performance and runtime failure behavior before iPhone validation.
 
 - Reduced peak memory for large Photos-picker imports. The importer now tries a file-backed transfer first, inspects dimensions through ImageIO, and generates an orientation-correct JPEG working copy directly from the temporary file when the source exceeds the 2,400-pixel long-edge bound. It reads source bytes into memory only for already-bounded images; if file transfer is unavailable it falls back to the existing Data transfer path. The temporary copy is removed with `defer`, and the Photos source asset is untouched. Added a test that checks file-backed downsampling, output bounds, and source-file byte preservation.
 - Verification: iOS 27.1 simulator hosted suite passed (42 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged the recurring simulator metadata `invalidDigitCount` diagnostics, which did not fail the build. Picker provider behavior, peak memory, and output appearance remain device/runtime checks.

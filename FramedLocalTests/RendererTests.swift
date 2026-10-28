@@ -88,6 +88,15 @@ final class RendererTests: XCTestCase {
         XCTAssertEqual(decoded.height, Int(expected.height))
     }
 
+    func testPreviewImageDecoderBoundsLargeDisplayImage() async throws {
+        let source = try sampleJPEG(size: CGSize(width: 3_200, height: 1_800), scale: 1)
+        let decoded = try await PreviewImageDecoder.shared.decode(source)
+
+        XCTAssertLessThanOrEqual(max(decoded.width, decoded.height),
+                                 PreviewImageDecoder.maximumPreviewPixelDimension)
+        XCTAssertGreaterThan(decoded.width, decoded.height)
+    }
+
     func testFramesProduceNewCopyWithoutChangingSource() async throws {
         let source = try sampleJPEG()
         let original = source

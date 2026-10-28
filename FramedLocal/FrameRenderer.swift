@@ -96,13 +96,23 @@ public actor FrameRenderer {
 /// Decodes the bounded, rendered preview away from the main actor.
 actor PreviewImageDecoder {
     static let shared = PreviewImageDecoder()
+    static let maximumPreviewPixelDimension = 1_800
 
     func decode(_ data: Data) throws -> CGImage {
         try Task.checkCancellation()
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
             throw FrameRenderer.RenderError.invalidImage
         }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: Self.maximumPreviewPixelDimension,
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            throw FrameRenderer.RenderError.invalidImage
+        }
+        try Task.checkCancellation()
         return image
     }
 }
