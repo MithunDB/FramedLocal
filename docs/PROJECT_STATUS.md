@@ -5,7 +5,7 @@ This is the living status record for the private/local FramedLocal iOS app.
 ## Current State
 
 - Date: 2026-10-28
-- Phase: 7 — simulator/generic-device builds and unit checks pass; physical-device verification remains
+- Phase: 7 — editor crop/aspect selection implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
 - Branch: `main`, tracking `origin/main` (private GitHub `MithunDB/FramedLocal`)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
@@ -26,13 +26,12 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 - Added non-destructive center-crop/aspect choices (`Original`, `Square`, `4:3`, `16:9`) to the editor pipeline. `FilmRenderer` crops its decoded CIImage copy before applying a preset; original imported bytes are not changed. Added UI controls and geometry/source-integrity coverage in `FramedLocal/ContentView.swift`, `FramedLocal/FilmRenderer.swift`, and `FramedLocalTests/RendererTests.swift`.
 - Verification for this turn: iOS 27.1 simulator hosted suite passed (30 tests, 0 failures); generic unsigned iOS build passed; `git diff --check` passed. Xcode logged only simulator build-number `invalidDigitCount` diagnostics. No physical-device test was possible.
-- Current changes are ready to commit/push; exact next step after commit: continue filling editing/composition gaps with automated coverage, then resume phone installation/camera/Photos validation when the iPhone becomes available.
+- Committed and pushed as `27a0eb6` (`Add crop aspect options to local editor`); worktree is clean. Exact next step: add focused automated coverage for remaining renderer/editor behavior, then resume phone installation/camera/Photos validation when the iPhone becomes available.
 
 - Fixed a camera-source race in `FramedLocal/ContentView.swift`: the live analysis path pauses during session start/recovery/lens changes, clears old frame/selection state before resuming, and tags Vision work with an analysis generation so late results from a previous camera are discarded. Made the session generation lock-protected and nonisolated for the Sendable queue callbacks.
 - Corrected live Vision orientation propagation: analysis receives the current EXIF orientation on startup, recovery, lens switch, and subsequent device rotations, so landscape guidance follows the camera orientation.
 - Added `testAnalysisGenerationGateDropsResultsFromPreviousCameraSource()` and removed the new Swift 6 actor-isolation warnings; updated the session-generation test to use an immutable local.
 - Verification for this turn: iOS 27.1 simulator hosted tests passed (29 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted only simulator SDK/device build-number parsing diagnostics (`invalidDigitCount`), with both commands returning exit code 0. Physical iPhone testing remains unavailable.
-- No files committed or pushed for this turn yet.
 
 - Created this workspace documentation by copying the FramedLocal init specification and status template from the supplied document directory.
 - Created `FramedLocal.xcodeproj` and a native SwiftUI app (`FramedLocal/FramedLocalApp.swift`, `FramedLocal/ContentView.swift`, asset catalog).
