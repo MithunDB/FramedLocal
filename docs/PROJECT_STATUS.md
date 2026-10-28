@@ -5,8 +5,8 @@ This is the living status record for the private/local FramedLocal iOS app.
 ## Current State
 
 - Date: 2026-10-28
-- Phase: 7 — simulator checks pass; physical-device verification and Photos album behavior remain
-- Branch: `main`, tracking `origin/main` (`fc4c733`, private GitHub `MithunDB/FramedLocal`)
+- Phase: 7 — simulator/generic-device builds and unit checks pass; physical-device verification remains
+- Branch: `main`, tracking `origin/main` (private GitHub `MithunDB/FramedLocal`)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
 - iOS SDK: 27.1; installed simulator runtimes: iOS 26.2, 27.0, 27.1
@@ -40,6 +40,8 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 - Added latest-render-wins cancellation and stale-result protection to the preset/frame preview pipeline; capture export now waits for the final render.
 - Extracted the stable guidance state into `GuidanceEngine` and added tests for guidance debounce/confidence and JPEG preset/frame output in `FramedLocalTests/`.
 - Added a shared Xcode scheme and a `FramedLocalTests` hosted unit-test target in `FramedLocal.xcodeproj`.
+- Reworked Photos export in `FramedLocal/PhotoLibraryService.swift` to create the `Framed` album and first asset in one PhotoKit transaction, reuse the saved local album identifier if add-only access can resolve it, and fall back to Photos Recents with accurate UI messaging when album access is unavailable. No full-library permission was added.
+- Updated `docs/TEST_MATRIX.md` with the generic-device build, 4 passing simulator unit tests, and pending physical Photos album cases.
 - Audited `/Users/mithundb/Desktop/Code/Framed`: it was empty, had no `.git`, Xcode project, workspace, or Swift package.
 - Environment queried: Xcode 27.1, Swift 6.4, macOS 27.0.1, iOS SDK 27.1, simulators iOS 26.2/27.0/27.1, one valid Apple Development signing identity.
 - Initial `xcodebuild -list` failed because no project existed. After creating the untouched SwiftUI template, `xcodebuild -project FramedLocal.xcodeproj -scheme FramedLocal -destination 'platform=iOS Simulator,id=36813EBB-CF84-450F-8365-7A46ACEEB733' -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build` succeeded. Product: `build/DerivedData/Build/Products/Debug-iphonesimulator/FramedLocal.app`.
@@ -66,9 +68,10 @@ Connect iPhone 12, select the installed Apple Development identity/team in Xcode
 | Workspace audit | Complete | Empty workspace before docs were added; no Git metadata or Xcode project |
 | Untouched project build | Passed after project creation | Standard minimal SwiftUI app template builds cleanly; no camera features added yet |
 | Simulator build | Passed | Unsigned Debug build for iOS 27.1 iPhone Duo simulator destination after camera implementation |
-| Latest simulator build | Passed | iOS 27.1 simulator; includes orientation and render cancellation changes |
+| Latest simulator build | Passed | iOS 27.1 simulator; includes orientation, render cancellation, and add-only Photos export changes |
 | Generic iOS device build | Passed | Unsigned `generic/platform=iOS` build; signing/install on iPhone remains pending |
 | Hosted unit tests | Passed | iOS 27.1 iPhone Duo simulator; 4 tests, 0 failures |
+| Latest hosted test run | Passed | 4 tests, 0 failures after Photos export refactor; no Swift concurrency warnings |
 | Simulator install/launch | Passed | Installed and launched `local.mithundb.framed` on iPhone Duo simulator |
 | Physical-device build/run | Not run | No iPhone 12 connected |
 | Camera permission flow | Implemented; runtime check pending | Camera request, denied screen, and Settings link are present |
@@ -112,7 +115,7 @@ Implemented in this workspace, with device/runtime verification still pending:
 Still needed before the requested end state is proven:
 
 1. Run the app on a physical iPhone 12; verify rear/front preview and capture, portrait/landscape output orientation and metadata, and camera denial/recovery.
-2. Verify add-only authorization, asset export, and creation/reuse/population of the dedicated `Framed` album. The current service enumerates albums under add-only access; verify that behavior on device and fix it without unnecessarily requesting full-library access.
+2. Verify add-only authorization, asset export, and creation/reuse/population of the dedicated `Framed` album. The first asset is now added to an album created in the same PhotoKit transaction; later saves reuse its stored local identifier if add-only access permits fetching it, otherwise the app saves to Photos Recents and reports that destination. Test both paths on device without adding full-library access.
 3. Exercise all presets/frames visually on captures and imported images; verify the source remains unchanged and export creates a new asset.
 4. Test live Vision detection, tap selection, tracking loss/reacquisition, confidence/debounce behavior, and horizon cue in representative scenes.
 5. Complete interruption, low-storage/write-failure, permission, cancellation, memory, repeated-capture, performance, and no-network checks; record actual device results in `docs/TEST_MATRIX.md`.
@@ -135,6 +138,7 @@ Still needed before the requested end state is proven:
 - `FramedLocal.xcodeproj/project.pbxproj`
 - `FramedLocal.xcodeproj/xcshareddata/xcschemes/FramedLocal.xcscheme`
 - `FramedLocal/ContentView.swift`
+- `FramedLocal/PhotoLibraryService.swift`
 - `FramedLocal/CompositionAnalysis.swift`
 - `FramedLocalTests/`
 - `docs/FRAMED_LOCAL_IOS_PROJECT_INIT.md`
@@ -150,13 +154,15 @@ Still needed before the requested end state is proven:
 - Non-fatal simulator test-link warnings: `CoreAudioTypes` and `UIUtilities` auto-linked frameworks not found; direct linking of `SwiftUICore` is not allowed. AppIntents metadata extraction was skipped because the target has no AppIntents dependency. The tests still passed.
 - Generic device build passed with `-destination 'generic/platform=iOS'`; only warning was skipped AppIntents metadata extraction.
 - Apple documentation review confirms add-only means the app may add items; `PHAssetCollectionChangeRequest` supports album creation and adding assets inside a Photos change block. The app's existing-album enumeration under add-only still needs a physical-device check.
+- Photos export refactor initially compiled and passed 4 tests but produced Swift 6 warnings: actor-isolated `saveAssetOnly(from:completion:)` called from a nonisolated Photos completion, and a non-Sendable completion closure captured by a `@Sendable` callback. Marked the helper `nonisolated` and its callback `@Sendable`; rerun passed with neither warning.
+- Latest `xcodebuild ... test` passed 4/4; the only remaining build warning is Xcode's AppIntents metadata extraction being skipped because the app has no AppIntents dependency.
 - Initially, the workspace had no checkout. Confirmed account `MithunDB` access with `gh auth status` and `git ls-remote`; the GitHub connector committed the app to `main`, then the workspace initialized Git and checked out that exact commit. `git status` is clean and `build/` is ignored.
 - Private repository commit `fc4c7337f20251c651d7f2b85dcd31d83dde59da` (`Build local Framed iOS camera app`) is at `origin/main` and contains app code, tests, `.gitignore`, and status/docs.
 - No physical iPhone was connected. `xcrun devicectl list devices` lists simulators only.
 
 ## Exact Next Smallest Step
 
-Connect the iPhone 12, select the installed Apple Development identity/team in Xcode, then install and run the generic-device-ready app. Verify front/rear capture orientation and add-only Photos export/album behavior first; no physical device currently appears in `xcrun devicectl list devices`.
+Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.
 
 ## Recovery Instruction
 

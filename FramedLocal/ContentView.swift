@@ -445,8 +445,8 @@ final class CameraController: NSObject, @unchecked Sendable {
         captureMessage = "Saving to Photos…"
         Task {
             do {
-                try await PhotoLibraryService.shared.saveJPEG(bytes)
-                captureMessage = "Saved to Photos · Framed album"
+                let savedInAlbum = try await PhotoLibraryService.shared.saveJPEG(bytes)
+                captureMessage = savedInAlbum ? "Saved to Photos · Framed album" : "Saved to Photos"
             } catch {
                 captureMessage = error.localizedDescription
             }
