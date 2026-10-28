@@ -29,6 +29,7 @@
 | Imported EXIF orientation | Landscape pixel data tagged with portrait orientation | Film render bakes orientation into upright pixels and removes rotation tag | Passed in simulator unit tests |
 | Editor pipeline | All five presets × three frame layouts on EXIF-rotated input | Every export is JPEG and remains upright; original source bytes remain unchanged | Passed in simulator unit tests |
 | Editor crop | Original, square, 4:3, and 16:9 crop selections | Crop is centered, output pixel dimensions match selected ratio, original source bytes remain unchanged | Passed in simulator unit tests; physical UI review pending |
+| Editor crop positioning | Reposition square/landscape crops and reset; import with EXIF rotation | Position moves only along the available crop axis, stays in bounds, and changes rendered pixels without changing source bytes | Passed in simulator geometry/render/EXIF unit tests; physical UI review pending |
 | Editor date stamp | Re-render same image after control changes; render with another selected date | Stamp remains fixed for the selected editor source and output is deterministic | Passed in simulator unit tests; visual review pending |
 | Photos export | Denied | Explain permission; capture remains available | Implemented; runtime check pending |
 | Photos-picker import | Select an existing image | Transfer only selected image; original bytes remain unchanged through editing/export | Implemented; physical UI/runtime check pending |

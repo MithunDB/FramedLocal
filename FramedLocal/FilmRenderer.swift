@@ -3,6 +3,7 @@ import CoreImage.CIFilterBuiltins
 import CoreGraphics
 import CoreFoundation
 import Foundation
+import ImageIO
 
 public enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
     case natural = "Natural"
@@ -22,13 +23,69 @@ public enum CropAspect: String, CaseIterable, Identifiable, Sendable {
 
     public var id: String { rawValue }
 
-    fileprivate var ratio: CGFloat? {
+    var ratio: CGFloat? {
         switch self {
         case .original: nil
         case .square: 1
         case .fourByThree: 4.0 / 3.0
         case .sixteenByNine: 16.0 / 9.0
         }
+    }
+
+    func movementAxis(for sourceAspect: CGFloat) -> CropMovementAxis? {
+        guard let ratio, sourceAspect.isFinite, sourceAspect > 0 else { return nil }
+        if sourceAspect > ratio + 0.000_1 { return .horizontal }
+        if sourceAspect < ratio - 0.000_1 { return .vertical }
+        return nil
+    }
+}
+
+enum CropMovementAxis: Equatable, Sendable {
+    case horizontal
+    case vertical
+}
+
+public struct CropPosition: Equatable, Sendable {
+    public var horizontal: Double
+    public var vertical: Double
+
+    public init(horizontal: Double = 0, vertical: Double = 0) {
+        self.horizontal = min(max(horizontal, -1), 1)
+        self.vertical = min(max(vertical, -1), 1)
+    }
+
+    public static let center = CropPosition()
+}
+
+enum CropGeometry {
+    static func sourceAspectRatio(from data: Data) -> CGFloat? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
+              let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue,
+              width > 0, height > 0 else { return nil }
+        let orientation = (properties[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
+        let swapsAxes = (5...8).contains(orientation)
+        return swapsAxes ? CGFloat(height / width) : CGFloat(width / height)
+    }
+
+    static func cropRect(in extent: CGRect, aspect: CGFloat?, position: CropPosition = .center) -> CGRect {
+        guard let aspect, aspect.isFinite, aspect > 0, extent.width > 0, extent.height > 0 else { return extent }
+        let sourceAspect = extent.width / extent.height
+        let width: CGFloat
+        let height: CGFloat
+        if sourceAspect > aspect {
+            height = extent.height
+            width = height * aspect
+        } else {
+            width = extent.width
+            height = width / aspect
+        }
+        let maxXOffset = (extent.width - width) / 2
+        let maxYOffset = (extent.height - height) / 2
+        let x = extent.midX - width / 2 + CGFloat(position.horizontal) * maxXOffset
+        let y = extent.midY - height / 2 + CGFloat(position.vertical) * maxYOffset
+        return CGRect(x: x, y: y, width: width, height: height)
     }
 }
 
@@ -37,11 +94,12 @@ public actor FilmRenderer {
     public static let shared = FilmRenderer()
     private let context = CIContext(options: [.cacheIntermediates: true])
 
-    public func render(_ data: Data, preset: FilmPreset, cropAspect: CropAspect = .original) throws -> Data {
+    public func render(_ data: Data, preset: FilmPreset, cropAspect: CropAspect = .original,
+                       cropPosition: CropPosition = .center) throws -> Data {
         guard let source = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
             throw RenderError.invalidImage
         }
-        let croppedSource = Self.centerCrop(source, aspect: cropAspect.ratio)
+        let croppedSource = Self.centerCrop(source, aspect: cropAspect.ratio, position: cropPosition)
         let sourceLongEdge = max(croppedSource.extent.width, croppedSource.extent.height)
         let scale = min(1, CGFloat(FrameRenderer.maximumPixelDimension) / sourceLongEdge)
         let boundedSource = scale < 1
@@ -58,20 +116,9 @@ public actor FilmRenderer {
         return jpeg
     }
 
-    private static func centerCrop(_ image: CIImage, aspect: CGFloat?) -> CIImage {
+    private static func centerCrop(_ image: CIImage, aspect: CGFloat?, position: CropPosition) -> CIImage {
         guard let aspect, image.extent.width > 0, image.extent.height > 0 else { return image }
-        let extent = image.extent
-        let sourceAspect = extent.width / extent.height
-        let crop: CGRect
-        if sourceAspect > aspect {
-            let width = extent.height * aspect
-            crop = CGRect(x: extent.midX - width / 2, y: extent.minY,
-                          width: width, height: extent.height)
-        } else {
-            let height = extent.width / aspect
-            crop = CGRect(x: extent.minX, y: extent.midY - height / 2,
-                          width: extent.width, height: height)
-        }
+        let crop = CropGeometry.cropRect(in: image.extent, aspect: aspect, position: position)
         let centered = image.cropped(to: crop)
         return centered.transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
     }

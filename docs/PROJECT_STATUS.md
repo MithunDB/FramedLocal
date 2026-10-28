@@ -24,6 +24,10 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Added adjustable crop positioning to the editor. The position control selects horizontal or vertical movement from the source's EXIF-aware aspect ratio, supports centering/reset, clamps movement to valid crop bounds, and rerenders after the slider gesture ends. `FilmRenderer` now accepts a `CropPosition`; changed `FramedLocal/ContentView.swift`, `FramedLocal/FilmRenderer.swift`, and `FramedLocalTests/RendererTests.swift`.
+- Verification: iOS 27.1 simulator hosted suite passed (37 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged simulator build-number `invalidDigitCount` diagnostics. No physical device test possible.
+- Exact next smallest step: review the camera/export implementation for remaining code-verifiable edge cases; physical camera, sensor calibration, and PhotoKit behavior still need the iPhone.
+
 - Corrected horizon guidance in `FramedLocal/CompositionAnalysis.swift` and `FramedLocal/ContentView.swift`: gravity is compared against the phone's long axis for the active portrait/landscape orientation; unavailable/face-up gravity produces no tilt reading; the “Level the phone” hint requires 0.45 seconds of continuous tilt above threshold and resets after the phone levels. Added orientation/math and stability unit tests in `FramedLocalTests/GuidanceEngineTests.swift`.
 - Verification: iOS 27.1 simulator hosted suite passed (33 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted only simulator build-number `invalidDigitCount` diagnostics. Physical sensor calibration remains pending.
 - Committed and pushed as `303fa85` (`Make horizon guidance orientation aware`).
@@ -167,6 +171,9 @@ Still needed before the requested end state is proven:
 - `docs/PROJECT_STATUS.md`
 
 ## Current Turn Errors And Attempts
+
+- First compile failed because public `FilmRenderer.render` accepted internal `CropPosition`, and its default argument referenced an internal `.center`. Made `CropPosition`, its fields/initializer, and `.center` public; the simulator test run then passed.
+- No test failures after that fix. Latest simulator run passed 37 tests; generic device build and `git diff --check` passed. Xcode emitted only simulator metadata `invalidDigitCount` diagnostics.
 
 - No code or test failures this turn. Xcode logged `IDESchemeActionSDKRecord` / `IDESchemeActionDeviceRecord` `invalidDigitCount` diagnostics for the installed simulator build metadata; 33 tests and the generic iOS build completed successfully.
 

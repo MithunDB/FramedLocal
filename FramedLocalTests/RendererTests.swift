@@ -132,6 +132,62 @@ final class RendererTests: XCTestCase {
         XCTAssertEqual(source, original)
     }
 
+    func testCropPositionChangesVisibleAreaWithoutChangingOutputSizeOrSource() async throws {
+        let source = try sampleJPEG(size: CGSize(width: 320, height: 240))
+        let original = source
+        let left = try await FilmRenderer.shared.render(
+            source, preset: .natural, cropAspect: .square,
+            cropPosition: CropPosition(horizontal: -1))
+        let right = try await FilmRenderer.shared.render(
+            source, preset: .natural, cropAspect: .square,
+            cropPosition: CropPosition(horizontal: 1))
+
+        XCTAssertEqual(try imageSize(left), try imageSize(right))
+        XCTAssertNotEqual(left, right)
+        XCTAssertEqual(source, original)
+    }
+
+    func testCropGeometryClampsPositionAndUsesAvailableAxis() {
+        let landscape = CGRect(x: 0, y: 0, width: 960, height: 720)
+        XCTAssertEqual(CropAspect.square.movementAxis(for: 4.0 / 3.0), .horizontal)
+        XCTAssertEqual(CropAspect.sixteenByNine.movementAxis(for: 4.0 / 3.0), .vertical)
+        XCTAssertNil(CropAspect.fourByThree.movementAxis(for: 4.0 / 3.0))
+
+        let left = CropGeometry.cropRect(in: landscape, aspect: 1,
+                                         position: CropPosition(horizontal: -4))
+        let right = CropGeometry.cropRect(in: landscape, aspect: 1,
+                                          position: CropPosition(horizontal: 4))
+        XCTAssertEqual(left.minX, 0, accuracy: 0.000_001)
+        XCTAssertEqual(right.maxX, landscape.maxX, accuracy: 0.000_001)
+        XCTAssertEqual(left.width, right.width, accuracy: 0.000_001)
+
+        let top = CropGeometry.cropRect(in: landscape, aspect: 16.0 / 9.0,
+                                        position: CropPosition(vertical: -1))
+        let bottom = CropGeometry.cropRect(in: landscape, aspect: 16.0 / 9.0,
+                                           position: CropPosition(vertical: 1))
+        XCTAssertEqual(top.minY, 0, accuracy: 0.000_001)
+        XCTAssertEqual(bottom.maxY, landscape.maxY, accuracy: 0.000_001)
+    }
+
+    func testCropMovementAxisUsesImportedEXIFOrientation() throws {
+        let landscapePixels = try sampleJPEG(size: CGSize(width: 320, height: 180))
+        let rotatedSource = try jpegWithEXIFOrientation(landscapePixels, orientation: 6)
+        let landscapeAspect = try XCTUnwrap(CropGeometry.sourceAspectRatio(from: landscapePixels))
+        let portraitAspect = try XCTUnwrap(CropGeometry.sourceAspectRatio(from: rotatedSource))
+
+        XCTAssertEqual(CropAspect.square.movementAxis(for: landscapeAspect), .horizontal)
+        XCTAssertEqual(CropAspect.square.movementAxis(for: portraitAspect), .vertical)
+    }
+
+    func testCropSourceAspectRespectsImportedEXIFRotation() throws {
+        let landscapePixels = try sampleJPEG(size: CGSize(width: 320, height: 180))
+        let rotatedSource = try jpegWithEXIFOrientation(landscapePixels, orientation: 6)
+        XCTAssertEqual(CropGeometry.sourceAspectRatio(from: landscapePixels) ?? 0, 16.0 / 9.0,
+                       accuracy: 0.000_001)
+        XCTAssertEqual(CropGeometry.sourceAspectRatio(from: rotatedSource) ?? 0, 9.0 / 16.0,
+                       accuracy: 0.000_001)
+    }
+
     func testEveryPresetAndFrameCombinationPreservesImportedPortrait() async throws {
         let landscapePixels = try sampleJPEG(size: CGSize(width: 320, height: 180))
         let source = try jpegWithEXIFOrientation(landscapePixels, orientation: 6)

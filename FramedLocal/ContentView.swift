@@ -5,12 +5,14 @@ import UIKit
 import PhotosUI
 import CoreVideo
 import CoreMotion
+import ImageIO
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var camera = CameraController()
     @State private var selectedPreset: FilmPreset = .natural
     @State private var selectedCropAspect: CropAspect = .original
+    @State private var cropPosition = CropPosition.center
     @State private var selectedFrame: FrameLayout = .whiteBorder
     @State private var includesDateStamp = true
     @State private var editorStampDate = Date()
@@ -111,6 +113,7 @@ struct ContentView: View {
                     VStack(spacing: 10) {
                         presetPicker
                         cropAspectPicker
+                        cropPositionControl
                         framePicker
                     }
                     .padding(.bottom, 20)
@@ -208,12 +211,14 @@ struct ContentView: View {
                 return
             }
             editorStampDate = Date()
+            cropPosition = .center
             renderTask?.cancel()
             renderTask = renderPreview(data)
         }
         .onChange(of: camera.importedImage) { _, data in
             guard let data else { return }
             editorStampDate = Date()
+            cropPosition = .center
             renderTask?.cancel()
             renderTask = renderPreview(data)
         }
@@ -225,6 +230,7 @@ struct ContentView: View {
             if let data = camera.latestCapture ?? camera.importedImage { renderTask?.cancel(); renderTask = renderPreview(data) }
         }
         .onChange(of: selectedCropAspect) { _, _ in
+            cropPosition = .center
             if let data = camera.latestCapture ?? camera.importedImage { renderTask?.cancel(); renderTask = renderPreview(data) }
         }
         .onChange(of: selectedFrame) { _, _ in
@@ -363,9 +369,56 @@ struct ContentView: View {
         }
     }
 
+    @ViewBuilder
+    private var cropPositionControl: some View {
+        if let axis = currentCropMovementAxis {
+            HStack(spacing: 10) {
+                Text(axis == .horizontal ? "Horizontal" : "Vertical")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.72))
+                Slider(value: cropPositionBinding(for: axis), in: -1...1, onEditingChanged: { isEditing in
+                    if !isEditing { renderCurrentSource() }
+                })
+                    .tint(.white)
+                    .accessibilityLabel("Crop position")
+                Button("Center") {
+                    cropPosition = .center
+                    renderCurrentSource()
+                }
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, 28)
+        }
+    }
+
+    private var currentCropMovementAxis: CropMovementAxis? {
+        guard let data = camera.latestCapture ?? camera.importedImage,
+              let sourceAspect = CropGeometry.sourceAspectRatio(from: data) else { return nil }
+        return selectedCropAspect.movementAxis(for: sourceAspect)
+    }
+
+    private func cropPositionBinding(for axis: CropMovementAxis) -> Binding<Double> {
+        Binding(
+            get: { axis == .horizontal ? cropPosition.horizontal : cropPosition.vertical },
+            set: { value in
+                cropPosition = axis == .horizontal
+                    ? CropPosition(horizontal: value, vertical: cropPosition.vertical)
+                    : CropPosition(horizontal: cropPosition.horizontal, vertical: value)
+            }
+        )
+    }
+
+    private func renderCurrentSource() {
+        guard let data = camera.latestCapture ?? camera.importedImage else { return }
+        renderTask?.cancel()
+        renderTask = renderPreview(data)
+    }
+
     private func renderPreview(_ data: Data) -> Task<Void, Never> {
         let preset = selectedPreset
         let cropAspect = selectedCropAspect
+        let cropPosition = self.cropPosition
         let frame = selectedFrame
         let dateStamp = includesDateStamp
         let stampDate = editorStampDate
@@ -376,7 +429,9 @@ struct ContentView: View {
         isRendering = true
         return Task {
             do {
-                let graded = try await FilmRenderer.shared.render(data, preset: preset, cropAspect: cropAspect)
+                let graded = try await FilmRenderer.shared.render(data, preset: preset,
+                                                                  cropAspect: cropAspect,
+                                                                  cropPosition: cropPosition)
                 try Task.checkCancellation()
                 let framed = try await FrameRenderer.shared.render(graded, layout: frame,
                                                                    dateStamp: dateStamp, stampDate: stampDate)
