@@ -27,7 +27,8 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 - Added renderer-level coverage for crop positioning on a portrait-displayed EXIF-rotated source. The test uses split-color content to prove the vertical position values select different image regions while preserving square output dimensions and the original encoded bytes.
 - Verification: iOS 27.1 simulator hosted suite passed (47 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. UI slider direction/feel still needs physical-device review.
 - Changed files: `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
-- Exact next smallest step: record EXIF-aware crop movement in the matrix and commit/push; continue camera/editor device-readiness work.
+- Code committed and pushed as `c9d2bf3` (`Test crop movement on EXIF rotated image`).
+- Exact next smallest step: continue camera/editor device-readiness work.
 
 - Made Photos import naming accurately describe its input and completed coverage for both provider paths. Renamed `PhotoImportService.loadJPEG` to `loadImageData` because small source files may remain HEIC/original bytes until Core Image renders them to JPEG. Added tests proving file-backed small imports preserve bytes and file-backed oversized EXIF-rotated images become upright, bounded JPEGs without modifying source files.
 - Verification: iOS 27.1 simulator hosted suite passed (46 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. Actual Photos provider format behavior remains device/runtime validation.
