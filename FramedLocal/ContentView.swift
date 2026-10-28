@@ -627,9 +627,15 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     }
 
     @MainActor
+    private func pauseAnalysis() {
+        analysisDelegate.pause(on: analysisQueue)
+        guidanceText = "Searching for a subject"
+    }
+
+    @MainActor
     private func handleSessionInterruption() {
         guard shouldRunSession else { return }
-        analysisDelegate.pause(on: analysisQueue)
+        pauseAnalysis()
         isSessionRunning = false
         stopMotionUpdates()
         captureMessage = "Camera temporarily unavailable. It will resume when available."
@@ -657,7 +663,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             resumeSessionAfterSystemEvent(failureMessage: "Camera could not resume after a system reset. Tap Retry camera.")
         case .showRetry:
             _ = sessionGeneration.advance()
-            analysisDelegate.pause(on: analysisQueue)
+            pauseAnalysis()
             shouldRunSession = false
             isSessionRunning = false
             isConfiguring = false
@@ -672,7 +678,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         let generation = sessionGeneration.advance()
         let visionOrientation = self.visionOrientation
         isConfiguring = true
-        analysisDelegate.pause(on: analysisQueue)
+        pauseAnalysis()
         sessionQueue.async { [weak self] in
             guard let self else { return }
             guard self.sessionGeneration.isCurrent(generation) else { return }
@@ -716,7 +722,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         isSessionRunning = false
         let generation = sessionGeneration.advance()
         let visionOrientation = self.visionOrientation
-        analysisDelegate.pause(on: analysisQueue)
+        pauseAnalysis()
         let position: AVCaptureDevice.Position = isFrontCamera ? .front : .back
         let angle = rotationAngle(for: deviceOrientation)
 
@@ -768,7 +774,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     func stop() {
         _ = sessionGeneration.advance()
         removeSessionObservers()
-        analysisDelegate.pause(on: analysisQueue)
+        pauseAnalysis()
         clearSubjectSelection()
         stopMotionUpdates()
         shouldRunSession = false
@@ -808,7 +814,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         cameraStartupFailed = false
         let generation = sessionGeneration.advance()
         let visionOrientation = self.visionOrientation
-        analysisDelegate.pause(on: analysisQueue)
+        pauseAnalysis()
         clearSubjectSelection()
         sessionQueue.async { [weak self] in
             guard let self else { return }

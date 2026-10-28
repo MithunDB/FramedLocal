@@ -310,6 +310,8 @@ final class CompositionAnalyzer: @unchecked Sendable {
         queue.async { [weak self] in
             self?.selectedObservation = nil
             self?.trackingRequest = nil
+            self?.guidanceEngine = GuidanceEngine()
+            self?.rateLimiter = AnalysisRateLimiter(minimumInterval: 0.14)
         }
     }
 
