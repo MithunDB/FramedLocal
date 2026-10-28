@@ -418,3 +418,12 @@ Read this file first after context compression. Then inspect `git status`, the l
 - Physical preview decode latency and picker cancellation remain device/runtime checks. No manual testing was performed.
 - Changed files: `FramedLocal/FrameRenderer.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: record 26 passing tests and push; then continue lifecycle review for interruptions during Photos save and exercise the app on the iPhone when available.
+
+## Follow-up Turn — 2026-10-28 (Photos save destination status)
+
+- Audited save lifetime against scene/background and view disappearance. `saveLatestCapture()` launches an unstructured MainActor task owned by the camera controller; `onDisappear` and background handling stop the camera and cancel import/render work, but do not cancel the Photos save. The PhotoKit actor awaits transaction completion while retaining the JPEG temporary file until the callback/fallback finishes, then removes it with `defer`. Save state is published by the shared controller after completion.
+- Found the fallback success message said only “Saved to Photos,” while the export contract and test matrix promise the destination. Added `PhotoSaveDestination.statusMessage`; album saves report “Saved to Photos · Framed album,” and fallback saves report “Saved to Photos Recents.” Added assertions for both messages.
+- Simulator hosted suite passed 27/27 (verified with `.xcresult`, no failures/skips). Generic iOS device build succeeded. `git diff --check` passed. Xcode's benign simulator build-version digit-count warnings remain.
+- No manual PhotoKit/background test was run; physical-device validation remains outstanding.
+- Changed files: `FramedLocal/PhotoLibraryService.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: update matrix to 27 passing tests and push the destination copy; continue reviewing local rendering/save lifecycle, then complete real Photos transaction and background tests on iPhone when user is available.

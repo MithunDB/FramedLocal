@@ -6,6 +6,12 @@ struct PhotoSaveTransactionSnapshot: Equatable, Sendable {
     let albumMutationAttempted: Bool
 }
 
+enum PhotoSaveDestination {
+    static func statusMessage(savedInAlbum: Bool) -> String {
+        savedInAlbum ? "Saved to Photos · Framed album" : "Saved to Photos Recents"
+    }
+}
+
 final class PhotoSaveTransactionState: @unchecked Sendable {
     private let lock = NSLock()
     private var assetCreated = false

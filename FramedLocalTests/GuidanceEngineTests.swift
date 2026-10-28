@@ -131,6 +131,11 @@ final class GuidanceEngineTests: XCTestCase {
                                                                        albumMutationAttempted: true))
     }
 
+    func testPhotoSaveStatusNamesTheActualDestination() {
+        XCTAssertEqual(PhotoSaveDestination.statusMessage(savedInAlbum: true), "Saved to Photos · Framed album")
+        XCTAssertEqual(PhotoSaveDestination.statusMessage(savedInAlbum: false), "Saved to Photos Recents")
+    }
+
     func testTapPointMapsFromCaptureCoordinatesIntoVisionOrientation() {
         let point = CGPoint(x: 0.2, y: 0.3)
         XCTAssertEqual(VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: point, orientation: .up),

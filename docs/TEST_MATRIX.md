@@ -4,7 +4,7 @@
 |---|---|---|---|
 | Build | iOS 27.1 simulator | App builds without signing | Passed |
 | Build | Generic iOS device destination | App builds without signing | Passed |
-| Unit tests | iOS 27.1 simulator | Guidance debounce/confidence and preset/frame JPEG-copy checks pass | Passed (26 tests, 0 failures) |
+| Unit tests | iOS 27.1 simulator | Guidance debounce/confidence and preset/frame JPEG-copy checks pass | Passed (27 tests, 0 failures) |
 | Launch | iOS 27.1 simulator | App installs and launches | Passed |
 | Camera permission | First launch, allow | Live preview appears | Runtime device check pending |
 | Camera permission | Deny/revoke | Clear explanation and Settings route | Implemented; runtime check pending |
@@ -18,7 +18,7 @@
 | Capture | Portrait and landscape | Camera JPEG pixels/EXIF match device orientation | Rotation angle and mirroring are explicitly configured; physical-device capture check pending; renderer output separately verified upright |
 | Capture completion | Processing error, capture-level error, or missing photo data | Delegate completes once and clears capture busy state | Result resolution passed in simulator unit tests; physical AVFoundation callback check pending |
 | Photos export | Add-only allowed | First asset and Framed album are created together; later assets join when the album can be resolved | Code updated; physical-device runtime check pending |
-| Photos export | Existing album unavailable to add-only fetch | Save still succeeds to Photos Recents and UI reports destination accurately | Implemented; runtime check pending |
+| Photos export | Existing album unavailable to add-only fetch | Save still succeeds to Photos Recents and UI reports destination accurately | Recents status message unit test passed; runtime check pending |
 | Photos export integrity | Asset placeholder unavailable / album mutation fails | Never report success without an asset; fallback only after failed album mutation | Transaction-state logic passed in simulator unit tests; PhotoKit runtime check pending |
 | Presets | Five local looks | Preview and export use selected look | Implemented; visual/device check pending |
 | Frames | Three layouts, date on/off | Preview and export match | Implemented; visual/device check pending |
