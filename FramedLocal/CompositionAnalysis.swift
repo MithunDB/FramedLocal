@@ -99,6 +99,13 @@ enum VisionTapPointMapper {
     }
 }
 
+enum SubjectSelectionResolver {
+    static func resolve(point: CGPoint, candidates: [CGRect]) -> CGRect? {
+        candidates.first(where: { $0.contains(point) })
+            ?? candidates.min(by: { distance($0, point) < distance($1, point) })
+    }
+}
+
 /// Runs Vision and pixel sampling on a worker queue. Only small observations cross to UI.
 final class CompositionAnalyzer: @unchecked Sendable {
     private let queue = DispatchQueue(label: "local.mithundb.framed.vision", qos: .userInitiated)
@@ -195,8 +202,11 @@ final class CompositionAnalyzer: @unchecked Sendable {
             try sequence.perform([request, saliency], on: pixelBuffer, orientation: orientation)
             let faces = request.results ?? []
             let boxes = faces.map(\.boundingBox) + ((saliency.results?.first as? VNSaliencyImageObservation)?.salientObjects?.map(\.boundingBox) ?? [])
-            guard let selected = boxes.first(where: { $0.contains(normalizedPoint) })
-                ?? boxes.max(by: { distance($0, normalizedPoint) > distance($1, normalizedPoint) }) else { return }
+            guard let selected = SubjectSelectionResolver.resolve(point: normalizedPoint, candidates: boxes) else {
+                selectedObservation = nil
+                trackingRequest = nil
+                return
+            }
             let observation = VNDetectedObjectObservation(boundingBox: selected)
             selectedObservation = observation
             let tracking = VNTrackObjectRequest(detectedObjectObservation: observation)

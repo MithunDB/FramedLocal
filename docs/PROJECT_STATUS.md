@@ -297,6 +297,15 @@ Still needed before the requested end state is proven:
 - Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: review the diff, run `git diff --check`, then commit/push. On physical iPhone, verify guidance continues updating after the first throttled frame.
 
+## Follow-up Turn — 2026-10-28 (empty tap clears previous subject)
+
+- Vision selection audit found `selectSubjectOnQueue` returned early when a tap produced no face/saliency boxes, leaving the previous selected observation and tracking request active. This contradicted the user's new selection intent and could preserve stale subject tracking.
+- Added `SubjectSelectionResolver`: prefer a containing box, otherwise select the nearest available box, and return nil when there are no candidates. Empty selection now clears both `selectedObservation` and `trackingRequest` so ordinary auto-detection can resume.
+- Added deterministic tests for containing-box preference, nearest-box fallback, and empty candidates.
+- Simulator tests passed 14/14. Generic iOS build succeeded. Only non-fatal AppIntents metadata extraction warning. Runtime tracking remains unverified on camera hardware.
+- Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: run `git diff --check`, review, then commit/push. Verify tapping blank space clears tracking on iPhone 12.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.
