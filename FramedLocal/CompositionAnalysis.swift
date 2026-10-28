@@ -1,0 +1,245 @@
+import CoreGraphics
+import Foundation
+import Vision
+
+struct EdgeDistances: Sendable {
+    let top: Double
+    let right: Double
+    let bottom: Double
+    let left: Double
+
+    var minimum: Double { min(top, right, bottom, left) }
+}
+
+struct CompositionMetrics: Sendable {
+    var subjectRect: CGRect?
+    var faceRects: [CGRect]
+    var brightness: Double
+    var clippedHighlightRatio: Double
+    var clippedShadowRatio: Double
+    var sharpness: Double
+    var subjectEdgeDistance: EdgeDistances?
+    var confidence: Double
+    var horizonAngle: Double? = nil
+}
+
+public struct GuidanceEngine {
+    public private(set) var current = "Searching for a subject"
+    private var candidate: String?
+    private var candidateStart = 0.0
+    private var lastChange = 0.0
+
+    public init() {}
+
+    public mutating func update(message: String, time: Double, confidence: Double) -> String {
+        guard confidence >= 0.3 else { return current }
+        guard message != current else { candidate = nil; return current }
+        if candidate != message { candidate = message; candidateStart = time; return current }
+        guard time - candidateStart >= 0.6, time - lastChange >= 1.4 else { return current }
+        current = message
+        lastChange = time
+        candidate = nil
+        return current
+    }
+}
+
+struct AnalysisResult: Sendable {
+    let metrics: CompositionMetrics
+    let guidance: String
+}
+
+/// Runs Vision and pixel sampling on a worker queue. Only small observations cross to UI.
+final class CompositionAnalyzer: @unchecked Sendable {
+    private let queue = DispatchQueue(label: "local.mithundb.framed.vision", qos: .userInitiated)
+    private let queueKey = DispatchSpecificKey<UInt8>()
+    private let sequence = VNSequenceRequestHandler()
+    private var lastAnalysis = CFAbsoluteTimeGetCurrent()
+    private var selectedObservation: VNDetectedObjectObservation?
+    private var trackingRequest: VNTrackObjectRequest?
+    private var guidanceEngine = GuidanceEngine()
+
+    init() {
+        queue.setSpecific(key: queueKey, value: 1)
+    }
+
+    func analyze(_ pixelBuffer: CVPixelBuffer, orientation: CGImagePropertyOrientation = .right,
+                 completion: @escaping @Sendable (AnalysisResult) -> Void) {
+        if DispatchQueue.getSpecific(key: queueKey) != nil {
+            analyzeOnQueue(pixelBuffer, orientation: orientation, completion: completion)
+        } else {
+            queue.sync { analyzeOnQueue(pixelBuffer, orientation: orientation, completion: completion) }
+        }
+    }
+
+    private func analyzeOnQueue(_ pixelBuffer: CVPixelBuffer, orientation: CGImagePropertyOrientation,
+                                completion: @Sendable (AnalysisResult) -> Void) {
+            let now = CFAbsoluteTimeGetCurrent()
+            guard now - lastAnalysis >= 0.14 else { return }
+            lastAnalysis = now
+
+            do {
+                let faces = VNDetectFaceRectanglesRequest()
+                let saliency = VNGenerateAttentionBasedSaliencyImageRequest()
+                if let tracking = trackingRequest {
+                    try sequence.perform([tracking], on: pixelBuffer, orientation: orientation)
+                    if let observation = tracking.results?.first as? VNDetectedObjectObservation,
+                       observation.confidence >= 0.35 {
+                        selectedObservation = observation
+                        tracking.inputObservation = observation
+                    } else {
+                        selectedObservation = nil
+                        trackingRequest = nil
+                    }
+                }
+                try sequence.perform([faces, saliency], on: pixelBuffer, orientation: orientation)
+
+                let faceObservations = faces.results ?? []
+                let faceRects = faceObservations.map(\.boundingBox)
+                let saliencyRect = (saliency.results?.first as? VNSaliencyImageObservation)?.salientObjects?
+                    .max(by: { $0.confidence < $1.confidence })?.boundingBox
+                let subjectRect = selectedObservation?.boundingBox
+                    ?? faceObservations.max(by: { $0.boundingBox.width * $0.boundingBox.height < $1.boundingBox.width * $1.boundingBox.height })?.boundingBox
+                    ?? saliencyRect
+                let samples = Self.sampleLuminance(pixelBuffer)
+                let edgeDistances = subjectRect.map(Self.edgeDistances)
+                let detectorConfidence = self.selectedObservation?.confidence
+                    ?? (faceObservations.isEmpty ? (saliencyRect == nil ? 0.12 : 0.58) : 0.82)
+                let metrics = CompositionMetrics(
+                    subjectRect: subjectRect,
+                    faceRects: faceRects,
+                    brightness: samples.brightness,
+                    clippedHighlightRatio: samples.highlights,
+                    clippedShadowRatio: samples.shadows,
+                    sharpness: Self.sharpness(pixelBuffer),
+                    subjectEdgeDistance: edgeDistances,
+                    confidence: Double(detectorConfidence)
+                )
+                let guidance = guidanceEngine.update(message: suggestedGuidance(for: metrics),
+                                                     time: now, confidence: metrics.confidence)
+                completion(AnalysisResult(metrics: metrics, guidance: guidance))
+            } catch {
+                let metrics = CompositionMetrics(subjectRect: nil, faceRects: [], brightness: 0.5,
+                    clippedHighlightRatio: 0, clippedShadowRatio: 0, sharpness: 0,
+                    subjectEdgeDistance: nil, confidence: 0)
+                completion(AnalysisResult(metrics: metrics, guidance: "Move slowly so I can find the subject"))
+            }
+    }
+
+    func selectSubject(at normalizedPoint: CGPoint, in pixelBuffer: CVPixelBuffer,
+                       orientation: CGImagePropertyOrientation = .right) {
+        if DispatchQueue.getSpecific(key: queueKey) != nil {
+            selectSubjectOnQueue(at: normalizedPoint, in: pixelBuffer, orientation: orientation)
+        } else {
+            queue.sync { selectSubjectOnQueue(at: normalizedPoint, in: pixelBuffer, orientation: orientation) }
+        }
+    }
+
+    private func selectSubjectOnQueue(at normalizedPoint: CGPoint, in pixelBuffer: CVPixelBuffer,
+                                      orientation: CGImagePropertyOrientation) {
+        let request = VNDetectFaceRectanglesRequest()
+        let saliency = VNGenerateAttentionBasedSaliencyImageRequest()
+        do {
+            try sequence.perform([request, saliency], on: pixelBuffer, orientation: orientation)
+            let faces = request.results ?? []
+            let boxes = faces.map(\.boundingBox) + ((saliency.results?.first as? VNSaliencyImageObservation)?.salientObjects?.map(\.boundingBox) ?? [])
+            guard let selected = boxes.first(where: { $0.contains(normalizedPoint) })
+                ?? boxes.max(by: { distance($0, normalizedPoint) > distance($1, normalizedPoint) }) else { return }
+            let observation = VNDetectedObjectObservation(boundingBox: selected)
+            selectedObservation = observation
+            let tracking = VNTrackObjectRequest(detectedObjectObservation: observation)
+            tracking.trackingLevel = .accurate
+            tracking.isLastFrame = false
+            trackingRequest = tracking
+        } catch {
+            selectedObservation = nil
+            trackingRequest = nil
+        }
+    }
+
+    func clearSelection() {
+        queue.async { [weak self] in
+            self?.selectedObservation = nil
+            self?.trackingRequest = nil
+        }
+    }
+
+    func enqueue(_ operation: @escaping @Sendable () -> Void) {
+        queue.async(execute: operation)
+    }
+
+    private func suggestedGuidance(for metrics: CompositionMetrics) -> String {
+        let message: String
+        if metrics.confidence < 0.3 {
+            message = "Move slowly so I can find the subject"
+        } else if metrics.sharpness < 0.035 {
+            message = "Hold steady"
+        } else if let edges = metrics.subjectEdgeDistance, edges.minimum < 0.045 {
+            message = edges.left == edges.minimum ? "Move slightly right"
+                : edges.right == edges.minimum ? "Move slightly left"
+                : edges.top == edges.minimum ? "Lower the subject in frame" : "Raise the subject in frame"
+        } else if let subject = metrics.subjectRect, subject.width * subject.height < 0.09 {
+            message = "Move a little closer"
+        } else if let tilt = metrics.horizonAngle, abs(tilt) > 0.10 {
+            message = "Level the phone"
+        } else if metrics.clippedHighlightRatio > 0.12 {
+            message = "Lower exposure slightly"
+        } else {
+            message = "Suggested framing"
+        }
+
+        return message
+    }
+
+    private static func edgeDistances(_ rect: CGRect) -> EdgeDistances {
+        EdgeDistances(top: rect.maxY, right: 1 - rect.maxX, bottom: rect.minY, left: rect.minX)
+    }
+
+    private static func sampleLuminance(_ buffer: CVPixelBuffer) -> (brightness: Double, highlights: Double, shadows: Double) {
+        CVPixelBufferLockBaseAddress(buffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+        guard let base = CVPixelBufferGetBaseAddressOfPlane(buffer, 0) else { return (0.5, 0, 0) }
+        let width = CVPixelBufferGetWidthOfPlane(buffer, 0)
+        let height = CVPixelBufferGetHeightOfPlane(buffer, 0)
+        let rowBytes = CVPixelBufferGetBytesPerRowOfPlane(buffer, 0)
+        let bytes = base.assumingMemoryBound(to: UInt8.self)
+        var total = 0.0, highlights = 0, shadows = 0, count = 0
+        for y in stride(from: 0, to: height, by: max(height / 32, 1)) {
+            for x in stride(from: 0, to: width, by: max(width / 32, 1)) {
+                let value = Double(bytes[y * rowBytes + x]) / 255
+                total += value
+                if value > 0.96 { highlights += 1 }
+                if value < 0.04 { shadows += 1 }
+                count += 1
+            }
+        }
+        guard count > 0 else { return (0.5, 0, 0) }
+        return (total / Double(count), Double(highlights) / Double(count), Double(shadows) / Double(count))
+    }
+
+    private static func sharpness(_ buffer: CVPixelBuffer) -> Double {
+        CVPixelBufferLockBaseAddress(buffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+        guard let base = CVPixelBufferGetBaseAddressOfPlane(buffer, 0) else { return 0 }
+        let width = CVPixelBufferGetWidthOfPlane(buffer, 0), height = CVPixelBufferGetHeightOfPlane(buffer, 0)
+        let row = CVPixelBufferGetBytesPerRowOfPlane(buffer, 0)
+        let bytes = base.assumingMemoryBound(to: UInt8.self)
+        var sum = 0.0, count = 0.0
+        let xStep = max(width / 48, 1), yStep = max(height / 48, 1)
+        for y in stride(from: yStep, to: height - yStep, by: yStep) {
+            for x in stride(from: xStep, to: width - xStep, by: xStep) {
+                let center = Double(bytes[y * row + x])
+                let laplacian = Double(bytes[y * row + x - 1]) + Double(bytes[y * row + x + 1])
+                    + Double(bytes[(y - 1) * row + x]) + Double(bytes[(y + 1) * row + x]) - 4 * center
+                sum += laplacian * laplacian
+                count += 1
+            }
+        }
+        return count > 0 ? min((sum / count) / 2_000, 1) : 0
+    }
+}
+
+private func distance(_ rect: CGRect, _ point: CGPoint) -> CGFloat {
+    let dx = rect.midX - point.x
+    let dy = rect.midY - point.y
+    return dx * dx + dy * dy
+}
