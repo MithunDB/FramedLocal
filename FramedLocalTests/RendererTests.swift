@@ -43,6 +43,28 @@ final class RendererTests: XCTestCase {
         }
     }
 
+    func testPhotoImportPreservesSmallSourceBytes() throws {
+        let source = try sampleJPEG(size: CGSize(width: 320, height: 240), scale: 1)
+        XCTAssertEqual(try PhotoImportService.editingCopy(from: source), source)
+    }
+
+    func testPhotoImportDownsamplesAndBakesOrientationForLargeSource() throws {
+        let largeLandscape = try sampleJPEG(size: CGSize(width: 3_200, height: 1_800), scale: 1)
+        let rotatedSource = try jpegWithEXIFOrientation(largeLandscape, orientation: 6)
+        let original = rotatedSource
+
+        let workingCopy = try PhotoImportService.editingCopy(from: rotatedSource)
+        let size = try imageSize(workingCopy)
+        let imageSource = try XCTUnwrap(CGImageSourceCreateWithData(workingCopy as CFData, nil))
+        let properties = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any])
+
+        XCTAssertLessThanOrEqual(max(size.width, size.height), CGFloat(FrameRenderer.maximumPixelDimension))
+        XCTAssertGreaterThan(size.height, size.width)
+        XCTAssertNil(properties[kCGImagePropertyOrientation])
+        XCTAssertTrue(workingCopy.starts(with: [0xFF, 0xD8]))
+        XCTAssertEqual(rotatedSource, original)
+    }
+
     func testPreviewImageDecoderCreatesCGImageFromRenderedJPEG() async throws {
         let source = try sampleJPEG(size: CGSize(width: 240, height: 160))
         let decoded = try await PreviewImageDecoder.shared.decode(source)
@@ -226,8 +248,10 @@ final class RendererTests: XCTestCase {
         XCTAssertEqual(source, original)
     }
 
-    private func sampleJPEG(size: CGSize = CGSize(width: 320, height: 240)) throws -> Data {
-        let renderer = UIGraphicsImageRenderer(size: size)
+    private func sampleJPEG(size: CGSize = CGSize(width: 320, height: 240), scale: CGFloat = 3) throws -> Data {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
         return try XCTUnwrap(renderer.image { context in
             UIColor.systemTeal.setFill()
             context.fill(CGRect(origin: .zero, size: size))

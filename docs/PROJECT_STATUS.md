@@ -5,7 +5,7 @@ This is the living status record for the private/local FramedLocal iOS app.
 ## Current State
 
 - Date: 2026-10-28
-- Phase: 7 — editor crop/aspect selection implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
+- Phase: 7 — editor crop/aspect and bounded import working copy implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
 - Branch: `main`, tracking `origin/main` (private GitHub `MithunDB/FramedLocal`)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
@@ -23,6 +23,11 @@ This is the living status record for the private/local FramedLocal iOS app.
 Continue the private/local FramedLocal implementation through physical iPhone validation of camera capture, orientation, guidance, editing, and Photos export. Keep this file current so work can resume after context or usage limits.
 
 ## Last Completed Step
+
+- Audited Photos-picker/editor memory use. `PhotoImportService` now converts imported images above the renderer limit (2,400 px long edge) into an orientation-correct JPEG working copy, with cancellation checks around thumbnail decode/encode. Imports already within bounds retain their original bytes. Temporary transferred files remain removed with `defer`; source Photos assets are never modified. Added coverage for preserving small source bytes and downsampling/baking EXIF orientation for oversized input.
+- Verification: iOS 27.1 simulator hosted suite passed (41 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics; they did not fail the build. Physical memory use, picker transfer cancellation, and visual output remain device/runtime checks.
+- Changed files: `FramedLocal/PhotoImportService.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: update the import-memory matrix row and commit/push this verified slice; then continue auditing memory retention around decoded preview and save lifetimes before physical-device capture/export checks.
 
 - Added cooperative cancellation checks to `FilmRenderer`, `FrameRenderer`, and `PreviewImageDecoder` so canceled jobs exit at entry/boundaries; Night Grain also checks cancellation every 65,536 generated noise pixels. Added a gated test that cancels a queued render before it reaches the renderer and verifies it throws `CancellationError`. Changed `FramedLocal/FilmRenderer.swift`, `FramedLocal/FrameRenderer.swift`, and `FramedLocalTests/RendererTests.swift`.
 - Verification: iOS 27.1 simulator hosted suite passed (39 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged only simulator metadata `invalidDigitCount` diagnostics. Physical memory/cancellation behavior on device remains unmeasured.
