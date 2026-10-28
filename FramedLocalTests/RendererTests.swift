@@ -65,6 +65,22 @@ final class RendererTests: XCTestCase {
         XCTAssertGreaterThan(datedSize.height, plainSize.height)
     }
 
+    func testFrameDateStampIsDeterministicForTheSelectedEditorDate() async throws {
+        let source = try sampleJPEG(size: CGSize(width: 320, height: 240))
+        let firstDate = Date(timeIntervalSince1970: 1_735_776_000)
+        let nextDate = firstDate.addingTimeInterval(86_400)
+
+        let first = try await FrameRenderer.shared.render(source, layout: .paperPrint,
+                                                          dateStamp: true, stampDate: firstDate)
+        let repeated = try await FrameRenderer.shared.render(source, layout: .paperPrint,
+                                                             dateStamp: true, stampDate: firstDate)
+        let nextDay = try await FrameRenderer.shared.render(source, layout: .paperPrint,
+                                                            dateStamp: true, stampDate: nextDate)
+
+        XCTAssertEqual(first, repeated)
+        XCTAssertNotEqual(first, nextDay)
+    }
+
     func testRenderedJPEGHasUprightPixelDimensionsAndNoRotationTag() async throws {
         let portrait = try sampleJPEG(size: CGSize(width: 180, height: 320))
         let output = try await FrameRenderer.shared.render(portrait, layout: .fullBleed, dateStamp: false)

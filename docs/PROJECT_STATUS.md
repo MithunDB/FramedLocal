@@ -24,6 +24,10 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Made date stamps stable for an editor source: `FrameRenderer` accepts an explicit stamp date, and `ContentView` captures that date when a new capture/import is selected. Re-rendering after changing crop, preset, or frame now keeps the same date. Added deterministic stamp coverage in `FramedLocalTests/RendererTests.swift`; changed `FramedLocal/FrameRenderer.swift` and `FramedLocal/ContentView.swift`.
+- Verification: latest iOS 27.1 simulator result bundle reports 31 tests passed, 0 failed; generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged simulator build-number parsing diagnostics (`invalidDigitCount`) but exited successfully. No physical phone connected.
+- Exact next smallest step: add automated coverage for source-date metadata / editor date behavior if desired, then prioritize physical iPhone signing, installation, camera capture, and PhotoKit runtime checks as soon as the device is available.
+
 - Added non-destructive center-crop/aspect choices (`Original`, `Square`, `4:3`, `16:9`) to the editor pipeline. `FilmRenderer` crops its decoded CIImage copy before applying a preset; original imported bytes are not changed. Added UI controls and geometry/source-integrity coverage in `FramedLocal/ContentView.swift`, `FramedLocal/FilmRenderer.swift`, and `FramedLocalTests/RendererTests.swift`.
 - Verification for this turn: iOS 27.1 simulator hosted suite passed (30 tests, 0 failures); generic unsigned iOS build passed; `git diff --check` passed. Xcode logged only simulator build-number `invalidDigitCount` diagnostics. No physical-device test was possible.
 - Committed and pushed as `27a0eb6` (`Add crop aspect options to local editor`); worktree is clean. Exact next step: add focused automated coverage for remaining renderer/editor behavior, then resume phone installation/camera/Photos validation when the iPhone becomes available.
@@ -157,6 +161,8 @@ Still needed before the requested end state is proven:
 - `docs/PROJECT_STATUS.md`
 
 ## Current Turn Errors And Attempts
+
+- No test failures this turn. Xcode repeated the simulator SDK/device build-number `invalidDigitCount` diagnostics; the 31-test simulator run and generic-device build both completed successfully.
 
 - The first crop geometry test assumed `UIGraphicsImageRenderer` generated a 1x image and expected 320×240 pixels; on the simulator its source fixture is 3x (960×720). The crop output had correct corresponding proportions (960×720, 720×720, 960×720, 960×540). Changed test expectations to derive from actual source pixel dimensions; the full simulator suite then passed (30/30).
 - Xcode 27.1 continued to log `IDESchemeActionSDKRecord` / `IDESchemeActionDeviceRecord` `invalidDigitCount` diagnostics for simulator build metadata; simulator tests and generic-device build exited successfully.

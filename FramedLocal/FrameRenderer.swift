@@ -18,7 +18,7 @@ public actor FrameRenderer {
     public static let shared = FrameRenderer()
     public static let maximumPixelDimension = 2_400
 
-    public func render(_ data: Data, layout: FrameLayout, dateStamp: Bool) throws -> Data {
+    public func render(_ data: Data, layout: FrameLayout, dateStamp: Bool, stampDate: Date = Date()) throws -> Data {
         guard let source = UIImage(data: data), let cgImage = source.cgImage else {
             throw RenderError.invalidImage
         }
@@ -55,7 +55,7 @@ public actor FrameRenderer {
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.dateFormat = "yyyy.MM.dd"
-            let title = formatter.string(from: Date()) as CFString
+            let title = formatter.string(from: stampDate) as CFString
             let font = CTFontCreateWithName("Menlo-Medium" as CFString, longSide * 0.026, nil)
             let attributes: [NSAttributedString.Key: Any] = [
                 NSAttributedString.Key(kCTFontAttributeName as String): font,

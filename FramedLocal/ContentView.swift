@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var selectedCropAspect: CropAspect = .original
     @State private var selectedFrame: FrameLayout = .whiteBorder
     @State private var includesDateStamp = true
+    @State private var editorStampDate = Date()
     @State private var previewImage: UIImage?
     @State private var photoPickerItem: PhotosPickerItem?
     @State private var isImporting = false
@@ -206,11 +207,13 @@ struct ContentView: View {
                 previewImage = nil
                 return
             }
+            editorStampDate = Date()
             renderTask?.cancel()
             renderTask = renderPreview(data)
         }
         .onChange(of: camera.importedImage) { _, data in
             guard let data else { return }
+            editorStampDate = Date()
             renderTask?.cancel()
             renderTask = renderPreview(data)
         }
@@ -365,6 +368,7 @@ struct ContentView: View {
         let cropAspect = selectedCropAspect
         let frame = selectedFrame
         let dateStamp = includesDateStamp
+        let stampDate = editorStampDate
         let sourceID = camera.latestCapture.map { _ in "capture" } ?? "import"
         let taskID = UUID()
         camera.renderTaskID = taskID
@@ -374,7 +378,8 @@ struct ContentView: View {
             do {
                 let graded = try await FilmRenderer.shared.render(data, preset: preset, cropAspect: cropAspect)
                 try Task.checkCancellation()
-                let framed = try await FrameRenderer.shared.render(graded, layout: frame, dateStamp: dateStamp)
+                let framed = try await FrameRenderer.shared.render(graded, layout: frame,
+                                                                   dateStamp: dateStamp, stampDate: stampDate)
                 try Task.checkCancellation()
                 let cgImage = try await PreviewImageDecoder.shared.decode(framed)
                 await MainActor.run {
