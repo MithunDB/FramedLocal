@@ -262,6 +262,7 @@ struct ContentView: View {
             importTask?.cancel()
             importTaskID = UUID()
             importTask = nil
+            photoPickerItem = nil
             isImporting = false
             renderTask?.cancel()
             renderTask = nil
@@ -288,6 +289,7 @@ struct ContentView: View {
                     guard importTaskID == taskID else { return }
                     camera.importedImage = data
                     camera.captureMessage = "Original kept unchanged · edit a new copy"
+                    photoPickerItem = nil
                     isImporting = false
                     importTask = nil
                 }
@@ -296,6 +298,7 @@ struct ContentView: View {
                 await MainActor.run {
                     guard importTaskID == taskID else { return }
                     camera.captureMessage = error.localizedDescription
+                    photoPickerItem = nil
                     isImporting = false
                     importTask = nil
                 }
@@ -307,6 +310,7 @@ struct ContentView: View {
         importTask?.cancel()
         importTaskID = UUID()
         importTask = nil
+        photoPickerItem = nil
         isImporting = false
         renderTask?.cancel()
         isRendering = false
