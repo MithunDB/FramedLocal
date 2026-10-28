@@ -251,6 +251,14 @@ Still needed before the requested end state is proven:
 - Changed files: `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: review diff and commit/push. For device test, connect/trust iPhone 12, then import a rotated portrait and landscape asset, export a copy, and compare the original remains unchanged.
 
+## Follow-up Turn — 2026-10-28 (full editor pipeline coverage)
+
+- Added `testEveryPresetAndFrameCombinationPreservesImportedPortrait` to exercise all 5 presets × all 3 frame layouts on an EXIF-rotated source. It checks every result is JPEG and portrait-oriented and confirms the original input bytes are unchanged.
+- The first patch used an incorrect nested test path and made no change; reapplied to root `FramedLocalTests/RendererTests.swift`.
+- Simulator suite now passes 10/10 (2 guidance, 8 renderer/integration). This verifies deterministic render stages and does not prove PhotosPicker or PhotoKit runtime behavior.
+- Changed files: `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: run generic build and `git diff --check`, then commit/push. Physical iPhone import/export and camera checks remain on the device checklist.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.

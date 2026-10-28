@@ -79,6 +79,24 @@ final class RendererTests: XCTestCase {
         XCTAssertNil(properties[kCGImagePropertyOrientation])
     }
 
+    func testEveryPresetAndFrameCombinationPreservesImportedPortrait() async throws {
+        let landscapePixels = try sampleJPEG(size: CGSize(width: 320, height: 180))
+        let source = try jpegWithEXIFOrientation(landscapePixels, orientation: 6)
+        let original = source
+
+        for preset in FilmPreset.allCases {
+            let graded = try await FilmRenderer.shared.render(source, preset: preset)
+            for layout in FrameLayout.allCases {
+                let framed = try await FrameRenderer.shared.render(graded, layout: layout, dateStamp: true)
+                XCTAssertTrue(framed.starts(with: [0xFF, 0xD8]), "\(preset.rawValue), \(layout.rawValue)")
+                let size = try imageSize(framed)
+                XCTAssertGreaterThan(size.height, size.width, "\(preset.rawValue), \(layout.rawValue)")
+            }
+        }
+
+        XCTAssertEqual(source, original)
+    }
+
     private func sampleJPEG(size: CGSize = CGSize(width: 320, height: 240)) throws -> Data {
         let renderer = UIGraphicsImageRenderer(size: size)
         return try XCTUnwrap(renderer.image { context in

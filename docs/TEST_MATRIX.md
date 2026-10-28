@@ -20,6 +20,7 @@
 | Renderer | Portrait and landscape input, date on/off | Output pixel dimensions preserve orientation; date adds canvas space; output has no rotation tag | Passed in simulator unit tests |
 | Renderer memory bound | 2,800-pixel source | Film output is reduced to at most 2,400 pixels on the long edge before frame rendering | Passed in simulator unit tests |
 | Imported EXIF orientation | Landscape pixel data tagged with portrait orientation | Film render bakes orientation into upright pixels and removes rotation tag | Passed in simulator unit tests |
+| Editor pipeline | All five presets × three frame layouts on EXIF-rotated input | Every export is JPEG and remains upright; original source bytes remain unchanged | Passed in simulator unit tests |
 | Photos export | Denied | Explain permission; capture remains available | Implemented; runtime check pending |
 | Scene | Bright outdoor portrait | Preview/capture remains responsive | Pending |
 | Scene | Indoor, backlit, low light | Preview/capture remains responsive | Pending |
