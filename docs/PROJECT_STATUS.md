@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Added explicit AVFoundation session-observer cleanup to `CameraController.stop()`. Authorized restart re-registers observers as needed, so repeated editor/background camera stops do not leave stale notification callbacks in NotificationCenter.
+- Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Repeated physical camera/editor lifecycle still needs iPhone verification.
+- Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: commit and push observer lifecycle cleanup, then continue local review; physical camera lifecycle remains unverified.
+
 - Routed Vision analysis failures through the existing low-confidence `GuidanceEngine` state instead of immediately replacing guidance with an unsmoothed recovery message. Brief inference errors preserve the current advice; sustained low confidence reaches the established recovery wording.
 - Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Live Vision failure behavior/scenes remain a physical-device validation item.
 - Changed files: `FramedLocal/CompositionAnalysis.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.

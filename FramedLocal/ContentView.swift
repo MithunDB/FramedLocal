@@ -619,6 +619,14 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     }
 
     @MainActor
+    private func removeSessionObservers() {
+        guard hasInstalledSessionObservers else { return }
+        interruptionObservers.forEach(NotificationCenter.default.removeObserver)
+        interruptionObservers.removeAll()
+        hasInstalledSessionObservers = false
+    }
+
+    @MainActor
     private func handleSessionInterruption() {
         guard sessionIsRunning else { return }
         analysisDelegate.pause(on: analysisQueue)
@@ -759,6 +767,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor
     func stop() {
         _ = sessionGeneration.advance()
+        removeSessionObservers()
         analysisDelegate.pause(on: analysisQueue)
         clearSubjectSelection()
         stopMotionUpdates()
