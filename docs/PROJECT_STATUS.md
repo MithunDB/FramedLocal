@@ -27,7 +27,8 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 - Reduced camera-interruption sensor work and rejected stale sensor callbacks. Camera interruption, unrecoverable runtime error, and explicit stop now stop Core Motion and device-orientation notifications, clear horizon state, and reset its stability timer. Motion/orientation callbacks carry a generation token so queued samples from a prior session cannot repopulate stale tilt or reconfigure camera connections after stop. Normal startup/recovery restarts updates.
 - Verification: iOS 27.1 simulator hosted suite passed (47 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. Actual interruption/motion sensor behavior needs physical-device validation.
 - Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
-- Exact next smallest step: add sensor stop/restart behavior to the camera lifecycle matrix and commit/push; continue final code review and await iPhone for hardware validation.
+- Code committed and pushed as `b600fff` (`Stop camera motion work during interruptions`).
+- Exact next smallest step: continue final code review and await iPhone for hardware validation.
 
 - Added renderer-level coverage for crop positioning on a portrait-displayed EXIF-rotated source. The test uses split-color content to prove the vertical position values select different image regions while preserving square output dimensions and the original encoded bytes.
 - Verification: iOS 27.1 simulator hosted suite passed (47 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. UI slider direction/feel still needs physical-device review.
