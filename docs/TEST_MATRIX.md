@@ -28,5 +28,6 @@
 | Scene | Indoor, backlit, low light | Preview/capture remains responsive | Pending |
 | Scene | Horizon and landscape | Orientation and framing remain stable | Pending |
 | Performance | Repeated capture | No freeze or memory warning | Pending |
-| Composition analysis | Face/saliency and sampled image signals | One stable advisory message; capture remains available | Implemented on a dedicated serial analysis queue with a one-frame pending gate; physical-scene tuning pending |
+| Composition analysis | Face/saliency and sampled image signals | One stable advisory message; capture remains available | Dedicated serial queue, one-frame pending gate, unrotated analysis buffers with Vision orientation mapping; physical-scene tuning pending |
 | Subject selection | Tap visible subject | Track selected face/object and recover to searching on loss | Implemented; physical-device check pending |
+| Guidance recovery | Selected subject disappears / confidence remains low | Brief loss debounce clears stale advice to a cautious search instruction | Passed in simulator GuidanceEngine tests; live tracking-loss check pending |

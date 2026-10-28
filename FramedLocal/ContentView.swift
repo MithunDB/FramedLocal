@@ -651,14 +651,19 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         previewRotationAngle = angle
         sessionQueue.async { [weak self] in
             guard let self else { return }
+            if let photoConnection = self.photoOutput.connection(with: .video),
+               photoConnection.isVideoRotationAngleSupported(angle) {
+                photoConnection.videoRotationAngle = angle
+            }
+            // Keep analysis pixels in sensor orientation; Vision receives the matching EXIF orientation.
+            if let analysisConnection = self.analysisOutput.connection(with: .video),
+               analysisConnection.isVideoRotationAngleSupported(0) {
+                analysisConnection.videoRotationAngle = 0
+            }
             [self.photoOutput.connection(with: .video), self.analysisOutput.connection(with: .video)].forEach { connection in
-                if let connection, connection.isVideoRotationAngleSupported(angle) {
-                    connection.videoRotationAngle = angle
-                }
-                if let connection, connection.isVideoMirroringSupported {
-                    connection.automaticallyAdjustsVideoMirroring = false
-                    connection.isVideoMirrored = mirrored
-                }
+                guard let connection, connection.isVideoMirroringSupported else { return }
+                connection.automaticallyAdjustsVideoMirroring = false
+                connection.isVideoMirrored = mirrored
             }
         }
     }
@@ -704,7 +709,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             analysisDelegate.analyzer = compositionAnalyzer
             analysisOutput.setSampleBufferDelegate(analysisDelegate, queue: analysisQueue)
             if let connection = analysisOutput.connection(with: .video) {
-                if connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
+                if connection.isVideoRotationAngleSupported(0) { connection.videoRotationAngle = 0 }
             }
             guard session.canAddOutput(analysisOutput) else { throw CameraError.cannotAddAnalysisOutput }
             session.addOutput(analysisOutput)

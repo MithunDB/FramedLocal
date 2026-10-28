@@ -28,11 +28,23 @@ public struct GuidanceEngine {
     private var candidate: String?
     private var candidateStart = 0.0
     private var lastChange = 0.0
+    private var lowConfidenceSince: Double?
 
     public init() {}
 
     public mutating func update(message: String, time: Double, confidence: Double) -> String {
-        guard confidence >= 0.3 else { return current }
+        guard confidence >= 0.3 else {
+            candidate = nil
+            if lowConfidenceSince == nil { lowConfidenceSince = time }
+            guard time - (lowConfidenceSince ?? time) >= 0.35 else { return current }
+            let recoveryMessage = "Move slowly so I can find the subject"
+            if current != recoveryMessage {
+                current = recoveryMessage
+                lastChange = time
+            }
+            return current
+        }
+        lowConfidenceSince = nil
         guard message != current else { candidate = nil; return current }
         if candidate != message { candidate = message; candidateStart = time; return current }
         guard time - candidateStart >= 0.6, time - lastChange >= 1.4 else { return current }

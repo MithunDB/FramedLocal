@@ -268,6 +268,15 @@ Still needed before the requested end state is proven:
 - Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: inspect and run final diff check, then commit/push. Physical PhotosPicker transfer and add-only export remain pending on the iPhone.
 
+## Follow-up Turn — 2026-10-28 (tracking loss and analysis orientation)
+
+- Guidance audit found low-confidence observations were ignored forever, leaving the previous confident instruction on screen after a selected subject was lost. `GuidanceEngine` now waits 0.35 seconds, then replaces stale guidance with “Move slowly so I can find the subject”; confident guidance candidates are cleared during loss.
+- Added tests for initial low-confidence debounce and for clearing a prior “Hold steady” message after confidence loss.
+- Apple AVFoundation documentation confirms `AVCaptureVideoDataOutput` physically rotates each delivered frame when its connection has a nonzero `videoRotationAngle`. The code also supplied a device orientation to Vision, risking a second rotation. Changed analysis connection to 0° and kept its pixels in sensor orientation; Vision receives the existing orientation mapping. Still-photo and preview orientation remain explicit.
+- Simulator suite passed 11/11; generic iOS device build succeeded. Only non-fatal AppIntents metadata extraction warning. Device Vision/tracking loss, tap mapping, and actual image orientation remain unverified on camera hardware.
+- Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: run `git diff --check`, inspect and commit/push these changes. Then physical-device test landscape/portrait Vision boxes and selected-subject tracking-loss recovery.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.
