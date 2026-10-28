@@ -651,64 +651,71 @@ final class CameraController: NSObject, @unchecked Sendable {
     nonisolated private func configureSession(position: AVCaptureDevice.Position) throws {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
-        session.sessionPreset = .photo
+        do {
+            session.sessionPreset = .photo
 
-        if let activeInput {
-            session.removeInput(activeInput)
-            self.activeInput = nil
-        }
-        if isConfigured {
-            session.removeOutput(photoOutput)
-            session.removeOutput(analysisOutput)
-        }
-
-        let deviceTypes: [AVCaptureDevice.DeviceType] = position == .back
-            ? [.builtInWideAngleCamera]
-            : [.builtInTrueDepthCamera, .builtInWideAngleCamera]
-        let discovery = AVCaptureDevice.DiscoverySession(
-            deviceTypes: deviceTypes,
-            mediaType: .video,
-            position: position
-        )
-        guard let device = discovery.devices.first else {
-            throw CameraError.cameraUnavailable
-        }
-        let input = try AVCaptureDeviceInput(device: device)
-        guard session.canAddInput(input) else { throw CameraError.cannotAddCamera }
-        session.addInput(input)
-        activeInput = input
-
-        if let previewConnection = session.connections.first(where: { $0.inputPorts.contains(where: { $0.mediaType == .video }) }),
-           previewConnection.isVideoMirroringSupported {
-            previewConnection.automaticallyAdjustsVideoMirroring = false
-            previewConnection.isVideoMirrored = position == .front
-        }
-
-        guard session.canAddOutput(photoOutput) else { throw CameraError.cannotAddPhotoOutput }
-        session.addOutput(photoOutput)
-        photoOutput.maxPhotoQualityPrioritization = .quality
-        analysisOutput.alwaysDiscardsLateVideoFrames = true
-        analysisOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
-        analysisDelegate.analyzer = compositionAnalyzer
-        analysisOutput.setSampleBufferDelegate(analysisDelegate, queue: analysisQueue)
-        if let connection = analysisOutput.connection(with: .video) {
-            let angle = rotationAngle(for: deviceOrientation)
-            if connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
-        }
-        guard session.canAddOutput(analysisOutput) else { throw CameraError.cannotAddAnalysisOutput }
-        session.addOutput(analysisOutput)
-        analysisDelegate.onResult = { [weak self] result in
-            guard let self else { return }
-            Task { @MainActor in
-                let message = abs(self.horizonTilt) > 0.10 && result.guidance == "Suggested framing" ? "Level the phone" : result.guidance
-                self.guidanceText = message
-                if message == "Hold steady" && self.lastGuidanceHapticMessage != message {
-                    UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                }
-                self.lastGuidanceHapticMessage = message
+            if let activeInput {
+                session.removeInput(activeInput)
+                self.activeInput = nil
             }
+            if session.outputs.contains(photoOutput) { session.removeOutput(photoOutput) }
+            if session.outputs.contains(analysisOutput) { session.removeOutput(analysisOutput) }
+
+            let deviceTypes: [AVCaptureDevice.DeviceType] = position == .back
+                ? [.builtInWideAngleCamera]
+                : [.builtInTrueDepthCamera, .builtInWideAngleCamera]
+            let discovery = AVCaptureDevice.DiscoverySession(
+                deviceTypes: deviceTypes,
+                mediaType: .video,
+                position: position
+            )
+            guard let device = discovery.devices.first else { throw CameraError.cameraUnavailable }
+            let input = try AVCaptureDeviceInput(device: device)
+            guard session.canAddInput(input) else { throw CameraError.cannotAddCamera }
+            session.addInput(input)
+            activeInput = input
+
+            if let previewConnection = session.connections.first(where: { $0.inputPorts.contains(where: { $0.mediaType == .video }) }),
+               previewConnection.isVideoMirroringSupported {
+                previewConnection.automaticallyAdjustsVideoMirroring = false
+                previewConnection.isVideoMirrored = position == .front
+            }
+
+            guard session.canAddOutput(photoOutput) else { throw CameraError.cannotAddPhotoOutput }
+            session.addOutput(photoOutput)
+            photoOutput.maxPhotoQualityPrioritization = .quality
+            analysisOutput.alwaysDiscardsLateVideoFrames = true
+            analysisOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
+            analysisDelegate.analyzer = compositionAnalyzer
+            analysisOutput.setSampleBufferDelegate(analysisDelegate, queue: analysisQueue)
+            if let connection = analysisOutput.connection(with: .video) {
+                let angle = rotationAngle(for: deviceOrientation)
+                if connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
+            }
+            guard session.canAddOutput(analysisOutput) else { throw CameraError.cannotAddAnalysisOutput }
+            session.addOutput(analysisOutput)
+            analysisDelegate.onResult = { [weak self] result in
+                guard let self else { return }
+                Task { @MainActor in
+                    let message = abs(self.horizonTilt) > 0.10 && result.guidance == "Suggested framing" ? "Level the phone" : result.guidance
+                    self.guidanceText = message
+                    if message == "Hold steady" && self.lastGuidanceHapticMessage != message {
+                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                    }
+                    self.lastGuidanceHapticMessage = message
+                }
+            }
+            isConfigured = true
+        } catch {
+            if let activeInput, session.inputs.contains(where: { $0 === activeInput }) {
+                session.removeInput(activeInput)
+                self.activeInput = nil
+            }
+            if session.outputs.contains(photoOutput) { session.removeOutput(photoOutput) }
+            if session.outputs.contains(analysisOutput) { session.removeOutput(analysisOutput) }
+            isConfigured = false
+            throw error
         }
-        isConfigured = true
     }
 
     private enum CameraError: LocalizedError {

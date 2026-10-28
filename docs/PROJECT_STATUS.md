@@ -212,6 +212,15 @@ Still needed before the requested end state is proven:
 - Runtime front/rear orientation and selfie mirroring remain unverified until physical iPhone 12 is visible; simulator has no camera hardware.
 - Exact next smallest step: run final diff check/review, update status with commit result, then validate front-camera mirroring and portrait/landscape stills on the iPhone.
 
+## Follow-up Turn — 2026-10-28 (camera configuration rollback)
+
+- Code review found `configureSession` only removed outputs when a prior full setup set `isConfigured`. A failure after adding one output on initial setup could leave partial state and make Retry fail on duplicate output.
+- Changed `FramedLocal/ContentView.swift`: session reconfiguration now removes existing outputs based on actual session membership. If any setup step throws, it removes the newly attached active input and either output that was added, clears `isConfigured`, then rethrows the original error so the UI can offer retry.
+- Added `Camera recovery` row to `docs/TEST_MATRIX.md`. Simulator cannot induce a camera configuration failure; failure rollback remains unverified at runtime.
+- Generic iOS build succeeded. Simulator hosted tests passed 7/7. `git diff --check` passed before docs changes; rerun before commit. Non-fatal warning: AppIntents metadata extraction skipped due no AppIntents dependency.
+- Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: inspect final diff, run `git diff --check`, then commit/push. Next physical-device checks include configuration retry, front-camera mirroring, and camera orientation.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.
