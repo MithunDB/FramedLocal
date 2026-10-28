@@ -26,6 +26,7 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 - Prevented leaving/changing the editor while a Photos write is in flight: preset, crop, position, frame, and date controls are disabled during save; Retake/Cancel are also disabled. This prevents an asynchronous save completion message from appearing after the user has left the result screen. Changed `FramedLocal/ContentView.swift`.
 - Verification: iOS 27.1 simulator hosted suite passed (38 tests, 0 failures); generic unsigned iOS build passed; `git diff --check` passed. Only recurring simulator metadata `invalidDigitCount` diagnostics appeared. Physical Photos-save interaction remains device-only.
+- Committed and pushed as `d950cce` (`Lock editor controls while Photos saves`).
 - Exact next smallest step: continue auditing memory/cancellation and Photos-picker/editor lifecycle; physical camera, PhotoKit, and UI interaction checks await an iPhone connection.
 
 - Extracted PhotoKit transaction recovery into `PhotoSaveTransactionOutcome`, now used by the production completion handler. It requires a created asset before reporting any success or retry, distinguishes album/Recents success, retries asset-only only after an album mutation failure, and reports other failures. Added branch tests in `FramedLocalTests/GuidanceEngineTests.swift`; changed `FramedLocal/PhotoLibraryService.swift`.
