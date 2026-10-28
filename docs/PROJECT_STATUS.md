@@ -27,6 +27,7 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 - Performed a current simulator install/launch smoke check. The built app installed and launched as `local.mithundb.framed`; iOS displayed the camera permission prompt with the expected “preview and capture photos” explanation. The simulator then reported “No suitable camera is available,” as expected because it has no camera hardware. This does not validate or contradict physical iPhone camera behavior.
 - Verification: latest iOS 27.1 simulator hosted suite passed (44 tests, 0 failures); generic unsigned iOS device build passed; simulator install/launch succeeded; `git diff --check` passed at the last source change. One `simctl terminate` attempt returned `found nothing to terminate` because the app process had already exited after the initial permission UI; relaunch succeeded. A simulator camera permission grant could not exercise camera capture because no camera device is available.
 - Changed files: `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md` only.
+- Status record committed and pushed as `3fc8c97` (`Record simulator install launch check`).
 - Exact next smallest step: continue reviewing camera/editor lifecycle edges, then validate front/rear capture and permissions on the iPhone when available.
 
 - Closed a stale-output risk in the editor. Starting any new preset/crop/frame/date render now clears both the prior export JPEG and preview before work begins. If the new render fails, the Save button cannot become enabled with bytes from the previous editor settings.
