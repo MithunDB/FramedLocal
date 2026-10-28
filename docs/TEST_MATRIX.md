@@ -36,6 +36,7 @@
 | Scene | Bright outdoor portrait | Preview/capture remains responsive | Pending |
 | Scene | Indoor, backlit, low light | Preview/capture remains responsive | Pending |
 | Scene | Horizon and landscape | Orientation and framing remain stable | Pending |
+| Horizon sensor mapping | Level/tilted phone in portrait and landscape; invalid gravity projection | Use the active device orientation to select the gravity axis and avoid a false level hint | Mapping and 0.45-second stability/reset unit tests passed; physical sensor calibration pending |
 | Performance | Repeated capture | No freeze or memory warning | Pending |
 | Composition analysis | Face/saliency and sampled image signals | One stable advisory message; capture remains available | Preview-sized buffers, dedicated serial queue, explicit 7 Hz rate limiter, AVFoundation late-frame dropping, unrotated buffers with Vision orientation mapping; throttle unit test passed; physical-scene tuning pending |
 | Subject selection | Tap visible subject in rotated/aspect-filled preview | Preview-layer conversion maps tap into capture-device coordinates; report found/missing subject, ignore stale tap feedback, and clear tracking on stop/lens switch | Mapping/resolution/feedback unit tests passed; physical-device selection check pending |

@@ -24,6 +24,10 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Corrected horizon guidance in `FramedLocal/CompositionAnalysis.swift` and `FramedLocal/ContentView.swift`: gravity is compared against the phone's long axis for the active portrait/landscape orientation; unavailable/face-up gravity produces no tilt reading; the “Level the phone” hint requires 0.45 seconds of continuous tilt above threshold and resets after the phone levels. Added four orientation/math and stability assertions in `FramedLocalTests/GuidanceEngineTests.swift`.
+- Verification: iOS 27.1 simulator hosted suite passed (33 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted only simulator build-number `invalidDigitCount` diagnostics. Physical sensor calibration remains pending.
+- Exact next smallest step: finish status/matrix updates and commit/push the horizon correction; validate portrait and both landscape orientations on the iPhone when available.
+
 - Made date stamps stable for an editor source: `FrameRenderer` accepts an explicit stamp date, and `ContentView` captures that date when a new capture/import is selected. Re-rendering after changing crop, preset, or frame now keeps the same date. Added deterministic stamp coverage in `FramedLocalTests/RendererTests.swift`; changed `FramedLocal/FrameRenderer.swift` and `FramedLocal/ContentView.swift`.
 - Verification: latest iOS 27.1 simulator result bundle reports 31 tests passed, 0 failed; generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged simulator build-number parsing diagnostics (`invalidDigitCount`) but exited successfully. No physical phone connected.
 - Committed and pushed as `12052b4` (`Keep editor date stamps stable per image`); code and status are on `origin/main`.
@@ -162,6 +166,8 @@ Still needed before the requested end state is proven:
 - `docs/PROJECT_STATUS.md`
 
 ## Current Turn Errors And Attempts
+
+- No code or test failures this turn. Xcode logged `IDESchemeActionSDKRecord` / `IDESchemeActionDeviceRecord` `invalidDigitCount` diagnostics for the installed simulator build metadata; 33 tests and the generic iOS build completed successfully.
 
 - No test failures this turn. Xcode repeated the simulator SDK/device build-number `invalidDigitCount` diagnostics; the 31-test simulator run and generic-device build both completed successfully.
 

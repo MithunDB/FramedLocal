@@ -452,7 +452,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor @Published
     private(set) var hapticsEnabled = UserDefaults.standard.object(forKey: "FramedLocal.guidanceHapticsEnabled") as? Bool ?? true
     @MainActor @Published
-    var horizonTilt = 0.0
+    var horizonTilt: Double?
     @MainActor @Published
     var previewRotationAngle: CGFloat = 90
     @MainActor @Published
@@ -461,6 +461,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     var isSessionRunning = false
     @MainActor
     private var lastGuidanceHapticMessage: String?
+    @MainActor
+    private var horizonGuidanceState = HorizonGuidanceState()
 
     @MainActor
     func requestPermissionAndStart() async {
@@ -835,8 +837,13 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         motionManager.deviceMotionUpdateInterval = 0.2
         motionManager.startDeviceMotionUpdates(to: motionQueue) { [weak self] motion, _ in
             guard let motion else { return }
-            let tilt = atan2(motion.gravity.x, motion.gravity.y)
-            Task { @MainActor in self?.horizonTilt = tilt }
+            let gravityX = motion.gravity.x
+            let gravityY = motion.gravity.y
+            Task { @MainActor in
+                guard let self else { return }
+                self.horizonTilt = HorizonLeveling.angle(gravityX: gravityX, gravityY: gravityY,
+                                                         orientation: self.deviceOrientation)
+            }
         }
     }
 
@@ -925,7 +932,10 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             analysisDelegate.onResult = { [weak self] result in
                 guard let self else { return }
                 Task { @MainActor in
-                    let message = abs(self.horizonTilt) > 0.10 && result.guidance == "Suggested framing" ? "Level the phone" : result.guidance
+                    let levelHintIsStable = self.horizonGuidanceState.shouldShowLevelHint(
+                        angle: self.horizonTilt, at: CFAbsoluteTimeGetCurrent())
+                    let message = levelHintIsStable && result.guidance == "Suggested framing"
+                        ? "Level the phone" : result.guidance
                     self.guidanceText = message
                     if GuidanceHaptics.shouldTrigger(message: message,
                                                      previousMessage: self.lastGuidanceHapticMessage,

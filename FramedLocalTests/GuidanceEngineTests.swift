@@ -56,6 +56,26 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertFalse(GuidanceHaptics.shouldTrigger(message: "Move a little closer", previousMessage: "Suggested framing", enabled: true))
     }
 
+    func testHorizonLevelingUsesTheCorrectGravityAxisInPortraitAndLandscape() {
+        XCTAssertEqual(HorizonLeveling.angle(gravityX: 0, gravityY: -1, orientation: .portrait), 0)
+        XCTAssertEqual(HorizonLeveling.angle(gravityX: 1, gravityY: 0, orientation: .landscapeLeft), 0)
+
+        let portraitTilt = HorizonLeveling.angle(gravityX: 0.2, gravityY: -sqrt(0.96), orientation: .portrait)
+        let landscapeTilt = HorizonLeveling.angle(gravityX: sqrt(0.96), gravityY: 0.2, orientation: .landscapeRight)
+        XCTAssertEqual(portraitTilt ?? 0, atan2(0.2, sqrt(0.96)), accuracy: 0.000_001)
+        XCTAssertEqual(landscapeTilt ?? 0, atan2(0.2, sqrt(0.96)), accuracy: 0.000_001)
+        XCTAssertNil(HorizonLeveling.angle(gravityX: 0, gravityY: 0, orientation: .portrait))
+    }
+
+    func testHorizonHintWaitsForStableTiltAndResetsWhenLevel() {
+        var state = HorizonGuidanceState(threshold: 0.12, stabilityDuration: 0.45)
+        XCTAssertFalse(state.shouldShowLevelHint(angle: 0.2, at: 1.0))
+        XCTAssertFalse(state.shouldShowLevelHint(angle: 0.2, at: 1.3))
+        XCTAssertTrue(state.shouldShowLevelHint(angle: 0.2, at: 1.46))
+        XCTAssertFalse(state.shouldShowLevelHint(angle: 0.05, at: 1.5))
+        XCTAssertFalse(state.shouldShowLevelHint(angle: 0.2, at: 1.6))
+    }
+
     func testSessionGenerationInvalidatesCallbacksAfterStopOrRestart() {
         let generation = SessionGeneration()
         let firstStart = generation.advance()

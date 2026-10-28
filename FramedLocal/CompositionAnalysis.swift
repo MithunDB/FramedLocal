@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import UIKit
 import Vision
 
 struct EdgeDistances: Sendable {
@@ -103,6 +104,39 @@ enum ExposureGuidance {
 enum GuidanceHaptics {
     static func shouldTrigger(message: String, previousMessage: String?, enabled: Bool) -> Bool {
         enabled && message == "Hold steady" && previousMessage != message
+    }
+}
+
+enum HorizonLeveling {
+    /// Estimates rotation around the screen normal from gravity projected onto the screen.
+    /// The gravity axis aligned with the phone's long edge changes in landscape.
+    static func angle(gravityX: Double, gravityY: Double,
+                      orientation: UIDeviceOrientation) -> Double? {
+        let isLandscape = orientation == .landscapeLeft || orientation == .landscapeRight
+        let alongLongAxis = isLandscape ? gravityX : gravityY
+        let acrossLongAxis = isLandscape ? gravityY : gravityX
+        guard hypot(alongLongAxis, acrossLongAxis) >= 0.35 else { return nil }
+        return atan2(acrossLongAxis, abs(alongLongAxis))
+    }
+}
+
+struct HorizonGuidanceState {
+    private(set) var tiltedSince: TimeInterval?
+    let threshold: Double
+    let stabilityDuration: TimeInterval
+
+    init(threshold: Double = 0.12, stabilityDuration: TimeInterval = 0.45) {
+        self.threshold = threshold
+        self.stabilityDuration = stabilityDuration
+    }
+
+    mutating func shouldShowLevelHint(angle: Double?, at time: TimeInterval) -> Bool {
+        guard let angle, abs(angle) >= threshold else {
+            tiltedSince = nil
+            return false
+        }
+        if tiltedSince == nil { tiltedSince = time }
+        return time - (tiltedSince ?? time) >= stabilityDuration
     }
 }
 
