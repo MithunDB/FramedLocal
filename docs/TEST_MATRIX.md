@@ -4,7 +4,7 @@
 |---|---|---|---|
 | Build | iOS 27.1 simulator | App builds without signing | Passed |
 | Build | Generic iOS device destination | App builds without signing | Passed |
-| Unit tests | iOS 27.1 simulator | Guidance debounce/confidence and preset/frame JPEG-copy checks pass | Passed (25 tests, 0 failures) |
+| Unit tests | iOS 27.1 simulator | Guidance debounce/confidence and preset/frame JPEG-copy checks pass | Passed (26 tests, 0 failures) |
 | Launch | iOS 27.1 simulator | App installs and launches | Passed |
 | Camera permission | First launch, allow | Live preview appears | Runtime device check pending |
 | Camera permission | Deny/revoke | Clear explanation and Settings route | Implemented; runtime check pending |
@@ -24,6 +24,7 @@
 | Frames | Three layouts, date on/off | Preview and export match | Implemented; visual/device check pending |
 | Renderer | Portrait and landscape input, date on/off | Output pixel dimensions preserve orientation; date adds canvas space; output has no rotation tag | Passed in simulator unit tests |
 | Renderer memory bound | 2,800-pixel source | Film output is reduced to at most 2,400 pixels on the long edge before frame rendering | Passed in simulator unit tests |
+| Preview decode | Bounded rendered JPEG | ImageIO decodes to CGImage off the main actor and preserves pixel dimensions | Passed in simulator unit tests; physical responsiveness pending |
 | Imported EXIF orientation | Landscape pixel data tagged with portrait orientation | Film render bakes orientation into upright pixels and removes rotation tag | Passed in simulator unit tests |
 | Editor pipeline | All five presets × three frame layouts on EXIF-rotated input | Every export is JPEG and remains upright; original source bytes remain unchanged | Passed in simulator unit tests |
 | Photos export | Denied | Explain permission; capture remains available | Implemented; runtime check pending |

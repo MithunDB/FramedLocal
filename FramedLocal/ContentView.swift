@@ -359,19 +359,11 @@ struct ContentView: View {
                 try Task.checkCancellation()
                 let framed = try await FrameRenderer.shared.render(graded, layout: frame, dateStamp: dateStamp)
                 try Task.checkCancellation()
-                guard let image = UIImage(data: framed) else {
-                    await MainActor.run {
-                        guard camera.renderTaskID == taskID else { return }
-                        camera.renderError = "The rendered preview could not be displayed."
-                        camera.captureMessage = camera.renderError
-                        isRendering = false
-                    }
-                    return
-                }
+                let cgImage = try await PreviewImageDecoder.shared.decode(framed)
                 await MainActor.run {
                     guard camera.renderTaskID == taskID,
                           (camera.latestCapture != nil && sourceID == "capture") || (camera.importedImage != nil && sourceID == "import") else { return }
-                    previewImage = image
+                    previewImage = UIImage(cgImage: cgImage)
                     camera.renderedCapture = framed
                     isRendering = false
                 }

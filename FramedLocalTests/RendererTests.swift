@@ -23,6 +23,14 @@ final class RendererTests: XCTestCase {
         XCTAssertNotEqual(first, natural)
     }
 
+    func testPreviewImageDecoderCreatesCGImageFromRenderedJPEG() async throws {
+        let source = try sampleJPEG(size: CGSize(width: 240, height: 160))
+        let decoded = try await PreviewImageDecoder.shared.decode(source)
+        let expected = try imageSize(source)
+        XCTAssertEqual(decoded.width, Int(expected.width))
+        XCTAssertEqual(decoded.height, Int(expected.height))
+    }
+
     func testFramesProduceNewCopyWithoutChangingSource() async throws {
         let source = try sampleJPEG()
         let original = source

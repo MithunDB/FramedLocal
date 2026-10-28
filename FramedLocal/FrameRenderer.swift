@@ -89,3 +89,16 @@ public actor FrameRenderer {
         }
     }
 }
+
+/// Decodes the bounded, rendered preview away from the main actor.
+actor PreviewImageDecoder {
+    static let shared = PreviewImageDecoder()
+
+    func decode(_ data: Data) throws -> CGImage {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            throw FrameRenderer.RenderError.invalidImage
+        }
+        return image
+    }
+}

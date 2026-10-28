@@ -407,3 +407,14 @@ Read this file first after context compression. Then inspect `git status`, the l
 - Physical PhotoKit transaction and add-only album behavior still need on-device verification; no manual test was performed.
 - Changed files: `FramedLocal/PhotoLibraryService.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: record 25 passing tests and push this export fix; continue inspecting import cancellation and local temp-file lifecycle, then verify PhotoKit behavior on the iPhone when the user is ready.
+
+## Follow-up Turn — 2026-10-28 (decode rendered preview off the UI actor)
+
+- Import/cancellation audit did not find a confirmed temporary-file leak: the copied picker file is removed by `defer` after reading. The adjacent preview pipeline did decode the rendered JPEG with `UIImage(data:)` after actor awaits inside a MainActor-inherited `Task`, which could decompress a ~2,400-pixel preview on the UI actor.
+- Added `PreviewImageDecoder` actor using ImageIO to create the `CGImage` off the main actor; the UI now only wraps the decoded image in `UIImage` and updates state on MainActor. Added a decoded-pixel-dimensions test.
+- First test run reported two assertions failing because `UIGraphicsImageRenderer(size: 240x160)` creates a 720x480 pixel JPEG on this 3x simulator. Changed the test to compare against actual source JPEG pixel dimensions. Full rerun passed 26/26 (verified from `.xcresult`).
+- The first test process took 159 seconds to return because Xcode's post-test `simctl diagnose` hung; the test worker log showed it had finished. Stopped only the stalled diagnostics subprocess after the run had completed. Rerun with `xcodebuild -quiet test` exited 0 in 7 seconds; result summary: 26 passed, 0 failed, 0 skipped. Xcode emitted benign simulator build-version digit-count warnings.
+- Generic iOS device build succeeded with the preview decoder implementation; `git diff --check` passed.
+- Physical preview decode latency and picker cancellation remain device/runtime checks. No manual testing was performed.
+- Changed files: `FramedLocal/FrameRenderer.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: record 26 passing tests and push; then continue lifecycle review for interruptions during Photos save and exercise the app on the iPhone when available.
