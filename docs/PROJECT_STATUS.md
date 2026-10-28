@@ -24,6 +24,10 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Stop the AVFoundation camera session and motion updates when a captured or imported image enters the editor, instead of leaving a hidden preview/analysis stream active. Reset the unavailable horizon sample on stop; Retake and editor Cancel explicitly re-request/start the camera session. Changed `FramedLocal/ContentView.swift`.
+- Verification: iOS 27.1 simulator hosted suite passed (37 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged simulator build-number `invalidDigitCount` diagnostics. Simulator tests cannot verify physical camera shutdown/restart.
+- Exact next smallest step: inspect PhotoKit and camera session failure/recovery behavior for testable edge cases; physical iPhone installation/capture/Photos verification remains required.
+
 - Added adjustable crop positioning to the editor. The position control selects horizontal or vertical movement from the source's EXIF-aware aspect ratio, supports centering/reset, clamps movement to valid crop bounds, and rerenders after the slider gesture ends. `FilmRenderer` now accepts a `CropPosition`; changed `FramedLocal/ContentView.swift`, `FramedLocal/FilmRenderer.swift`, and `FramedLocalTests/RendererTests.swift`.
 - Verification: iOS 27.1 simulator hosted suite passed (37 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged simulator build-number `invalidDigitCount` diagnostics. No physical device test possible.
 - Committed and pushed as `cc9dc5d` (`Add adjustable crop positioning`).
@@ -172,6 +176,8 @@ Still needed before the requested end state is proven:
 - `docs/PROJECT_STATUS.md`
 
 ## Current Turn Errors And Attempts
+
+- No code/test failures this turn. Simulator run passed 37/37; generic iOS build and `git diff --check` passed. Xcode emitted the recurring non-fatal simulator build-number `invalidDigitCount` diagnostics.
 
 - First compile failed because public `FilmRenderer.render` accepted internal `CropPosition`, and its default argument referenced an internal `.center`. Made `CropPosition`, its fields/initializer, and `.center` public; the simulator test run then passed.
 - No test failures after that fix. Latest simulator run passed 37 tests; generic device build and `git diff --check` passed. Xcode emitted only simulator metadata `invalidDigitCount` diagnostics.

@@ -146,6 +146,7 @@ struct ContentView: View {
                         Button("Retake") {
                             camera.discardCapture()
                             previewImage = nil
+                            restartCamera()
                         }
                         .foregroundStyle(.white)
                         Button("Save to Photos") {
@@ -210,6 +211,7 @@ struct ContentView: View {
                 previewImage = nil
                 return
             }
+            camera.stop()
             editorStampDate = Date()
             cropPosition = .center
             renderTask?.cancel()
@@ -217,6 +219,7 @@ struct ContentView: View {
         }
         .onChange(of: camera.importedImage) { _, data in
             guard let data else { return }
+            camera.stop()
             editorStampDate = Date()
             cropPosition = .center
             renderTask?.cancel()
@@ -303,6 +306,14 @@ struct ContentView: View {
         isRendering = false
         camera.discardCapture()
         previewImage = nil
+        restartCamera()
+    }
+
+    private func restartCamera() {
+        Task {
+            await camera.requestPermissionAndStart()
+            await camera.startIfAuthorized()
+        }
     }
 
     @ViewBuilder
@@ -694,6 +705,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         _ = sessionGeneration.advance()
         analysisDelegate.pause()
         clearSubjectSelection()
+        horizonTilt = nil
         motionManager.stopDeviceMotionUpdates()
         if let orientationObserver {
             NotificationCenter.default.removeObserver(orientationObserver)
