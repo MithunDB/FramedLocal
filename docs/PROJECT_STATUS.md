@@ -27,7 +27,8 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 - Added generation checks before and after queued lens-switch reconfiguration. A switch invalidated by stop/background or a newer session request now exits before mutating the camera or resuming analysis.
 - Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Queue timing on physical camera remains unverified.
 - Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
-- Exact next smallest step: commit and push lens-switch generation guards, then continue camera queue recovery review; physical timing checks still need the iPhone.
+- Code committed and pushed as `6b4b1c7` (`Guard stale lens switch work`).
+- Exact next smallest step: continue camera queue recovery review; physical timing checks still need the iPhone.
 
 - Clarified camera session intent vs readiness by renaming the private desired-run flag to `shouldRunSession`. `capture()` now checks the published actual-session-ready state (and the capture-in-progress state) instead of the intent flag, preventing direct/programmatic capture attempts during a lens switch or recovery. Added policy assertions for stopped and busy capture states.
 - Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Physical capture timing remains pending.
