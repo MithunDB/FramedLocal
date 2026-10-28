@@ -27,7 +27,8 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 - Reset live guidance and analyzer state whenever analysis pauses for stop, interruption, recovery, startup, or lens change. The visible prompt returns to “Searching for a subject”; analyzer selection, tracking request, guidance debounce, and rate-limit state reset before the next stream.
 - Verification: iOS 27.1 simulator suite passed (50 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Actual camera restart/scene transitions still need physical validation.
 - Changed files: `FramedLocal/ContentView.swift`, `FramedLocal/CompositionAnalysis.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
-- Exact next smallest step: commit and push analysis lifecycle reset; then continue the final local code audit and physical-device acceptance when available.
+- Code committed and pushed as `f9431b2` (`Reset guidance when camera analysis pauses`).
+- Exact next smallest step: continue the local code audit and physical-device acceptance when available.
 
 - Made Vision inference failures clear any stale `VNDetectedObjectObservation` and `VNTrackObjectRequest` before returning the debounced low-confidence fallback. The next frame can re-detect rather than repeatedly retrying a tracking request that itself failed.
 - Verification: iOS 27.1 simulator suite passed (50 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Injected Vision runtime failure remains a device/runtime validation item.
