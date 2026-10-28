@@ -20,14 +20,21 @@ public actor FrameRenderer {
 
     public func render(_ data: Data, layout: FrameLayout, dateStamp: Bool, stampDate: Date = Date()) throws -> Data {
         try Task.checkCancellation()
-        guard let source = UIImage(data: data), let cgImage = source.cgImage else {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
             throw RenderError.invalidImage
         }
-
-        let scale = CGFloat(max(cgImage.width, cgImage.height)) > CGFloat(Self.maximumPixelDimension)
-            ? CGFloat(Self.maximumPixelDimension) / CGFloat(max(cgImage.width, cgImage.height)) : 1
-        let width = CGFloat(cgImage.width) * scale
-        let height = CGFloat(cgImage.height) * scale
+        let thumbnailOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: Self.maximumPixelDimension,
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions as CFDictionary) else {
+            throw RenderError.invalidImage
+        }
+        try Task.checkCancellation()
+        let width = CGFloat(cgImage.width)
+        let height = CGFloat(cgImage.height)
         let longSide = max(width, height)
         let border: CGFloat = switch layout {
         case .fullBleed: 0

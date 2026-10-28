@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Hardened `FrameRenderer` to use an orientation-aware ImageIO thumbnail capped at 2,400 px before drawing its canvas. This avoids decoding oversized sources at full resolution before reducing them and bakes EXIF orientation into output pixels. Added a large EXIF-rotated-source regression test.
+- Verification: iOS 27.1 simulator suite passed (49 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Recurring Xcode `invalidDigitCount` simulator metadata diagnostics remain non-fatal.
+- Changed files: `FramedLocal/FrameRenderer.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: commit and push the verified renderer memory fix; next non-code dependency remains selecting the development team and connecting the physical iPhone for signed install/runtime checks.
+
 - Completed a release/privacy configuration audit. Simulator and device-built Info.plists contain `local.mithundb.framed`, display name `Framed`, camera usage text, and add-only Photos usage text; no full-library read usage key exists. Source scan found no app network client, analytics, or cloud SDK references. `assetutil` confirms the 1024×1024 AppIcon rendition is compiled. Automatic signing is enabled but no development team is selected, so signed physical installation still requires account/team setup.
 - Changed files: `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.
 - Exact next smallest step: select the user's Apple development team in Xcode and pair the iPhone; then produce a signed device build and work through the physical acceptance matrix. No other planned feature is currently identified as missing from source; runtime proof remains outstanding.

@@ -6,7 +6,7 @@
 | Build | Generic iOS device destination | App builds without signing | Passed |
 | Device signing | Select a development team and provision the connected iPhone | Xcode produces an installable signed build for `local.mithundb.framed` | Automatic signing enabled; `DEVELOPMENT_TEAM` unset, device not connected; pending setup |
 | App icon | iOS asset catalog | Universal 1024×1024 icon is included and compiles for simulator/device | Passed asset-catalog builds; physical home-screen appearance pending |
-| Unit tests | iOS 27.1 simulator | Guidance, camera/session policies, renderer, import orientation/bounds, crop, cancellation, and PhotoKit transaction logic | Passed (48 tests, 0 failures; latest run after `Guard stale lens switch work`) |
+| Unit tests | iOS 27.1 simulator | Guidance, camera/session policies, renderer, import orientation/bounds, crop, cancellation, and PhotoKit transaction logic | Passed (49 tests, 0 failures; latest run after FrameRenderer bounded-decode change) |
 | Launch | iOS 27.1 simulator | App installs and launches; permission prompt and camera-unavailable fallback are presented | Passed simulator install/launch; simulator has no camera; physical launch/capture pending |
 | Privacy configuration | Built Info.plist, source, and project dependency scan | Camera and add-only Photos prompts only; picker import without full library authorization; no app network client/analytics dependency | Static inspection passed; physical permission flow pending |
 | Camera permission | First launch, allow | Live preview appears | Runtime device check pending |
@@ -36,6 +36,7 @@
 | Frames | Three layouts, date on/off | Preview and export match | Implemented; visual/device check pending |
 | Renderer | Portrait and landscape input, date on/off | Output pixel dimensions preserve orientation; date adds canvas space; output has no rotation tag | Passed in simulator unit tests |
 | Renderer memory bound | 2,800-pixel source | Film output is reduced to at most 2,400 pixels on the long edge before frame rendering | Passed in simulator unit tests |
+| Frame renderer decode bound | Oversized EXIF-rotated image | ImageIO applies EXIF orientation and downsamples to at most 2,400 px before allocating the frame canvas | Passed in simulator unit test; device memory behavior pending |
 | Renderer memory pressure | Receive a UIKit memory warning while a preview/export exists | Clear Core Image intermediate caches, release the in-memory preview, recreate a 1,000-pixel display preview from rendered JPEG, and keep export bytes valid | Cache clear and preview bounds passed in simulator tests; memory-warning delivery/reclamation pending device check |
 | Render cancellation | Cancel before queued render starts and during Night Grain noise generation | Canceled jobs exit before work or periodically during CPU-heavy noise creation | Queued cancellation test passed; in-loop device responsiveness pending |
 | Editor render cancellation | Cancel while preview thumbnail decode is in flight | Check cancellation after ImageIO returns and before publishing the preview to SwiftUI | Boundary check implemented; in-flight decode timing pending |

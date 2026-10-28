@@ -153,6 +153,22 @@ final class RendererTests: XCTestCase {
         }
     }
 
+    func testFrameRendererBoundsAndBakesLargeEXIFOrientedSource() async throws {
+        let landscapePixels = try sampleJPEG(size: CGSize(width: 3_200, height: 1_800), scale: 1)
+        let rotatedSource = try jpegWithEXIFOrientation(landscapePixels, orientation: 6)
+        let original = rotatedSource
+
+        let output = try await FrameRenderer.shared.render(rotatedSource, layout: .fullBleed, dateStamp: false)
+        let size = try imageSize(output)
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(output as CFData, nil))
+        let properties = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any])
+
+        XCTAssertLessThanOrEqual(max(size.width, size.height), CGFloat(FrameRenderer.maximumPixelDimension))
+        XCTAssertGreaterThan(size.height, size.width)
+        XCTAssertNil(properties[kCGImagePropertyOrientation])
+        XCTAssertEqual(rotatedSource, original)
+    }
+
     func testDateStampAddsCanvasSpaceWithoutChangingOrientation() async throws {
         let source = try sampleJPEG(size: CGSize(width: 320, height: 240))
         let withoutDate = try await FrameRenderer.shared.render(source, layout: .fullBleed, dateStamp: false)
