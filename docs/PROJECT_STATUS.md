@@ -26,6 +26,7 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 - Added adjustable crop positioning to the editor. The position control selects horizontal or vertical movement from the source's EXIF-aware aspect ratio, supports centering/reset, clamps movement to valid crop bounds, and rerenders after the slider gesture ends. `FilmRenderer` now accepts a `CropPosition`; changed `FramedLocal/ContentView.swift`, `FramedLocal/FilmRenderer.swift`, and `FramedLocalTests/RendererTests.swift`.
 - Verification: iOS 27.1 simulator hosted suite passed (37 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged simulator build-number `invalidDigitCount` diagnostics. No physical device test possible.
+- Committed and pushed as `cc9dc5d` (`Add adjustable crop positioning`).
 - Exact next smallest step: review the camera/export implementation for remaining code-verifiable edge cases; physical camera, sensor calibration, and PhotoKit behavior still need the iPhone.
 
 - Corrected horizon guidance in `FramedLocal/CompositionAnalysis.swift` and `FramedLocal/ContentView.swift`: gravity is compared against the phone's long axis for the active portrait/landscape orientation; unavailable/face-up gravity produces no tilt reading; the “Level the phone” hint requires 0.45 seconds of continuous tilt above threshold and resets after the phone levels. Added orientation/math and stability unit tests in `FramedLocalTests/GuidanceEngineTests.swift`.
