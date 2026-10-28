@@ -37,4 +37,13 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertEqual(VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: CGPoint(x: -1, y: 2), orientation: .up),
                        CGPoint(x: 0, y: 0))
     }
+
+    func testAnalysisRateLimiterRejectsFastFramesThenRecovers() {
+        var limiter = AnalysisRateLimiter(minimumInterval: 0.14)
+        XCTAssertTrue(limiter.shouldAnalyze(at: 1.0))
+        XCTAssertFalse(limiter.shouldAnalyze(at: 1.1))
+        XCTAssertTrue(limiter.shouldAnalyze(at: 1.141))
+        XCTAssertFalse(limiter.shouldAnalyze(at: 1.20))
+        XCTAssertTrue(limiter.shouldAnalyze(at: 1.282))
+    }
 }

@@ -288,6 +288,15 @@ Still needed before the requested end state is proven:
 - Physical preview conversion, front mirroring, and correct subject selection remain unverified without an iPhone camera.
 - Exact next smallest step: run final diff check/review and commit/push, then verify taps on a visible subject in portrait/landscape on the iPhone 12.
 
+## Follow-up Turn — 2026-10-28 (analysis throttle deadlock)
+
+- Current code audit found `VideoAnalysisDelegate` set `analysisPending = true` before calling `CompositionAnalyzer.analyze`. The analyzer silently returned when the 0.14-second throttle rejected a frame and never called completion, leaving the pending flag true forever; later camera frames were then discarded by the app gate.
+- Removed the redundant pending flag/lock. `AVCaptureVideoDataOutput.alwaysDiscardsLateVideoFrames` already bounds stale frames, and the dedicated delegate queue serializes frame processing. Analyzer completion now accepts an optional result and explicitly completes with `nil` for throttled frames.
+- Extracted `AnalysisRateLimiter` and added a deterministic test verifying fast frames are rejected and analysis resumes once the 0.14-second interval has passed.
+- Simulator suite passed 13/13. Generic iOS device build succeeded; only non-fatal AppIntents metadata extraction warning. No camera runtime test available because only simulators are connected.
+- Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: review the diff, run `git diff --check`, then commit/push. On physical iPhone, verify guidance continues updating after the first throttled frame.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.

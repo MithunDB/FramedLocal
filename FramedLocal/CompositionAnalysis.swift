@@ -60,6 +60,22 @@ struct AnalysisResult: Sendable {
     let guidance: String
 }
 
+struct AnalysisRateLimiter {
+    let minimumInterval: TimeInterval
+    private(set) var lastAcceptedTime: TimeInterval?
+
+    init(minimumInterval: TimeInterval, lastAcceptedTime: TimeInterval? = nil) {
+        self.minimumInterval = minimumInterval
+        self.lastAcceptedTime = lastAcceptedTime
+    }
+
+    mutating func shouldAnalyze(at time: TimeInterval) -> Bool {
+        if let lastAcceptedTime, time - lastAcceptedTime < minimumInterval { return false }
+        lastAcceptedTime = time
+        return true
+    }
+}
+
 enum VisionTapPointMapper {
     /// Converts the capture-device point (normalized, top-left origin) to Vision's
     /// normalized, bottom-left coordinate space after the requested image orientation.
@@ -88,7 +104,7 @@ final class CompositionAnalyzer: @unchecked Sendable {
     private let queue = DispatchQueue(label: "local.mithundb.framed.vision", qos: .userInitiated)
     private let queueKey = DispatchSpecificKey<UInt8>()
     private let sequence = VNSequenceRequestHandler()
-    private var lastAnalysis = CFAbsoluteTimeGetCurrent()
+    private var rateLimiter = AnalysisRateLimiter(minimumInterval: 0.14)
     private var selectedObservation: VNDetectedObjectObservation?
     private var trackingRequest: VNTrackObjectRequest?
     private var guidanceEngine = GuidanceEngine()
@@ -98,7 +114,7 @@ final class CompositionAnalyzer: @unchecked Sendable {
     }
 
     func analyze(_ pixelBuffer: CVPixelBuffer, orientation: CGImagePropertyOrientation = .right,
-                 completion: @escaping @Sendable (AnalysisResult) -> Void) {
+                 completion: @escaping @Sendable (AnalysisResult?) -> Void) {
         if DispatchQueue.getSpecific(key: queueKey) != nil {
             analyzeOnQueue(pixelBuffer, orientation: orientation, completion: completion)
         } else {
@@ -107,10 +123,12 @@ final class CompositionAnalyzer: @unchecked Sendable {
     }
 
     private func analyzeOnQueue(_ pixelBuffer: CVPixelBuffer, orientation: CGImagePropertyOrientation,
-                                completion: @Sendable (AnalysisResult) -> Void) {
+                                completion: @Sendable (AnalysisResult?) -> Void) {
             let now = CFAbsoluteTimeGetCurrent()
-            guard now - lastAnalysis >= 0.14 else { return }
-            lastAnalysis = now
+            guard rateLimiter.shouldAnalyze(at: now) else {
+                completion(nil)
+                return
+            }
 
             do {
                 let faces = VNDetectFaceRectanglesRequest()

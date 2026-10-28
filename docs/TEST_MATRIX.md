@@ -28,6 +28,6 @@
 | Scene | Indoor, backlit, low light | Preview/capture remains responsive | Pending |
 | Scene | Horizon and landscape | Orientation and framing remain stable | Pending |
 | Performance | Repeated capture | No freeze or memory warning | Pending |
-| Composition analysis | Face/saliency and sampled image signals | One stable advisory message; capture remains available | Dedicated serial queue, one-frame pending gate, unrotated analysis buffers with Vision orientation mapping; physical-scene tuning pending |
+| Composition analysis | Face/saliency and sampled image signals | One stable advisory message; capture remains available | Dedicated serial queue, explicit 7 Hz rate limiter, AVFoundation late-frame dropping, unrotated buffers with Vision orientation mapping; throttle unit test passed; physical-scene tuning pending |
 | Subject selection | Tap visible subject in rotated/aspect-filled preview | Preview-layer conversion maps tap into capture-device coordinates, then into Vision's oriented coordinates | Transform unit tests passed; physical-device selection check pending |
 | Guidance recovery | Selected subject disappears / confidence remains low | Brief loss debounce clears stale advice to a cautious search instruction | Passed in simulator GuidanceEngine tests; live tracking-loss check pending |

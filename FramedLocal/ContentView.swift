@@ -757,8 +757,6 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
 }
 
 private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
-    private let stateLock = NSLock()
-    private var analysisPending = false
     weak var analyzer: CompositionAnalyzer?
     var onResult: ((AnalysisResult) -> Void)?
     private var mostRecentPixelBuffer: CVPixelBuffer?
@@ -766,20 +764,10 @@ private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSam
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
                        from connection: AVCaptureConnection) {
         guard let source = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        stateLock.lock()
-        guard !analysisPending else {
-            stateLock.unlock()
-            return
-        }
-        analysisPending = true
-        stateLock.unlock()
         mostRecentPixelBuffer = source
         analyzer?.analyze(source) { [weak self] result in
+            guard let result else { return }
             self?.onResult?(result)
-            guard let self else { return }
-            self.stateLock.lock()
-            self.analysisPending = false
-            self.stateLock.unlock()
         }
     }
 
