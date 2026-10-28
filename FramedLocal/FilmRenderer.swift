@@ -120,6 +120,10 @@ public actor FilmRenderer {
         return jpeg
     }
 
+    public func clearCaches() {
+        context.clearCaches()
+    }
+
     private static func centerCrop(_ image: CIImage, aspect: CGFloat?, position: CropPosition) -> CIImage {
         guard let aspect, image.extent.width > 0, image.extent.height > 0 else { return image }
         let crop = CropGeometry.cropRect(in: image.extent, aspect: aspect, position: position)

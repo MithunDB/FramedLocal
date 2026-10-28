@@ -5,7 +5,7 @@ This is the living status record for the private/local FramedLocal iOS app.
 ## Current State
 
 - Date: 2026-10-28
-- Phase: 7 — editor crop/aspect and bounded import plus reduced-memory preview decode implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
+- Phase: 7 — editor crop/aspect, bounded import/preview, and Core Image memory-warning cache clearing implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
 - Branch: `main`, tracking `origin/main` (private GitHub `MithunDB/FramedLocal`)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
@@ -23,6 +23,11 @@ This is the living status record for the private/local FramedLocal iOS app.
 Continue the private/local FramedLocal implementation through physical iPhone validation of camera capture, orientation, guidance, editing, and Photos export. Keep this file current so work can resume after context or usage limits.
 
 ## Last Completed Step
+
+- Added low-memory recovery for the shared Core Image renderer. The app now observes UIKit memory warnings and asks `FilmRenderer` to clear its `CIContext` intermediate caches. Added a regression test that clears the cache and confirms a subsequent preset render still produces JPEG output.
+- Verification: iOS 27.1 simulator hosted suite passed (44 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged the recurring simulator metadata `invalidDigitCount` diagnostics only. Memory-warning delivery and cache-reclamation effect require device/runtime measurement.
+- Changed files: `FramedLocal/FilmRenderer.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: add cache-pressure behavior to the matrix and commit/push; then continue reviewing unverified camera and editor lifecycle edges for code-level improvements.
 
 - Reduced decoded preview memory independently of export quality. `PreviewImageDecoder` now creates an orientation-aware ImageIO thumbnail capped at 1,800 pixels on the long edge, while `renderedCapture` still retains the full bounded JPEG (up to 2,400 px) for export. Added coverage for small-image dimension preservation and bounding a large preview decode.
 - Verification: iOS 27.1 simulator hosted suite passed (43 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Physical rendering latency and perceived preview sharpness need device review.

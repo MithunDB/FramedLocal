@@ -203,6 +203,9 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            Task { await FilmRenderer.shared.clearCaches() }
+        }
         .task {
             await camera.requestPermissionAndStart()
             await camera.startIfAuthorized()

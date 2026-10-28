@@ -23,6 +23,15 @@ final class RendererTests: XCTestCase {
         XCTAssertNotEqual(first, natural)
     }
 
+    func testRendererRemainsUsableAfterClearingImageCaches() async throws {
+        let source = try sampleJPEG()
+        await FilmRenderer.shared.clearCaches()
+
+        let rendered = try await FilmRenderer.shared.render(source, preset: .warmPrint)
+
+        XCTAssertTrue(rendered.starts(with: [0xFF, 0xD8]))
+    }
+
     func testCancelledRenderExitsBeforeDoingRendererWork() async throws {
         let source = try sampleJPEG()
         let gate = RendererTestGate()
