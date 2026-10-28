@@ -24,6 +24,9 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- PhotoKit album-placeholder audit proposed a guard that the SDK rejects because `placeholderForCreatedAssetCollection` is non-optional (`initializer for conditional binding must have Optional type, not PHObjectPlaceholder`). Reverted that speculative change; no app code remains from the attempt. Re-ran simulator suite (48/48), generic unsigned iOS build, and `git diff --check`; all passed. The compiler error was the only new error this turn.
+- Exact next smallest step: continue source audit for a verified improvement; do not add an impossible nil check to the album placeholder.
+
 - Added explicit AVFoundation session-observer cleanup to `CameraController.stop()`. Authorized restart re-registers observers as needed, so repeated editor/background camera stops do not leave stale notification callbacks in NotificationCenter.
 - Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Repeated physical camera/editor lifecycle still needs iPhone verification.
 - Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
