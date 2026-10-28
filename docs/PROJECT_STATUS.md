@@ -24,6 +24,9 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Corrected the top-level test-matrix count from 29 to the latest verified 48 tests and updated the coverage description. Source run evidence is the latest iOS 27.1 simulator `.xcresult` from the generation-guard change; no app code changed in this documentation correction.
+- Exact next smallest step: continue source audit for the next concrete reliability gap.
+
 - Added generation checks before and after queued lens-switch reconfiguration. A switch invalidated by stop/background or a newer session request now exits before mutating the camera or resuming analysis.
 - Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Queue timing on physical camera remains unverified.
 - Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
