@@ -6,6 +6,14 @@ Work in the private repository:
 
 Build the complete private/local `Framed` iPhone camera app described in `docs/FRAMED_LOCAL_IOS_PROJECT_INIT.md`.
 
+## Working Directory
+
+Perform the implementation in:
+
+`/Users/mithundb/Desktop/Code/Framed`
+
+Create the directory if it does not exist. Treat that folder as the local Xcode project workspace and keep all app source, project files, assets, tests, and build-support files there. The GitHub repository is the source for these planning documents and should also receive the implementation commits when Git is initialized or connected from the working directory. Do not implement the app in the repository's `docs` folder.
+
 ## Required Startup
 
 1. Read `docs/PROJECT_STATUS.md` if it exists.
