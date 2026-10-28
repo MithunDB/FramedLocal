@@ -26,7 +26,8 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 - Added cooperative cancellation checks to `FilmRenderer`, `FrameRenderer`, and `PreviewImageDecoder` so canceled jobs exit at entry/boundaries; Night Grain also checks cancellation every 65,536 generated noise pixels. Added a gated test that cancels a queued render before it reaches the renderer and verifies it throws `CancellationError`. Changed `FramedLocal/FilmRenderer.swift`, `FramedLocal/FrameRenderer.swift`, and `FramedLocalTests/RendererTests.swift`.
 - Verification: iOS 27.1 simulator hosted suite passed (39 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged only simulator metadata `invalidDigitCount` diagnostics. Physical memory/cancellation behavior on device remains unmeasured.
-- Exact next smallest step: commit/push the cooperative render cancellation change, then continue auditing import/editor memory behavior and preserve physical device checks as pending.
+- Committed and pushed as `9a5f18b` (`Cooperate with canceled preview renders`).
+- Exact next smallest step: continue auditing import/editor memory behavior, then resume physical camera/Photos checks when the iPhone is available.
 
 - Prevented leaving/changing the editor while a Photos write is in flight: preset, crop, position, frame, and date controls are disabled during save; Retake/Cancel are also disabled. This prevents an asynchronous save completion message from appearing after the user has left the result screen. Changed `FramedLocal/ContentView.swift`.
 - Verification: iOS 27.1 simulator hosted suite passed (38 tests, 0 failures); generic unsigned iOS build passed; `git diff --check` passed. Only recurring simulator metadata `invalidDigitCount` diagnostics appeared. Physical Photos-save interaction remains device-only.
