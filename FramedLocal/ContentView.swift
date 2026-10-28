@@ -222,7 +222,11 @@ struct ContentView: View {
         }
         .onDisappear {
             importTask?.cancel()
+            importTaskID = UUID()
+            importTask = nil
+            isImporting = false
             renderTask?.cancel()
+            renderTask = nil
             isRendering = false
             camera.stop()
         }

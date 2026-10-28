@@ -259,6 +259,15 @@ Still needed before the requested end state is proven:
 - Changed files: `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: run generic build and `git diff --check`, then commit/push. Physical iPhone import/export and camera checks remain on the device checklist.
 
+## Follow-up Turn — 2026-10-28 (import view lifecycle)
+
+- Current audit found `.onDisappear` canceled the PhotosPicker transfer task but did not reset `isImporting` or its request identity. Returning to a retained view could leave selection disabled, and a late completion could still match the stale identity.
+- Changed `FramedLocal/ContentView.swift`: on disappearance, invalidate the import task ID, nil the task, reset import progress, cancel/nil pending render, and stop camera. This prevents stale transfer completion from updating the view and clears a stuck loading state.
+- Added import and import-cancellation cases to `docs/TEST_MATRIX.md`; lifecycle behavior compiles but needs UI/device runtime confirmation.
+- Generic iOS build succeeded. Simulator test suite passed 10/10. `git diff --check` passed before doc edits; rerun before commit. Only non-fatal AppIntents metadata extraction warning.
+- Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: inspect and run final diff check, then commit/push. Physical PhotosPicker transfer and add-only export remain pending on the iPhone.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.

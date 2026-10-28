@@ -22,6 +22,8 @@
 | Imported EXIF orientation | Landscape pixel data tagged with portrait orientation | Film render bakes orientation into upright pixels and removes rotation tag | Passed in simulator unit tests |
 | Editor pipeline | All five presets × three frame layouts on EXIF-rotated input | Every export is JPEG and remains upright; original source bytes remain unchanged | Passed in simulator unit tests |
 | Photos export | Denied | Explain permission; capture remains available | Implemented; runtime check pending |
+| Photos-picker import | Select an existing image | Transfer only selected image; original bytes remain unchanged through editing/export | Implemented; physical UI/runtime check pending |
+| Import cancellation | Leave editor while transfer is active | Transfer is invalidated and editor can choose again on reappearance | State reset implemented; UI lifecycle runtime test pending |
 | Scene | Bright outdoor portrait | Preview/capture remains responsive | Pending |
 | Scene | Indoor, backlit, low light | Preview/capture remains responsive | Pending |
 | Scene | Horizon and landscape | Orientation and framing remain stable | Pending |
