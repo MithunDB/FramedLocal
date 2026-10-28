@@ -25,6 +25,21 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertEqual(engine.update(message: "Move slowly so I can find the subject", time: 1.4, confidence: 0.1), "Move slowly so I can find the subject")
     }
 
+    func testTrackingUsesItsOwnConfidenceThresholdAndRecoveryMessage() {
+        var engine = GuidanceEngine()
+        XCTAssertEqual(engine.update(message: "Suggested framing", time: 1.0, confidence: 0.8), "Searching for a subject")
+        XCTAssertEqual(engine.update(message: "Suggested framing", time: 1.7, confidence: 0.8), "Suggested framing")
+        XCTAssertEqual(engine.update(message: "Move a little closer", time: 2.0, confidence: 0.4, source: .tracking), "Suggested framing")
+        XCTAssertEqual(engine.update(message: "Move a little closer", time: 2.4, confidence: 0.4, source: .tracking), "Move slowly to keep the subject in frame")
+        XCTAssertEqual(engine.update(message: "Suggested framing", time: 2.7, confidence: 0.8, source: .tracking), "Move slowly to keep the subject in frame")
+    }
+
+    func testLowConfidenceDetectionKeepsSearchMessage() {
+        var engine = GuidanceEngine()
+        XCTAssertEqual(engine.update(message: "Move slowly so I can find the subject", time: 1.0, confidence: 0.25, source: .detection), "Searching for a subject")
+        XCTAssertEqual(engine.update(message: "Move slowly so I can find the subject", time: 1.4, confidence: 0.25, source: .detection), "Move slowly so I can find the subject")
+    }
+
     func testTapPointMapsFromCaptureCoordinatesIntoVisionOrientation() {
         let point = CGPoint(x: 0.2, y: 0.3)
         XCTAssertEqual(VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: point, orientation: .up),

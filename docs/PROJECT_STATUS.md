@@ -321,3 +321,14 @@ Connect iPhone 12, select the Apple Development team in Xcode, install and launc
 ## Recovery Instruction
 
 Read this file first after context compression. Then inspect `git status`, the latest diff, and only the relevant sections of `docs/FRAMED_LOCAL_IOS_PROJECT_INIT.md`.
+
+## Follow-up Turn — 2026-10-28 (separate detection and tracking confidence)
+
+- Current audit found `CompositionMetrics.confidence` was populated from the active selected tracker when tracking, otherwise from face/saliency detection. Guidance therefore interpreted the same scalar with different meanings and thresholds.
+- Added `SubjectConfidenceSource` to metrics. Detection keeps its existing 0.3 threshold and “find the subject” message; selected tracking has its own 0.5 confidence threshold and “keep the subject in frame” recovery message. The public `GuidanceEngine.update` API remains detection-oriented; an internal overload accepts tracking source.
+- Added deterministic tests for low-confidence tracking and detection recovery.
+- First simulator test build failed with Swift access-control errors because a public method parameter/default argument exposed an internal enum. Fixed by retaining the public three-argument API and adding an internal source-aware overload.
+- Simulator hosted suite passed 16/16. Generic iOS device build succeeded. Simulator logs included Core Image pixel-buffer diagnostics from renderer tests (`CVPixelBufferCreate returned err -6680`) while all renderer cases passed; Xcode also emitted simulator build-version digit warnings and the existing AppIntents metadata extraction warning. No source compile warnings remain.
+- Physical tracking behavior and calibration of the 0.5 threshold remain unverified without an iPhone camera.
+- Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: record the updated matrix result, run `git diff --check`, inspect the final diff, then commit and push. Connect and sign the iPhone 12 to continue physical verification.

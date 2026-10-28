@@ -20,7 +20,13 @@ struct CompositionMetrics: Sendable {
     var sharpness: Double
     var subjectEdgeDistance: EdgeDistances?
     var confidence: Double
+    var confidenceSource: SubjectConfidenceSource = .detection
     var horizonAngle: Double? = nil
+}
+
+enum SubjectConfidenceSource: Equatable, Sendable {
+    case detection
+    case tracking
 }
 
 public struct GuidanceEngine {
@@ -33,11 +39,19 @@ public struct GuidanceEngine {
     public init() {}
 
     public mutating func update(message: String, time: Double, confidence: Double) -> String {
-        guard confidence >= 0.3 else {
+        update(message: message, time: time, confidence: confidence, source: .detection)
+    }
+
+    mutating func update(message: String, time: Double, confidence: Double,
+                         source: SubjectConfidenceSource) -> String {
+        let minimumConfidence = source == .tracking ? 0.5 : 0.3
+        guard confidence >= minimumConfidence else {
             candidate = nil
             if lowConfidenceSince == nil { lowConfidenceSince = time }
             guard time - (lowConfidenceSince ?? time) >= 0.35 else { return current }
-            let recoveryMessage = "Move slowly so I can find the subject"
+            let recoveryMessage = source == .tracking
+                ? "Move slowly to keep the subject in frame"
+                : "Move slowly so I can find the subject"
             if current != recoveryMessage {
                 current = recoveryMessage
                 lastChange = time
@@ -162,8 +176,9 @@ final class CompositionAnalyzer: @unchecked Sendable {
                     ?? saliencyRect
                 let samples = Self.sampleLuminance(pixelBuffer)
                 let edgeDistances = subjectRect.map(Self.edgeDistances)
-                let detectorConfidence = self.selectedObservation?.confidence
+                let confidence = self.selectedObservation.map { Double($0.confidence) }
                     ?? (faceObservations.isEmpty ? (saliencyRect == nil ? 0.12 : 0.58) : 0.82)
+                let confidenceSource: SubjectConfidenceSource = self.selectedObservation == nil ? .detection : .tracking
                 let metrics = CompositionMetrics(
                     subjectRect: subjectRect,
                     faceRects: faceRects,
@@ -172,10 +187,12 @@ final class CompositionAnalyzer: @unchecked Sendable {
                     clippedShadowRatio: samples.shadows,
                     sharpness: Self.sharpness(pixelBuffer),
                     subjectEdgeDistance: edgeDistances,
-                    confidence: Double(detectorConfidence)
+                    confidence: confidence,
+                    confidenceSource: confidenceSource
                 )
                 let guidance = guidanceEngine.update(message: suggestedGuidance(for: metrics),
-                                                     time: now, confidence: metrics.confidence)
+                                                     time: now, confidence: metrics.confidence,
+                                                     source: metrics.confidenceSource)
                 completion(AnalysisResult(metrics: metrics, guidance: guidance))
             } catch {
                 let metrics = CompositionMetrics(subjectRect: nil, faceRects: [], brightness: 0.5,
@@ -232,7 +249,9 @@ final class CompositionAnalyzer: @unchecked Sendable {
 
     private func suggestedGuidance(for metrics: CompositionMetrics) -> String {
         let message: String
-        if metrics.confidence < 0.3 {
+        if metrics.confidenceSource == .tracking && metrics.confidence < 0.5 {
+            message = "Move slowly to keep the subject in frame"
+        } else if metrics.confidence < 0.3 {
             message = "Move slowly so I can find the subject"
         } else if metrics.sharpness < 0.035 {
             message = "Hold steady"
