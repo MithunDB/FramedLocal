@@ -24,6 +24,10 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Added original app-icon artwork and connected it in the universal iOS asset catalog (`AppIcon.png`, 1024×1024). Simulator and generic iOS device asset-catalog builds pass. The previous icon set contained no image entries.
+- Changed files: `FramedLocal/Assets.xcassets/AppIcon.appiconset/Contents.json`, `FramedLocal/Assets.xcassets/AppIcon.appiconset/AppIcon.png`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: run the release/privacy configuration audit and resolve signing setup needed for installing on the physical iPhone; runtime camera/Photos/guidance checks still require the device.
+
 - Corrected the top-level test-matrix count from 29 to the latest verified 48 tests and updated the coverage description. Source run evidence is the latest iOS 27.1 simulator `.xcresult` from the generation-guard change; no app code changed in this documentation correction.
 - Exact next smallest step: continue source audit for the next concrete reliability gap.
 

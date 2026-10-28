@@ -4,6 +4,7 @@
 |---|---|---|---|
 | Build | iOS 27.1 simulator | App builds without signing | Passed |
 | Build | Generic iOS device destination | App builds without signing | Passed |
+| App icon | iOS asset catalog | Universal 1024×1024 icon is included and compiles for simulator/device | Passed asset-catalog builds; physical home-screen appearance pending |
 | Unit tests | iOS 27.1 simulator | Guidance, camera/session policies, renderer, import orientation/bounds, crop, cancellation, and PhotoKit transaction logic | Passed (48 tests, 0 failures; latest run after `Guard stale lens switch work`) |
 | Launch | iOS 27.1 simulator | App installs and launches; permission prompt and camera-unavailable fallback are presented | Passed simulator install/launch; simulator has no camera; physical launch/capture pending |
 | Privacy configuration | Built Info.plist, source, and project dependency scan | Camera and add-only Photos prompts only; picker import without full library authorization; no app network client/analytics dependency | Static inspection passed; physical permission flow pending |
