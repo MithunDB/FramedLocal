@@ -202,6 +202,16 @@ Still needed before the requested end state is proven:
 - Xcode warning: skipped AppIntents metadata extraction because the project has no AppIntents dependency. No test failures.
 - Exact next smallest step: run a generic-device build and `git diff --check`, review the test additions, then commit/push. Continue device checks once iPhone 12 is connected and trusted.
 
+## Follow-up Turn — 2026-10-28 (camera orientation and mirroring)
+
+- Current audit confirmed a four-camera rotation mapping already exists, but mirroring was implicit and camera discovery selected a rear-capable fallback type for front discovery.
+- Changed `FramedLocal/ContentView.swift`: front discovery now prefers TrueDepth and falls back to front wide-angle; rear discovery uses rear wide-angle. Front preview and analysis connections explicitly mirror, rear connections do not, and photo output mirroring follows selected position at capture time. Rotation angle remains explicitly updated across preview, analysis, and photo connections.
+- Changed `docs/TEST_MATRIX.md` to reflect configured (not yet device-verified) front mirroring/orientation.
+- Generic iOS device build succeeded; simulator unit suite passed 7/7. Only non-fatal AppIntents metadata extraction warning.
+- One combined patch attempt failed to match source context and made no change; split into exact hunks and applied successfully. `git diff --check` remains to run before commit.
+- Runtime front/rear orientation and selfie mirroring remain unverified until physical iPhone 12 is visible; simulator has no camera hardware.
+- Exact next smallest step: run final diff check/review, update status with commit result, then validate front-camera mirroring and portrait/landscape stills on the iPhone.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.

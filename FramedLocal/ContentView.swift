@@ -539,6 +539,10 @@ final class CameraController: NSObject, @unchecked Sendable {
             if let connection = self.photoOutput.connection(with: .video) {
                 let angle = self.rotationAngle(for: self.deviceOrientation)
                 if connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
+                if connection.isVideoMirroringSupported {
+                    connection.automaticallyAdjustsVideoMirroring = false
+                    connection.isVideoMirrored = self.useFrontCamera
+                }
             }
             self.photoOutput.capturePhoto(with: settings, delegate: delegate)
         }
@@ -636,6 +640,10 @@ final class CameraController: NSObject, @unchecked Sendable {
                 if let connection, connection.isVideoRotationAngleSupported(angle) {
                     connection.videoRotationAngle = angle
                 }
+                if let connection, connection.isVideoMirroringSupported {
+                    connection.automaticallyAdjustsVideoMirroring = false
+                    connection.isVideoMirrored = self.useFrontCamera
+                }
             }
         }
     }
@@ -654,9 +662,11 @@ final class CameraController: NSObject, @unchecked Sendable {
             session.removeOutput(analysisOutput)
         }
 
-        let deviceType: AVCaptureDevice.DeviceType = position == .back ? .builtInWideAngleCamera : .builtInTrueDepthCamera
+        let deviceTypes: [AVCaptureDevice.DeviceType] = position == .back
+            ? [.builtInWideAngleCamera]
+            : [.builtInTrueDepthCamera, .builtInWideAngleCamera]
         let discovery = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [deviceType, .builtInWideAngleCamera],
+            deviceTypes: deviceTypes,
             mediaType: .video,
             position: position
         )
@@ -667,6 +677,12 @@ final class CameraController: NSObject, @unchecked Sendable {
         guard session.canAddInput(input) else { throw CameraError.cannotAddCamera }
         session.addInput(input)
         activeInput = input
+
+        if let previewConnection = session.connections.first(where: { $0.inputPorts.contains(where: { $0.mediaType == .video }) }),
+           previewConnection.isVideoMirroringSupported {
+            previewConnection.automaticallyAdjustsVideoMirroring = false
+            previewConnection.isVideoMirrored = position == .front
+        }
 
         guard session.canAddOutput(photoOutput) else { throw CameraError.cannotAddPhotoOutput }
         session.addOutput(photoOutput)
