@@ -387,3 +387,13 @@ Read this file first after context compression. Then inspect `git status`, the l
 - Physical interruption behavior and media-services reset cannot be induced/verified on the current simulator reliably; test on iPhone remains pending.
 - Changed files: `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: record 21 passing tests and push; next audit should cover still-photo capture cancellation/failure completion and ensure UI state recovers if AVFoundation never delivers photo data.
+
+## Follow-up Turn — 2026-10-28 (terminal still-capture completion)
+
+- Capture-path audit found `PhotoCaptureDelegate` completed UI state from `didFinishProcessingPhoto` only. It did not consume AVFoundation's terminal `didFinishCaptureFor` callback, so capture-level errors or a missing processing callback could leave capture completion ambiguous and delay clearing `isCapturing`.
+- Added a lock-protected delegate result accumulator and made `didFinishCaptureFor` the single completion point. Terminal capture errors take precedence over a partial processing result; absent photo data becomes a clear failure. The existing completion clears `isCapturing` on the MainActor and releases the retained delegate from the session queue.
+- Added resolver tests for capture-level error precedence, missing photo data, and successful JPEG completion.
+- Simulator hosted suite passed 24/24. Generic iOS device build succeeded. `git diff --check` passed. Existing benign simulator Core Image and Xcode build-version diagnostics remain.
+- Physical shutter/capture callback behavior still needs confirmation on an iPhone; no manual test was run this turn.
+- Changed files: `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: record 24 passing tests and push; then review Photos export cancellation and capture-state retention while the user continues deferring hands-on device checks.

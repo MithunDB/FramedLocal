@@ -944,19 +944,50 @@ private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSam
     }
 }
 
-private final class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
+enum PhotoCaptureResultResolver {
+    static func resolve(processedResult: Result<Data, Error>?,
+                        captureError: Error?,
+                        missingDataError: Error) -> Result<Data, Error> {
+        if let captureError { return .failure(captureError) }
+        return processedResult ?? .failure(missingDataError)
+    }
+}
+
+private final class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var processedResult: Result<Data, Error>?
+    private var didComplete = false
     var didCapture: ((Result<Data, Error>) -> Void)?
 
     func photoOutput(_ output: AVCapturePhotoOutput,
                      didFinishProcessingPhoto photo: AVCapturePhoto,
                      error: Error?) {
+        let result: Result<Data, Error>
         if let error {
-            didCapture?(.failure(error))
+            result = .failure(error)
         } else if let data = photo.fileDataRepresentation() {
-            didCapture?(.success(data))
+            result = .success(data)
         } else {
-            didCapture?(.failure(CaptureError.missingData))
+            result = .failure(CaptureError.missingData)
         }
+        lock.lock()
+        if !didComplete { processedResult = result }
+        lock.unlock()
+    }
+
+    func photoOutput(_ output: AVCapturePhotoOutput,
+                     didFinishCaptureFor resolvedSettings: AVCaptureResolvedPhotoSettings,
+                     error: Error?) {
+        lock.lock()
+        guard !didComplete else { lock.unlock(); return }
+        didComplete = true
+        let result = PhotoCaptureResultResolver.resolve(processedResult: processedResult,
+                                                        captureError: error,
+                                                        missingDataError: CaptureError.missingData)
+        let completion = didCapture
+        didCapture = nil
+        lock.unlock()
+        completion?(result)
     }
 
     private enum CaptureError: LocalizedError {

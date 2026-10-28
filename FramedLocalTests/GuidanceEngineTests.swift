@@ -77,6 +77,48 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertEqual(SessionRecoveryPolicy.runtimeError(shouldBeRunning: false, mediaServicesWereReset: true), .ignore)
     }
 
+    func testPhotoCaptureResolverPrefersTerminalCaptureError() {
+        let data = Data([0xFF, 0xD8])
+        let processingError = NSError(domain: "PhotoProcessing", code: 1,
+                                      userInfo: [NSLocalizedDescriptionKey: "processing failed"])
+        let captureError = NSError(domain: "PhotoCapture", code: 2,
+                                   userInfo: [NSLocalizedDescriptionKey: "capture failed"])
+        let resolved = PhotoCaptureResultResolver.resolve(processedResult: .success(data),
+                                                          captureError: captureError,
+                                                          missingDataError: processingError)
+        if case .failure(let error) = resolved {
+            XCTAssertEqual(error.localizedDescription, "capture failed")
+        } else {
+            XCTFail("A terminal capture error must fail the capture result")
+        }
+    }
+
+    func testPhotoCaptureResolverReportsMissingPhotoResult() {
+        let missingDataError = NSError(domain: "PhotoCapture", code: 3,
+                                       userInfo: [NSLocalizedDescriptionKey: "missing data"])
+        let resolved = PhotoCaptureResultResolver.resolve(processedResult: nil,
+                                                          captureError: nil,
+                                                          missingDataError: missingDataError)
+        if case .failure(let error) = resolved {
+            XCTAssertEqual(error.localizedDescription, "missing data")
+        } else {
+            XCTFail("A capture without processed photo data must fail")
+        }
+    }
+
+    func testPhotoCaptureResolverReturnsProcessedJPEGOnSuccess() {
+        let data = Data([0xFF, 0xD8, 0xFF])
+        let missingDataError = NSError(domain: "PhotoCapture", code: 3)
+        let resolved = PhotoCaptureResultResolver.resolve(processedResult: .success(data),
+                                                          captureError: nil,
+                                                          missingDataError: missingDataError)
+        if case .success(let result) = resolved {
+            XCTAssertEqual(result, data)
+        } else {
+            XCTFail("A processed photo without a terminal error should succeed")
+        }
+    }
+
     func testTapPointMapsFromCaptureCoordinatesIntoVisionOrientation() {
         let point = CGPoint(x: 0.2, y: 0.3)
         XCTAssertEqual(VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: point, orientation: .up),
