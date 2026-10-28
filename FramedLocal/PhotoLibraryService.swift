@@ -1,6 +1,36 @@
 import Photos
 import UIKit
 
+struct PhotoSaveTransactionSnapshot: Equatable, Sendable {
+    let assetCreated: Bool
+    let albumMutationAttempted: Bool
+}
+
+final class PhotoSaveTransactionState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var assetCreated = false
+    private var albumMutationAttempted = false
+
+    func markAssetCreated() {
+        lock.lock()
+        assetCreated = true
+        lock.unlock()
+    }
+
+    func markAlbumMutationAttempted() {
+        lock.lock()
+        albumMutationAttempted = true
+        lock.unlock()
+    }
+
+    func snapshot() -> PhotoSaveTransactionSnapshot {
+        lock.lock()
+        defer { lock.unlock() }
+        return PhotoSaveTransactionSnapshot(assetCreated: assetCreated,
+                                            albumMutationAttempted: albumMutationAttempted)
+    }
+}
+
 actor PhotoLibraryService {
     static let shared = PhotoLibraryService()
     private let albumTitle = "Framed"
@@ -41,39 +71,40 @@ actor PhotoLibraryService {
         try data.write(to: temporaryURL, options: .atomic)
         defer { try? FileManager.default.removeItem(at: temporaryURL) }
 
-        let savedInAlbumKey = "FramedLocal.savedInAlbum.\(UUID().uuidString)"
-        UserDefaults.standard.set(false, forKey: savedInAlbumKey)
+        let transactionState = PhotoSaveTransactionState()
         let savedInAlbum = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
             PHPhotoLibrary.shared().performChanges {
                 let creation = PHAssetCreationRequest.forAsset()
                 creation.addResource(with: .photo, fileURL: temporaryURL, options: nil)
 
                 guard let assetPlaceholder = creation.placeholderForCreatedAsset else { return }
+                transactionState.markAssetCreated()
                 let savedAlbumIdentifier = UserDefaults.standard.string(forKey: self.albumIdentifierKey)
                 if let savedAlbumIdentifier,
                    let album = Self.fetchAlbum(identifier: savedAlbumIdentifier),
                    let request = PHAssetCollectionChangeRequest(for: album) {
                     request.addAssets([assetPlaceholder] as NSArray)
-                    UserDefaults.standard.set(true, forKey: savedInAlbumKey)
+                    transactionState.markAlbumMutationAttempted()
                 } else if !UserDefaults.standard.bool(forKey: self.albumCreationAttemptedKey) {
                     let request = PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: self.albumTitle)
                     request.addAssets([assetPlaceholder] as NSArray)
                     UserDefaults.standard.set(request.placeholderForCreatedAssetCollection.localIdentifier,
                                               forKey: self.albumIdentifierKey)
                     UserDefaults.standard.set(true, forKey: self.albumCreationAttemptedKey)
-                    UserDefaults.standard.set(true, forKey: savedInAlbumKey)
+                    transactionState.markAlbumMutationAttempted()
                 } else {
                     // Add-only access may not allow fetching an existing collection. Save to Recents in that case.
                 }
             } completionHandler: { success, error in
+                let transaction = transactionState.snapshot()
                 if success {
-                    let didSaveInAlbum = UserDefaults.standard.bool(forKey: savedInAlbumKey)
-                    UserDefaults.standard.removeObject(forKey: savedInAlbumKey)
-                    continuation.resume(returning: didSaveInAlbum)
+                    guard transaction.assetCreated else {
+                        continuation.resume(throwing: SaveError.photoWriteFailed("Photos did not create an asset for this image."))
+                        return
+                    }
+                    continuation.resume(returning: transaction.albumMutationAttempted)
                 } else {
-                    let attemptedAlbumChange = UserDefaults.standard.bool(forKey: savedInAlbumKey)
-                    UserDefaults.standard.removeObject(forKey: savedInAlbumKey)
-                    if attemptedAlbumChange {
+                    if transaction.albumMutationAttempted {
                         UserDefaults.standard.removeObject(forKey: self.albumIdentifierKey)
                         UserDefaults.standard.set(false, forKey: self.albumCreationAttemptedKey)
                         self.saveAssetOnly(from: temporaryURL) { fallbackSuccess, fallbackError in

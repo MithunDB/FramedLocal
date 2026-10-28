@@ -397,3 +397,13 @@ Read this file first after context compression. Then inspect `git status`, the l
 - Physical shutter/capture callback behavior still needs confirmation on an iPhone; no manual test was run this turn.
 - Changed files: `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: record 24 passing tests and push; then review Photos export cancellation and capture-state retention while the user continues deferring hands-on device checks.
+
+## Follow-up Turn — 2026-10-28 (PhotoKit transaction result integrity)
+
+- Photos export audit found that a nil `placeholderForCreatedAsset` caused an early return from the PhotoKit changes block. If PhotoKit then completed the empty transaction successfully, the service could tell the UI the photo was saved even though no asset had been created.
+- Replaced per-save temporary `UserDefaults` flags with `PhotoSaveTransactionState`, a lock-protected sendable result shared by the changes and completion handlers. It separately records asset creation and album mutation. A successful transaction must confirm an asset placeholder; failed album mutations trigger asset-only fallback, while failed asset-only writes do not retry and risk duplicates.
+- Added a test for transaction-state snapshots that distinguish asset creation from album mutation.
+- Simulator hosted tests passed 25/25. Generic iOS device build succeeded. `git diff --check` passed. Existing benign simulator Core Image and Xcode build-version diagnostics remain.
+- Physical PhotoKit transaction and add-only album behavior still need on-device verification; no manual test was performed.
+- Changed files: `FramedLocal/PhotoLibraryService.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: record 25 passing tests and push this export fix; continue inspecting import cancellation and local temp-file lifecycle, then verify PhotoKit behavior on the iPhone when the user is ready.

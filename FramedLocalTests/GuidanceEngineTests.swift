@@ -119,6 +119,18 @@ final class GuidanceEngineTests: XCTestCase {
         }
     }
 
+    func testPhotoSaveTransactionStateDistinguishesAssetAndAlbumWrites() {
+        let state = PhotoSaveTransactionState()
+        XCTAssertEqual(state.snapshot(), PhotoSaveTransactionSnapshot(assetCreated: false,
+                                                                       albumMutationAttempted: false))
+        state.markAssetCreated()
+        XCTAssertEqual(state.snapshot(), PhotoSaveTransactionSnapshot(assetCreated: true,
+                                                                       albumMutationAttempted: false))
+        state.markAlbumMutationAttempted()
+        XCTAssertEqual(state.snapshot(), PhotoSaveTransactionSnapshot(assetCreated: true,
+                                                                       albumMutationAttempted: true))
+    }
+
     func testTapPointMapsFromCaptureCoordinatesIntoVisionOrientation() {
         let point = CGPoint(x: 0.2, y: 0.3)
         XCTAssertEqual(VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: point, orientation: .up),
