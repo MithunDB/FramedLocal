@@ -596,7 +596,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor
     private func handleSessionInterruption() {
         guard sessionIsRunning else { return }
-        analysisDelegate.pause()
+        analysisDelegate.pause(on: analysisQueue)
         isSessionRunning = false
         captureMessage = "Camera temporarily unavailable. It will resume when available."
     }
@@ -623,7 +623,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             resumeSessionAfterSystemEvent(failureMessage: "Camera could not resume after a system reset. Tap Retry camera.")
         case .showRetry:
             _ = sessionGeneration.advance()
-            analysisDelegate.pause()
+            analysisDelegate.pause(on: analysisQueue)
             sessionIsRunning = false
             isSessionRunning = false
             isConfiguring = false
@@ -637,7 +637,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         let generation = sessionGeneration.advance()
         let visionOrientation = self.visionOrientation
         isConfiguring = true
-        analysisDelegate.pause()
+        analysisDelegate.pause(on: analysisQueue)
         sessionQueue.async { [weak self] in
             guard let self else { return }
             guard self.sessionGeneration.isCurrent(generation) else { return }
@@ -681,7 +681,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         isSessionRunning = false
         let generation = sessionGeneration.advance()
         let visionOrientation = self.visionOrientation
-        analysisDelegate.pause()
+        analysisDelegate.pause(on: analysisQueue)
         let position: AVCaptureDevice.Position = isFrontCamera ? .front : .back
         let angle = rotationAngle(for: deviceOrientation)
 
@@ -721,7 +721,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor
     func stop() {
         _ = sessionGeneration.advance()
-        analysisDelegate.pause()
+        analysisDelegate.pause(on: analysisQueue)
         clearSubjectSelection()
         horizonTilt = nil
         motionManager.stopDeviceMotionUpdates()
@@ -754,7 +754,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         cameraStartupFailed = false
         let generation = sessionGeneration.advance()
         let visionOrientation = self.visionOrientation
-        analysisDelegate.pause()
+        analysisDelegate.pause(on: analysisQueue)
         clearSubjectSelection()
         sessionQueue.async { [weak self] in
             guard let self else { return }
@@ -1146,8 +1146,11 @@ private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSam
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
                        from connection: AVCaptureConnection) {
         guard let source = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        guard let generation = generationGate.generationForFrame() else {
+            mostRecentPixelBuffer = nil
+            return
+        }
         mostRecentPixelBuffer = source
-        guard let generation = generationGate.generationForFrame() else { return }
         let orientation = analysisOrientation
         analyzer?.analyze(source, orientation: orientation) { [weak self] result in
             guard let self, let result, self.generationGate.acceptsResult(for: generation) else { return }
@@ -1155,8 +1158,12 @@ private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSam
         }
     }
 
-    func pause() {
+    func pause(on queue: DispatchQueue) {
         generationGate.pause()
+        queue.async { [weak self] in
+            self?.mostRecentPixelBuffer = nil
+            self?.analyzer?.clearSelection()
+        }
     }
 
     func updateOrientation(_ orientation: CGImagePropertyOrientation, on queue: DispatchQueue) {

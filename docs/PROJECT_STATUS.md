@@ -5,7 +5,7 @@ This is the living status record for the private/local FramedLocal iOS app.
 ## Current State
 
 - Date: 2026-10-28
-- Phase: 7 — editor crop/aspect, bounded import/preview, and Core Image memory-warning cache clearing implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
+- Phase: 7 — editor crop/aspect, bounded import/preview, Core Image memory-warning cache clearing, and paused-analysis buffer release implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
 - Branch: `main`, tracking `origin/main` (private GitHub `MithunDB/FramedLocal`)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
@@ -23,6 +23,11 @@ This is the living status record for the private/local FramedLocal iOS app.
 Continue the private/local FramedLocal implementation through physical iPhone validation of camera capture, orientation, guidance, editing, and Photos export. Keep this file current so work can resume after context or usage limits.
 
 ## Last Completed Step
+
+- Closed a camera analysis frame-retention edge. `VideoAnalysisDelegate` now checks its generation gate before retaining the latest pixel buffer; callbacks arriving while paused clear/ignore the buffer. Pausing also queues buffer release and subject-selection cleanup on the serial analysis queue, avoiding cross-queue access and releasing the last preview frame after stop/interruption/lens reconfiguration.
+- Verification: iOS 27.1 simulator hosted suite passed (44 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. Physical camera interruption and memory behavior remain unverified.
+- Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: record paused-frame release in the matrix and commit/push; continue camera pipeline review and validate on iPhone when connected.
 
 - Audited the built app’s privacy surface and local-only constraint. The generated simulator Info.plist contains the intended `NSCameraUsageDescription`, `NSPhotoLibraryAddUsageDescription`, display name `Framed`, and bundle ID `local.mithundb.framed`; it has no full-library `NSPhotoLibraryUsageDescription` or extra location, microphone, tracking, or local-network usage prompt. App source/project scan found no network client, analytics SDK, or package dependency. Photos import uses the system `PhotosPicker`, while export requests `.addOnly` authorization.
 - Verification: static inspection of the current built simulator Info.plist, app sources, and project files. No source changes or new build/test run in this audit; prior verified state remains 44/44 simulator tests and a passing generic unsigned iOS build. Physical permission behavior still needs the iPhone.
