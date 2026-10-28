@@ -282,7 +282,7 @@ struct ContentView: View {
         camera.captureMessage = "Loading selected photo…"
         importTask = Task {
             do {
-                let data = try await PhotoImportService.loadJPEG(from: item)
+                let data = try await PhotoImportService.loadImageData(from: item)
                 try Task.checkCancellation()
                 await MainActor.run {
                     guard importTaskID == taskID else { return }

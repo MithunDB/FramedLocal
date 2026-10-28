@@ -16,7 +16,7 @@ enum PhotoImportService {
         }
     }
 
-    static func loadJPEG(from item: PhotosPickerItem) async throws -> Data {
+    static func loadImageData(from item: PhotosPickerItem) async throws -> Data {
         do {
             if let file = try await item.loadTransferable(type: ImportedImageFile.self) {
                 defer { try? FileManager.default.removeItem(at: file.url) }

@@ -57,6 +57,17 @@ final class RendererTests: XCTestCase {
         XCTAssertEqual(try PhotoImportService.editingCopy(from: source), source)
     }
 
+    func testFileBackedPhotoImportPreservesSmallSourceBytes() throws {
+        let source = try sampleJPEG(size: CGSize(width: 320, height: 240), scale: 1)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FramedLocal-test-\(UUID().uuidString).jpg")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try source.write(to: url)
+
+        XCTAssertEqual(try PhotoImportService.editingCopy(from: url), source)
+        XCTAssertEqual(try Data(contentsOf: url), source)
+    }
+
     func testPhotoImportDownsamplesAndBakesOrientationForLargeSource() throws {
         let largeLandscape = try sampleJPEG(size: CGSize(width: 3_200, height: 1_800), scale: 1)
         let rotatedSource = try jpegWithEXIFOrientation(largeLandscape, orientation: 6)
@@ -75,7 +86,8 @@ final class RendererTests: XCTestCase {
     }
 
     func testFileBackedPhotoImportDownsamplesWithoutLoadingOriginalData() throws {
-        let source = try sampleJPEG(size: CGSize(width: 3_200, height: 1_800), scale: 1)
+        let largeLandscape = try sampleJPEG(size: CGSize(width: 3_200, height: 1_800), scale: 1)
+        let source = try jpegWithEXIFOrientation(largeLandscape, orientation: 6)
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("FramedLocal-test-\(UUID().uuidString).jpg")
         defer { try? FileManager.default.removeItem(at: url) }
@@ -83,8 +95,12 @@ final class RendererTests: XCTestCase {
 
         let workingCopy = try PhotoImportService.editingCopy(from: url)
         let size = try imageSize(workingCopy)
+        let imageSource = try XCTUnwrap(CGImageSourceCreateWithData(workingCopy as CFData, nil))
+        let properties = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any])
 
         XCTAssertLessThanOrEqual(max(size.width, size.height), CGFloat(FrameRenderer.maximumPixelDimension))
+        XCTAssertGreaterThan(size.height, size.width)
+        XCTAssertNil(properties[kCGImagePropertyOrientation])
         XCTAssertLessThan(workingCopy.count, source.count)
         XCTAssertEqual(try Data(contentsOf: url), source)
     }
