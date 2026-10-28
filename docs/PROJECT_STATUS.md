@@ -24,6 +24,10 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Added cooperative cancellation checks to `FilmRenderer`, `FrameRenderer`, and `PreviewImageDecoder` so canceled jobs exit at entry/boundaries; Night Grain also checks cancellation every 65,536 generated noise pixels. Added a gated test that cancels a queued render before it reaches the renderer and verifies it throws `CancellationError`. Changed `FramedLocal/FilmRenderer.swift`, `FramedLocal/FrameRenderer.swift`, and `FramedLocalTests/RendererTests.swift`.
+- Verification: iOS 27.1 simulator hosted suite passed (39 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged only simulator metadata `invalidDigitCount` diagnostics. Physical memory/cancellation behavior on device remains unmeasured.
+- Exact next smallest step: commit/push the cooperative render cancellation change, then continue auditing import/editor memory behavior and preserve physical device checks as pending.
+
 - Prevented leaving/changing the editor while a Photos write is in flight: preset, crop, position, frame, and date controls are disabled during save; Retake/Cancel are also disabled. This prevents an asynchronous save completion message from appearing after the user has left the result screen. Changed `FramedLocal/ContentView.swift`.
 - Verification: iOS 27.1 simulator hosted suite passed (38 tests, 0 failures); generic unsigned iOS build passed; `git diff --check` passed. Only recurring simulator metadata `invalidDigitCount` diagnostics appeared. Physical Photos-save interaction remains device-only.
 - Committed and pushed as `d950cce` (`Lock editor controls while Photos saves`).
@@ -192,6 +196,9 @@ Still needed before the requested end state is proven:
 - `docs/PROJECT_STATUS.md`
 
 ## Current Turn Errors And Attempts
+
+- The first test compile emitted Swift warning `result of call to 'render(_:preset:cropAspect:cropPosition:)' is unused` in the new cancellation test. Assigned the result to `_`; rerun passed without that warning. No test failures.
+- Simulator suite passed 39/39; generic iOS build and `git diff --check` passed. The only remaining Xcode diagnostics are the recurring simulator `invalidDigitCount` metadata messages.
 
 - No code/test failures this turn. Simulator suite passed 38/38, generic device build passed, and `git diff --check` passed; Xcode emitted non-fatal simulator metadata `invalidDigitCount` diagnostics.
 

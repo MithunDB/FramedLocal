@@ -19,6 +19,7 @@ public actor FrameRenderer {
     public static let maximumPixelDimension = 2_400
 
     public func render(_ data: Data, layout: FrameLayout, dateStamp: Bool, stampDate: Date = Date()) throws -> Data {
+        try Task.checkCancellation()
         guard let source = UIImage(data: data), let cgImage = source.cgImage else {
             throw RenderError.invalidImage
         }
@@ -68,12 +69,14 @@ public actor FrameRenderer {
             CTLineDraw(line, context)
         }
 
+        try Task.checkCancellation()
         guard let output = context.makeImage() else { throw RenderError.contextCreationFailed }
         let result = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(result, UTType.jpeg.identifier as CFString, 1, nil) else {
             throw RenderError.encodingFailed
         }
         CGImageDestinationAddImage(destination, output, [kCGImageDestinationLossyCompressionQuality: 0.94] as CFDictionary)
+        try Task.checkCancellation()
         guard CGImageDestinationFinalize(destination) else { throw RenderError.encodingFailed }
         return result as Data
     }
@@ -95,6 +98,7 @@ actor PreviewImageDecoder {
     static let shared = PreviewImageDecoder()
 
     func decode(_ data: Data) throws -> CGImage {
+        try Task.checkCancellation()
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             throw FrameRenderer.RenderError.invalidImage

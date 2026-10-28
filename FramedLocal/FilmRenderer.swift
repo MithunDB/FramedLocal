@@ -96,9 +96,11 @@ public actor FilmRenderer {
 
     public func render(_ data: Data, preset: FilmPreset, cropAspect: CropAspect = .original,
                        cropPosition: CropPosition = .center) throws -> Data {
+        try Task.checkCancellation()
         guard let source = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
             throw RenderError.invalidImage
         }
+        try Task.checkCancellation()
         let croppedSource = Self.centerCrop(source, aspect: cropAspect.ratio, position: cropPosition)
         let sourceLongEdge = max(croppedSource.extent.width, croppedSource.extent.height)
         let scale = min(1, CGFloat(FrameRenderer.maximumPixelDimension) / sourceLongEdge)
@@ -109,10 +111,12 @@ public actor FilmRenderer {
                                     width: croppedSource.extent.width * scale,
                                     height: croppedSource.extent.height * scale))
             : croppedSource
-        let image = apply(preset, to: boundedSource)
+        let image = try apply(preset, to: boundedSource)
+        try Task.checkCancellation()
         guard let jpeg = context.jpegRepresentation(of: image, colorSpace: CGColorSpaceCreateDeviceRGB(), options: [:]) else {
             throw RenderError.encodingFailed
         }
+        try Task.checkCancellation()
         return jpeg
     }
 
@@ -123,7 +127,7 @@ public actor FilmRenderer {
         return centered.transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
     }
 
-    private func apply(_ preset: FilmPreset, to source: CIImage) -> CIImage {
+    private func apply(_ preset: FilmPreset, to source: CIImage) throws -> CIImage {
         guard preset != .natural else { return source }
 
         var image = source
@@ -159,7 +163,7 @@ public actor FilmRenderer {
             image = color.outputImage ?? image
             image = temperature(image, kelvin: 4_900, tint: -5)
             image = vignette(image, intensity: 0.32, radius: 1.1)
-            image = grain(image, amount: 0.12)
+            image = try grain(image, amount: 0.12)
         }
         return image.cropped(to: source.extent)
     }
@@ -180,8 +184,8 @@ public actor FilmRenderer {
         return filter.outputImage ?? image
     }
 
-    private func grain(_ image: CIImage, amount: Float) -> CIImage {
-        let noise = Self.seededNoise(extent: image.extent, seed: 0x4652414D)
+    private func grain(_ image: CIImage, amount: Float) throws -> CIImage {
+        let noise = try Self.seededNoise(extent: image.extent, seed: 0x4652414D)
         let blend = CIFilter.softLightBlendMode()
         let scaledNoise = noise.applyingFilter("CIColorMatrix", parameters: [
             "inputRVector": CIVector(x: CGFloat(amount), y: 0, z: 0, w: 0),
@@ -197,12 +201,13 @@ public actor FilmRenderer {
         return blend.outputImage?.cropped(to: image.extent) ?? image
     }
 
-    private static func seededNoise(extent: CGRect, seed: UInt32) -> CIImage {
+    private static func seededNoise(extent: CGRect, seed: UInt32) throws -> CIImage {
         let width = max(Int(extent.width.rounded(.up)), 1)
         let height = max(Int(extent.height.rounded(.up)), 1)
         var state = seed
         var pixels = [UInt8](repeating: 0, count: width * height * 4)
         for pixel in 0..<(width * height) {
+            if pixel.isMultiple(of: 65_536) { try Task.checkCancellation() }
             state = 1_664_525 &* state &+ 1_013_904_223
             let value = UInt8(truncatingIfNeeded: state >> 24)
             let offset = pixel * 4

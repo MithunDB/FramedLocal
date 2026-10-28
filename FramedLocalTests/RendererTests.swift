@@ -23,6 +23,26 @@ final class RendererTests: XCTestCase {
         XCTAssertNotEqual(first, natural)
     }
 
+    func testCancelledRenderExitsBeforeDoingRendererWork() async throws {
+        let source = try sampleJPEG()
+        let gate = RendererTestGate()
+        let task = Task {
+            await gate.pause()
+            _ = try await FilmRenderer.shared.render(source, preset: .nightGrain)
+        }
+
+        await gate.waitUntilPaused()
+        task.cancel()
+        await gate.release()
+
+        do {
+            _ = try await task.value
+            XCTFail("A cancelled render must not produce an output")
+        } catch is CancellationError {
+            // The render actor observes cancellation before decoding or generating grain.
+        }
+    }
+
     func testPreviewImageDecoderCreatesCGImageFromRenderedJPEG() async throws {
         let source = try sampleJPEG(size: CGSize(width: 240, height: 160))
         let decoded = try await PreviewImageDecoder.shared.decode(source)
@@ -236,5 +256,28 @@ final class RendererTests: XCTestCase {
         ] as CFDictionary)
         XCTAssertTrue(CGImageDestinationFinalize(destination))
         return output as Data
+    }
+}
+
+private actor RendererTestGate {
+    private var pauseContinuation: CheckedContinuation<Void, Never>?
+    private var readyContinuation: CheckedContinuation<Void, Never>?
+
+    func pause() async {
+        await withCheckedContinuation { continuation in
+            pauseContinuation = continuation
+            readyContinuation?.resume()
+            readyContinuation = nil
+        }
+    }
+
+    func waitUntilPaused() async {
+        if pauseContinuation != nil { return }
+        await withCheckedContinuation { readyContinuation = $0 }
+    }
+
+    func release() {
+        pauseContinuation?.resume()
+        pauseContinuation = nil
     }
 }

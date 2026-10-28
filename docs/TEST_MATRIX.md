@@ -27,6 +27,7 @@
 | Frames | Three layouts, date on/off | Preview and export match | Implemented; visual/device check pending |
 | Renderer | Portrait and landscape input, date on/off | Output pixel dimensions preserve orientation; date adds canvas space; output has no rotation tag | Passed in simulator unit tests |
 | Renderer memory bound | 2,800-pixel source | Film output is reduced to at most 2,400 pixels on the long edge before frame rendering | Passed in simulator unit tests |
+| Render cancellation | Cancel before queued render starts and during Night Grain noise generation | Canceled jobs exit before work or periodically during CPU-heavy noise creation | Queued cancellation test passed; in-loop device responsiveness pending |
 | Preview decode | Bounded rendered JPEG | ImageIO decodes to CGImage off the main actor and preserves pixel dimensions | Passed in simulator unit tests; physical responsiveness pending |
 | Imported EXIF orientation | Landscape pixel data tagged with portrait orientation | Film render bakes orientation into upright pixels and removes rotation tag | Passed in simulator unit tests |
 | Editor pipeline | All five presets × three frame layouts on EXIF-rotated input | Every export is JPEG and remains upright; original source bytes remain unchanged | Passed in simulator unit tests |
