@@ -27,7 +27,8 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 - Added low-memory recovery for the shared Core Image renderer. The app now observes UIKit memory warnings and asks `FilmRenderer` to clear its `CIContext` intermediate caches. Added a regression test that clears the cache and confirms a subsequent preset render still produces JPEG output.
 - Verification: iOS 27.1 simulator hosted suite passed (44 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged the recurring simulator metadata `invalidDigitCount` diagnostics only. Memory-warning delivery and cache-reclamation effect require device/runtime measurement.
 - Changed files: `FramedLocal/FilmRenderer.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
-- Exact next smallest step: add cache-pressure behavior to the matrix and commit/push; then continue reviewing unverified camera and editor lifecycle edges for code-level improvements.
+- Code committed and pushed as `d3773be` (`Clear render caches on memory warning`).
+- Exact next smallest step: continue reviewing unverified camera and editor lifecycle edges for code-level improvements.
 
 - Reduced decoded preview memory independently of export quality. `PreviewImageDecoder` now creates an orientation-aware ImageIO thumbnail capped at 1,800 pixels on the long edge, while `renderedCapture` still retains the full bounded JPEG (up to 2,400 px) for export. Added coverage for small-image dimension preservation and bounding a large preview decode.
 - Verification: iOS 27.1 simulator hosted suite passed (43 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Physical rendering latency and perceived preview sharpness need device review.
