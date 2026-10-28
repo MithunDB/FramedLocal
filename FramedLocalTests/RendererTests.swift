@@ -65,6 +65,21 @@ final class RendererTests: XCTestCase {
         XCTAssertEqual(rotatedSource, original)
     }
 
+    func testFileBackedPhotoImportDownsamplesWithoutLoadingOriginalData() throws {
+        let source = try sampleJPEG(size: CGSize(width: 3_200, height: 1_800), scale: 1)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FramedLocal-test-\(UUID().uuidString).jpg")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try source.write(to: url)
+
+        let workingCopy = try PhotoImportService.editingCopy(from: url)
+        let size = try imageSize(workingCopy)
+
+        XCTAssertLessThanOrEqual(max(size.width, size.height), CGFloat(FrameRenderer.maximumPixelDimension))
+        XCTAssertLessThan(workingCopy.count, source.count)
+        XCTAssertEqual(try Data(contentsOf: url), source)
+    }
+
     func testPreviewImageDecoderCreatesCGImageFromRenderedJPEG() async throws {
         let source = try sampleJPEG(size: CGSize(width: 240, height: 160))
         let decoded = try await PreviewImageDecoder.shared.decode(source)

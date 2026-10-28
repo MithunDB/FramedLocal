@@ -5,7 +5,7 @@ This is the living status record for the private/local FramedLocal iOS app.
 ## Current State
 
 - Date: 2026-10-28
-- Phase: 7 — editor crop/aspect and bounded import working copy implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
+- Phase: 7 — editor crop/aspect and bounded, file-backed import working copy implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
 - Branch: `main`, tracking `origin/main` (private GitHub `MithunDB/FramedLocal`)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
@@ -23,6 +23,11 @@ This is the living status record for the private/local FramedLocal iOS app.
 Continue the private/local FramedLocal implementation through physical iPhone validation of camera capture, orientation, guidance, editing, and Photos export. Keep this file current so work can resume after context or usage limits.
 
 ## Last Completed Step
+
+- Reduced peak memory for large Photos-picker imports. The importer now tries a file-backed transfer first, inspects dimensions through ImageIO, and generates an orientation-correct JPEG working copy directly from the temporary file when the source exceeds the 2,400-pixel long-edge bound. It reads source bytes into memory only for already-bounded images; if file transfer is unavailable it falls back to the existing Data transfer path. The temporary copy is removed with `defer`, and the Photos source asset is untouched. Added a test that checks file-backed downsampling, output bounds, and source-file byte preservation.
+- Verification: iOS 27.1 simulator hosted suite passed (42 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged the recurring simulator metadata `invalidDigitCount` diagnostics, which did not fail the build. Picker provider behavior, peak memory, and output appearance remain device/runtime checks.
+- Changed files: `FramedLocal/PhotoImportService.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: record this file-backed import case in the test matrix and commit/push; then inspect asynchronous rendering for repeated preset changes and memory pressure behavior.
 
 - Audited Photos-picker/editor memory use. `PhotoImportService` now converts imported images above the renderer limit (2,400 px long edge) into an orientation-correct JPEG working copy, with cancellation checks around thumbnail decode/encode. Imports already within bounds retain their original bytes. Temporary transferred files remain removed with `defer`; source Photos assets are never modified. Added coverage for preserving small source bytes and downsampling/baking EXIF orientation for oversized input.
 - Verification: iOS 27.1 simulator hosted suite passed (41 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics; they did not fail the build. Physical memory use, picker transfer cancellation, and visual output remain device/runtime checks.

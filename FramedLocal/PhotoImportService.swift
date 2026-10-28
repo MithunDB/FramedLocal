@@ -17,35 +17,62 @@ enum PhotoImportService {
     }
 
     static func loadJPEG(from item: PhotosPickerItem) async throws -> Data {
-        let sourceData: Data
-        if let data = try await item.loadTransferable(type: Data.self),
-           let type = item.supportedContentTypes.first,
-           type.conforms(to: .image) {
-            sourceData = data
-        } else {
-            guard let file = try await item.loadTransferable(type: ImportedImageFile.self) else {
-                throw ImportError.noImageData
+        do {
+            if let file = try await item.loadTransferable(type: ImportedImageFile.self) {
+                defer { try? FileManager.default.removeItem(at: file.url) }
+                return try editingCopy(from: file.url)
             }
-            defer { try? FileManager.default.removeItem(at: file.url) }
-            guard let data = try? Data(contentsOf: file.url) else { throw ImportError.noImageData }
-            sourceData = data
+        } catch {
+            try Task.checkCancellation()
         }
-        return try editingCopy(from: sourceData)
+
+        guard let type = item.supportedContentTypes.first, type.conforms(to: .image),
+              let data = try await item.loadTransferable(type: Data.self) else {
+            throw ImportError.noImageData
+        }
+        return try editingCopy(from: data)
     }
 
     static func editingCopy(from data: Data,
                             maximumPixelDimension: Int = FrameRenderer.maximumPixelDimension) throws -> Data {
         try Task.checkCancellation()
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+            throw ImportError.unsupportedImage
+        }
+        return try editingCopy(from: source, originalData: data, originalURL: nil,
+                               maximumPixelDimension: maximumPixelDimension)
+    }
+
+    static func editingCopy(from url: URL,
+                            maximumPixelDimension: Int = FrameRenderer.maximumPixelDimension) throws -> Data {
+        try Task.checkCancellation()
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            throw ImportError.unsupportedImage
+        }
+        return try editingCopy(from: source, originalData: nil, originalURL: url,
+                               maximumPixelDimension: maximumPixelDimension)
+    }
+
+    private static func editingCopy(from source: CGImageSource, originalData: Data?, originalURL: URL?,
+                                    maximumPixelDimension: Int) throws -> Data {
+        try Task.checkCancellation()
         guard maximumPixelDimension > 0 else { throw ImportError.unsupportedImage }
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+        guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
               let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue,
               width > 0, height > 0 else {
             throw ImportError.unsupportedImage
         }
         let effectiveLongEdge = max(width, height)
-        guard effectiveLongEdge > Double(maximumPixelDimension) else { return data }
+        if effectiveLongEdge <= Double(maximumPixelDimension), let originalData {
+            return originalData
+        }
+        if effectiveLongEdge <= Double(maximumPixelDimension) {
+            // A file-backed import can preserve original bytes too, without decoding the full image.
+            // The caller owns and removes this temporary file after the copy is returned.
+            guard let originalURL else { throw ImportError.unsupportedImage }
+            return try Data(contentsOf: originalURL)
+        }
 
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
