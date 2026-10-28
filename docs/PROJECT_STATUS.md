@@ -27,7 +27,8 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 - Routed Vision analysis failures through the existing low-confidence `GuidanceEngine` state instead of immediately replacing guidance with an unsmoothed recovery message. Brief inference errors preserve the current advice; sustained low confidence reaches the established recovery wording.
 - Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Live Vision failure behavior/scenes remain a physical-device validation item.
 - Changed files: `FramedLocal/CompositionAnalysis.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
-- Exact next smallest step: commit and push this guidance recovery fix, then continue code review and use the iPhone for final live-scene tuning when available.
+- Code committed and pushed as `9912566` (`Stabilize guidance after Vision errors`).
+- Exact next smallest step: continue code review and use the iPhone for final live-scene tuning when available.
 
 - Moved PhotoKit-picker image downsampling/orientation baking and JPEG encoding onto a dedicated `PhotoImportWorker` actor so large image conversion does not run on the UI actor. Updated the large data-backed and file-backed import tests to exercise the actor worker path.
 - Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Photos provider transfer/runtime responsiveness remains a physical-device check.
