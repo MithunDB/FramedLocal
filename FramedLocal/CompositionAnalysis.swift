@@ -251,10 +251,14 @@ final class CompositionAnalyzer: @unchecked Sendable {
                                                      source: metrics.confidenceSource)
                 completion(AnalysisResult(metrics: metrics, guidance: guidance))
             } catch {
+                let guidance = guidanceEngine.update(message: "Searching for a subject",
+                                                     time: now,
+                                                     confidence: 0.12,
+                                                     source: .detection)
                 let metrics = CompositionMetrics(subjectRect: nil, faceRects: [], brightness: 0.5,
                     clippedHighlightRatio: 0, clippedShadowRatio: 0, sharpness: 0,
                     subjectEdgeDistance: nil, confidence: 0)
-                completion(AnalysisResult(metrics: metrics, guidance: "Move slowly so I can find the subject"))
+                completion(AnalysisResult(metrics: metrics, guidance: guidance))
             }
     }
 
