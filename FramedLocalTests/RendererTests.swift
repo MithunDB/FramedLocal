@@ -57,6 +57,15 @@ final class RendererTests: XCTestCase {
         XCTAssertGreaterThan(size.height, size.width)
     }
 
+    func testFilmRendererCapsLargeSourceBeforeFrameStage() async throws {
+        let source = try sampleJPEG(size: CGSize(width: 2_800, height: 1_200))
+        let output = try await FilmRenderer.shared.render(source, preset: .natural)
+        let size = try imageSize(output)
+
+        XCTAssertEqual(size.width, CGFloat(FrameRenderer.maximumPixelDimension))
+        XCTAssertLessThanOrEqual(max(size.width, size.height), CGFloat(FrameRenderer.maximumPixelDimension))
+    }
+
     private func sampleJPEG(size: CGSize = CGSize(width: 320, height: 240)) throws -> Data {
         let renderer = UIGraphicsImageRenderer(size: size)
         return try XCTUnwrap(renderer.image { context in

@@ -21,7 +21,16 @@ public actor FilmRenderer {
         guard let source = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
             throw RenderError.invalidImage
         }
-        let image = apply(preset, to: source)
+        let sourceLongEdge = max(source.extent.width, source.extent.height)
+        let scale = min(1, CGFloat(FrameRenderer.maximumPixelDimension) / sourceLongEdge)
+        let boundedSource = scale < 1
+            ? source.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+                .cropped(to: CGRect(x: source.extent.minX * scale,
+                                    y: source.extent.minY * scale,
+                                    width: source.extent.width * scale,
+                                    height: source.extent.height * scale))
+            : source
+        let image = apply(preset, to: boundedSource)
         guard let jpeg = context.jpegRepresentation(of: image, colorSpace: CGColorSpaceCreateDeviceRGB(), options: [:]) else {
             throw RenderError.encodingFailed
         }

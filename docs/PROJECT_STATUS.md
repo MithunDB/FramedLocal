@@ -232,6 +232,16 @@ Still needed before the requested end state is proven:
 - No camera is available in the simulator. Published updates compile and tests pass, but preview mirroring, permission prompts, session restart, and capture remain physical-device checks.
 - Exact next smallest step: inspect diff and run final whitespace check, then commit/push; next device check is front/rear switch after foreground/background and verify the displayed preview and still agree.
 
+## Follow-up Turn — 2026-10-28 (bound film-render input size)
+
+- Audited image pipeline and found `FilmRenderer` emitted JPEG at the original full resolution, after which `FrameRenderer` decoded it and reduced output to 2,400 px. This incurred an avoidable full-resolution encode/decode and memory cost.
+- Added `FrameRenderer.maximumPixelDimension` and made `FilmRenderer` scale the orientation-correct Core Image extent down to that bound before preset processing/encoding. The frame stage uses the same shared limit.
+- Added `testFilmRendererCapsLargeSourceBeforeFrameStage` using a 2,800 x 1,200 fixture. It confirms film output is 2,400 px wide and the long edge never exceeds the shared limit.
+- Simulator tests now pass 8/8 (2 guidance, 6 renderer), including the new size bound. Generic-device build and `git diff --check` remain to run before commit. No failures so far.
+- Changed files: `FramedLocal/FilmRenderer.swift`, `FramedLocal/FrameRenderer.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- This bounds intermediate/output dimensions; peak memory and latency on an actual iPhone still need measurement.
+- Exact next smallest step: run generic iOS build, `git diff --check`, inspect current diff, then commit/push. Continue physical device tests when iPhone 12 connects.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.

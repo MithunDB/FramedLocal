@@ -16,14 +16,15 @@ public enum FrameLayout: String, CaseIterable, Identifiable, Sendable {
 /// Flattens an image into a new JPEG canvas. Source image data is never modified.
 public actor FrameRenderer {
     public static let shared = FrameRenderer()
+    public static let maximumPixelDimension = 2_400
 
     public func render(_ data: Data, layout: FrameLayout, dateStamp: Bool) throws -> Data {
         guard let source = UIImage(data: data), let cgImage = source.cgImage else {
             throw RenderError.invalidImage
         }
 
-        let scale = CGFloat(max(cgImage.width, cgImage.height)) > 2_400
-            ? 2_400 / CGFloat(max(cgImage.width, cgImage.height)) : 1
+        let scale = CGFloat(max(cgImage.width, cgImage.height)) > CGFloat(Self.maximumPixelDimension)
+            ? CGFloat(Self.maximumPixelDimension) / CGFloat(max(cgImage.width, cgImage.height)) : 1
         let width = CGFloat(cgImage.width) * scale
         let height = CGFloat(cgImage.height) * scale
         let longSide = max(width, height)
