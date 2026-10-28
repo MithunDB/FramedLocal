@@ -347,3 +347,13 @@ Read this file first after context compression. Then inspect `git status`, the l
 
 - Additional export audit in the same follow-up found the combined PhotoKit transaction's fallback condition checked the temporary `savedInAlbum` flag after removing it, and also depended on a persistent “album creation attempted” value that could trigger an unnecessary retry on future saves. The failure handler now snapshots the per-save flag before clearing it and retries asset-only saving only if an album change was part of the failed transaction. If the app already knows the album cannot be fetched under add-only access, it saves once directly to Recents. This avoids duplicate asset creation on the unavailable-album path.
 - Re-ran hosted simulator tests after the export correction: 18 passed, 0 failed. Generic iOS device build passed after deterministic grain and exposure guidance. `git diff --check` passed. Existing benign simulator/Core Image and Xcode build-version diagnostics remain.
+
+## Follow-up Turn — 2026-10-28 (Night Grain blend verification)
+
+- Re-audited the deterministic grain patch and found its first color-matrix version set noise alpha to zero, which could make the soft-light overlay transparent. Corrected the matrix to keep full alpha and map seeded grayscale noise around neutral gray; translated the generated bitmap to the input image extent before cropping.
+- Extended the Night Grain test to prove both repeatability (same bytes for repeated renders) and a changed result relative to Natural.
+- Also implemented this turn: confidence-source-aware tracking recovery (previous commit), exposure advice using shadow/highlight clipping, and the PhotoKit fallback retry fix (retry asset-only only if the failed transaction attempted an album mutation).
+- Simulator suite passed 18/18 after the grain correction. Generic iOS device build passed. `git diff --check` passed. No feature build/test failures during this correction. Existing Xcode simulator-version diagnostics remain non-fatal.
+- Physical iPhone 12 remains unavailable in the current device list; camera runtime, permission prompts, orientation, PhotoKit writes, and live guidance still require user device testing later.
+- Changed files in this turn: `FramedLocal/FilmRenderer.swift`, `FramedLocal/CompositionAnalysis.swift`, `FramedLocal/PhotoLibraryService.swift`, `FramedLocalTests/RendererTests.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: review/commit/push the verified local work; then continue source-level interruption, cancellation, and capture/export recovery review until physical device testing can resume.

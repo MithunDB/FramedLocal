@@ -18,6 +18,9 @@ final class RendererTests: XCTestCase {
         let first = try await FilmRenderer.shared.render(source, preset: .nightGrain)
         let second = try await FilmRenderer.shared.render(source, preset: .nightGrain)
         XCTAssertEqual(first, second)
+
+        let natural = try await FilmRenderer.shared.render(source, preset: .natural)
+        XCTAssertNotEqual(first, natural)
     }
 
     func testFramesProduceNewCopyWithoutChangingSource() async throws {

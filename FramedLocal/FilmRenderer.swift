@@ -103,7 +103,10 @@ public actor FilmRenderer {
             "inputRVector": CIVector(x: CGFloat(amount), y: 0, z: 0, w: 0),
             "inputGVector": CIVector(x: 0, y: CGFloat(amount), z: 0, w: 0),
             "inputBVector": CIVector(x: 0, y: 0, z: CGFloat(amount), w: 0),
-            "inputAVector": CIVector(x: 0, y: 0, z: 0, w: 0)
+            "inputAVector": CIVector(x: 0, y: 0, z: 0, w: 1),
+            "inputBiasVector": CIVector(x: CGFloat(0.5 - amount / 2),
+                                         y: CGFloat(0.5 - amount / 2),
+                                         z: CGFloat(0.5 - amount / 2), w: 0)
         ])
         blend.inputImage = scaledNoise
         blend.backgroundImage = image
@@ -134,7 +137,9 @@ public actor FilmRenderer {
                                     intent: .defaultIntent) else {
             return CIImage(color: .gray).cropped(to: extent)
         }
-        return CIImage(cgImage: cgImage).cropped(to: extent)
+        return CIImage(cgImage: cgImage)
+            .transformed(by: CGAffineTransform(translationX: extent.minX, y: extent.minY))
+            .cropped(to: extent)
     }
 
     enum RenderError: LocalizedError {
