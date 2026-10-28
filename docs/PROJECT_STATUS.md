@@ -193,6 +193,15 @@ Still needed before the requested end state is proven:
 - The analysis pending gate and session startup guard have build/test verification but no hardware runtime verification; Vision throughput and capture responsiveness remain to be measured on the iPhone 12.
 - Exact next smallest step: review and commit/push the queueing and session-start changes, then test live Vision responsiveness on a connected iPhone 12.
 
+## Follow-up Turn — 2026-10-28 (render orientation tests)
+
+- Inspected the frame renderer and expanded `FramedLocalTests/RendererTests.swift` with portrait/landscape dimension preservation, date-stamp canvas sizing, and upright rendered-JPEG orientation metadata checks. These tests apply to renderer output only; they do not validate AVFoundation camera-file metadata.
+- A first attempt to add tests targeted the nonexistent `FramedLocal/FramedLocalTests/` directory; `apply_patch` reported file not found and made no change. Retargeted to the actual root `FramedLocalTests/` directory.
+- Seven simulator tests now pass, 0 failures (2 guidance, 5 renderer). Renderer tests establish source bytes remain unchanged while output is a new JPEG; they still do not validate Photos writes or actual camera frames.
+- Changed files: `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Xcode warning: skipped AppIntents metadata extraction because the project has no AppIntents dependency. No test failures.
+- Exact next smallest step: run a generic-device build and `git diff --check`, review the test additions, then commit/push. Continue device checks once iPhone 12 is connected and trusted.
+
 ## Exact Next Smallest Step
 
 Connect iPhone 12, select the Apple Development team in Xcode, install and launch, then verify front/rear capture and portrait/landscape output followed by add-only Photos permission and album creation/reuse. No physical iPhone currently appears in `xcrun devicectl list devices`.
