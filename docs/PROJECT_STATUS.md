@@ -27,7 +27,8 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 - Fixed Photos-picker retry state: clear the selected item after import success/failure, explicit cancel, and view dismissal. This allows a failed or canceled image to be selected again and keeps stale selections from blocking a same-image retry.
 - Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only; no build/test failure.
 - Changed files: `FramedLocal/ContentView.swift`, `docs/PROJECT_STATUS.md`.
-- Exact next smallest step: commit and push this import-retry fix, then continue reviewing camera/export edge cases; physical Photos picker behavior remains unverified until iPhone testing.
+- Code committed and pushed as `9583897` (`Reset photo picker after import`).
+- Exact next smallest step: continue reviewing camera/export edge cases; physical Photos picker behavior remains unverified until iPhone testing.
 
 - Verified that the camera session is actually running before publishing readiness after initial startup and lens reconfiguration. If AVFoundation returns with the session stopped, the camera UI now exposes Retry instead of enabling capture. Added a unit test for the readiness outcome policy.
 - Verified that the camera session is actually running before publishing readiness after initial startup and lens reconfiguration. If AVFoundation returns with the session stopped, the camera UI now exposes Retry instead of enabling capture. Added a unit test for the readiness outcome policy.

@@ -44,6 +44,7 @@
 | Editor date stamp | Re-render same image after control changes; render with another selected date | Stamp remains fixed for the selected editor source and output is deterministic | Passed in simulator unit tests; visual review pending |
 | Photos export | Denied | Explain permission; capture remains available | Implemented; runtime check pending |
 | Photos-picker import | Select an existing image | Transfer only selected image; original bytes remain unchanged through editing/export | Implemented; physical UI/runtime check pending |
+| Photos-picker retry | Import failure or cancel, then choose the same image again | Clear the old selection so the same photo starts a fresh transfer | State reset implemented; simulator UI and physical picker interaction pending |
 | Import cancellation | Leave editor while transfer is active | Transfer is invalidated and editor can choose again on reappearance | State reset implemented; UI lifecycle runtime test pending |
 | Import temporary-file cleanup | Cancel or fail during provider-file copy / image downsample | Remove partial transfer temp files on copy failure/cancellation and remove successful temp files after conversion | Cleanup paths hardened; provider cancellation integration pending |
 | Scene | Bright outdoor portrait | Preview/capture remains responsive | Pending |
