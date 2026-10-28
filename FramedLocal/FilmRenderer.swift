@@ -14,29 +14,66 @@ public enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
     public var id: String { rawValue }
 }
 
+public enum CropAspect: String, CaseIterable, Identifiable, Sendable {
+    case original = "Original"
+    case square = "Square"
+    case fourByThree = "4:3"
+    case sixteenByNine = "16:9"
+
+    public var id: String { rawValue }
+
+    fileprivate var ratio: CGFloat? {
+        switch self {
+        case .original: nil
+        case .square: 1
+        case .fourByThree: 4.0 / 3.0
+        case .sixteenByNine: 16.0 / 9.0
+        }
+    }
+}
+
 /// Applies original color treatments locally. One context is reused for the app lifetime.
 public actor FilmRenderer {
     public static let shared = FilmRenderer()
     private let context = CIContext(options: [.cacheIntermediates: true])
 
-    public func render(_ data: Data, preset: FilmPreset) throws -> Data {
+    public func render(_ data: Data, preset: FilmPreset, cropAspect: CropAspect = .original) throws -> Data {
         guard let source = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
             throw RenderError.invalidImage
         }
-        let sourceLongEdge = max(source.extent.width, source.extent.height)
+        let croppedSource = Self.centerCrop(source, aspect: cropAspect.ratio)
+        let sourceLongEdge = max(croppedSource.extent.width, croppedSource.extent.height)
         let scale = min(1, CGFloat(FrameRenderer.maximumPixelDimension) / sourceLongEdge)
         let boundedSource = scale < 1
-            ? source.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-                .cropped(to: CGRect(x: source.extent.minX * scale,
-                                    y: source.extent.minY * scale,
-                                    width: source.extent.width * scale,
-                                    height: source.extent.height * scale))
-            : source
+            ? croppedSource.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+                .cropped(to: CGRect(x: croppedSource.extent.minX * scale,
+                                    y: croppedSource.extent.minY * scale,
+                                    width: croppedSource.extent.width * scale,
+                                    height: croppedSource.extent.height * scale))
+            : croppedSource
         let image = apply(preset, to: boundedSource)
         guard let jpeg = context.jpegRepresentation(of: image, colorSpace: CGColorSpaceCreateDeviceRGB(), options: [:]) else {
             throw RenderError.encodingFailed
         }
         return jpeg
+    }
+
+    private static func centerCrop(_ image: CIImage, aspect: CGFloat?) -> CIImage {
+        guard let aspect, image.extent.width > 0, image.extent.height > 0 else { return image }
+        let extent = image.extent
+        let sourceAspect = extent.width / extent.height
+        let crop: CGRect
+        if sourceAspect > aspect {
+            let width = extent.height * aspect
+            crop = CGRect(x: extent.midX - width / 2, y: extent.minY,
+                          width: width, height: extent.height)
+        } else {
+            let height = extent.width / aspect
+            crop = CGRect(x: extent.minX, y: extent.midY - height / 2,
+                          width: extent.width, height: height)
+        }
+        let centered = image.cropped(to: crop)
+        return centered.transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
     }
 
     private func apply(_ preset: FilmPreset, to source: CIImage) -> CIImage {

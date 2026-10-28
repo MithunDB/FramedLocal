@@ -28,6 +28,7 @@
 | Preview decode | Bounded rendered JPEG | ImageIO decodes to CGImage off the main actor and preserves pixel dimensions | Passed in simulator unit tests; physical responsiveness pending |
 | Imported EXIF orientation | Landscape pixel data tagged with portrait orientation | Film render bakes orientation into upright pixels and removes rotation tag | Passed in simulator unit tests |
 | Editor pipeline | All five presets × three frame layouts on EXIF-rotated input | Every export is JPEG and remains upright; original source bytes remain unchanged | Passed in simulator unit tests |
+| Editor crop | Original, square, 4:3, and 16:9 crop selections | Crop is centered, output pixel dimensions match selected ratio, original source bytes remain unchanged | Passed in simulator unit tests; physical UI review pending |
 | Photos export | Denied | Explain permission; capture remains available | Implemented; runtime check pending |
 | Photos-picker import | Select an existing image | Transfer only selected image; original bytes remain unchanged through editing/export | Implemented; physical UI/runtime check pending |
 | Import cancellation | Leave editor while transfer is active | Transfer is invalidated and editor can choose again on reappearance | State reset implemented; UI lifecycle runtime test pending |

@@ -97,6 +97,25 @@ final class RendererTests: XCTestCase {
         XCTAssertNil(properties[kCGImagePropertyOrientation])
     }
 
+    func testCropAspectOptionsProduceExpectedCenteredCropDimensions() async throws {
+        let source = try sampleJPEG(size: CGSize(width: 320, height: 240))
+        let original = source
+        let sourceSize = try imageSize(source)
+        let shortEdge = min(sourceSize.width, sourceSize.height)
+        let expected: [CropAspect: CGSize] = [
+            .original: sourceSize,
+            .square: CGSize(width: shortEdge, height: shortEdge),
+            .fourByThree: sourceSize,
+            .sixteenByNine: CGSize(width: sourceSize.width, height: sourceSize.width * 9 / 16)
+        ]
+
+        for aspect in CropAspect.allCases {
+            let output = try await FilmRenderer.shared.render(source, preset: .natural, cropAspect: aspect)
+            XCTAssertEqual(try imageSize(output), expected[aspect], aspect.rawValue)
+        }
+        XCTAssertEqual(source, original)
+    }
+
     func testEveryPresetAndFrameCombinationPreservesImportedPortrait() async throws {
         let landscapePixels = try sampleJPEG(size: CGSize(width: 320, height: 180))
         let source = try jpegWithEXIFOrientation(landscapePixels, orientation: 6)

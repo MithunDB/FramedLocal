@@ -10,6 +10,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var camera = CameraController()
     @State private var selectedPreset: FilmPreset = .natural
+    @State private var selectedCropAspect: CropAspect = .original
     @State private var selectedFrame: FrameLayout = .whiteBorder
     @State private var includesDateStamp = true
     @State private var previewImage: UIImage?
@@ -108,6 +109,7 @@ struct ContentView: View {
             if !isImporting || camera.latestCapture != nil || camera.importedImage != nil {
                     VStack(spacing: 10) {
                         presetPicker
+                        cropAspectPicker
                         framePicker
                     }
                     .padding(.bottom, 20)
@@ -217,6 +219,9 @@ struct ContentView: View {
             importPhoto(item)
         }
         .onChange(of: selectedPreset) { _, _ in
+            if let data = camera.latestCapture ?? camera.importedImage { renderTask?.cancel(); renderTask = renderPreview(data) }
+        }
+        .onChange(of: selectedCropAspect) { _, _ in
             if let data = camera.latestCapture ?? camera.importedImage { renderTask?.cancel(); renderTask = renderPreview(data) }
         }
         .onChange(of: selectedFrame) { _, _ in
@@ -344,8 +349,20 @@ struct ContentView: View {
         }
     }
 
+    private var cropAspectPicker: some View {
+        HStack(spacing: 16) {
+            ForEach(CropAspect.allCases) { aspect in
+                Button(aspect.rawValue) { selectedCropAspect = aspect }
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(selectedCropAspect == aspect ? .white : .white.opacity(0.62))
+                    .accessibilityAddTraits(selectedCropAspect == aspect ? .isSelected : [])
+            }
+        }
+    }
+
     private func renderPreview(_ data: Data) -> Task<Void, Never> {
         let preset = selectedPreset
+        let cropAspect = selectedCropAspect
         let frame = selectedFrame
         let dateStamp = includesDateStamp
         let sourceID = camera.latestCapture.map { _ in "capture" } ?? "import"
@@ -355,7 +372,7 @@ struct ContentView: View {
         isRendering = true
         return Task {
             do {
-                let graded = try await FilmRenderer.shared.render(data, preset: preset)
+                let graded = try await FilmRenderer.shared.render(data, preset: preset, cropAspect: cropAspect)
                 try Task.checkCancellation()
                 let framed = try await FrameRenderer.shared.render(graded, layout: frame, dateStamp: dateStamp)
                 try Task.checkCancellation()

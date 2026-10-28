@@ -24,6 +24,10 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Added non-destructive center-crop/aspect choices (`Original`, `Square`, `4:3`, `16:9`) to the editor pipeline. `FilmRenderer` crops its decoded CIImage copy before applying a preset; original imported bytes are not changed. Added UI controls and geometry/source-integrity coverage in `FramedLocal/ContentView.swift`, `FramedLocal/FilmRenderer.swift`, and `FramedLocalTests/RendererTests.swift`.
+- Verification for this turn: iOS 27.1 simulator hosted suite passed (30 tests, 0 failures); generic unsigned iOS build passed; `git diff --check` passed. Xcode logged only simulator build-number `invalidDigitCount` diagnostics. No physical-device test was possible.
+- Current changes are ready to commit/push; exact next step after commit: continue filling editing/composition gaps with automated coverage, then resume phone installation/camera/Photos validation when the iPhone becomes available.
+
 - Fixed a camera-source race in `FramedLocal/ContentView.swift`: the live analysis path pauses during session start/recovery/lens changes, clears old frame/selection state before resuming, and tags Vision work with an analysis generation so late results from a previous camera are discarded. Made the session generation lock-protected and nonisolated for the Sendable queue callbacks.
 - Corrected live Vision orientation propagation: analysis receives the current EXIF orientation on startup, recovery, lens switch, and subsequent device rotations, so landscape guidance follows the camera orientation.
 - Added `testAnalysisGenerationGateDropsResultsFromPreviousCameraSource()` and removed the new Swift 6 actor-isolation warnings; updated the session-generation test to use an immutable local.
@@ -154,6 +158,9 @@ Still needed before the requested end state is proven:
 - `docs/PROJECT_STATUS.md`
 
 ## Current Turn Errors And Attempts
+
+- The first crop geometry test assumed `UIGraphicsImageRenderer` generated a 1x image and expected 320×240 pixels; on the simulator its source fixture is 3x (960×720). The crop output had correct corresponding proportions (960×720, 720×720, 960×720, 960×540). Changed test expectations to derive from actual source pixel dimensions; the full simulator suite then passed (30/30).
+- Xcode 27.1 continued to log `IDESchemeActionSDKRecord` / `IDESchemeActionDeviceRecord` `invalidDigitCount` diagnostics for simulator build metadata; simulator tests and generic-device build exited successfully.
 
 - The first test build reported Swift concurrency warnings because a `@Sendable` analysis-resume predicate accessed the MainActor-isolated `sessionGeneration` property. Made its backing reference `nonisolated` and kept synchronization inside the lock-protected `SessionGeneration`; the rerun passed without that warning.
 - The existing session-generation unit test used `var` even though the object is now a reference type; changed it to `let` to remove the compiler warning.
