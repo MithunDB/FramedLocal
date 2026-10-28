@@ -73,7 +73,7 @@ struct ContentView: View {
                             .font(.system(size: 20, weight: .regular))
                             .frame(width: 44, height: 44)
                     }
-                    .disabled(camera.authorization != .authorized || camera.isCapturing || camera.isSaving || isImporting)
+            .disabled(camera.authorization != .authorized || !camera.isSessionRunning || camera.isCapturing || camera.isSaving || isImporting)
 
                     PhotosPicker(selection: $photoPickerItem, matching: .images, photoLibrary: .shared()) {
                         Image(systemName: "photo.on.rectangle")
@@ -170,7 +170,7 @@ struct ContentView: View {
                                 Circle().fill(.white).padding(7)
                             }
                     }
-                    .disabled(camera.authorization != .authorized || camera.isCapturing || camera.isSaving || camera.latestCapture != nil || camera.importedImage != nil)
+                    .disabled(camera.authorization != .authorized || !camera.isSessionRunning || camera.isCapturing || camera.isSaving || camera.latestCapture != nil || camera.importedImage != nil)
                     Spacer()
                 }
                 .padding(.bottom, 28)
@@ -419,6 +419,8 @@ final class CameraController: NSObject, @unchecked Sendable {
     @MainActor
     var cameraStartupFailed = false
     @MainActor
+    var isSessionRunning = false
+    @MainActor
     private var lastGuidanceHapticMessage: String?
 
     @MainActor
@@ -440,6 +442,7 @@ final class CameraController: NSObject, @unchecked Sendable {
     func startIfAuthorized() async {
         guard authorization == .authorized, !sessionIsRunning else { return }
         sessionIsRunning = true
+        isSessionRunning = false
 
         sessionQueue.async { [weak self] in
             guard let self else { return }
@@ -448,11 +451,13 @@ final class CameraController: NSObject, @unchecked Sendable {
                 self.session.startRunning()
                 Task { @MainActor in
                     self.cameraStartupFailed = false
+                    self.isSessionRunning = true
                     self.startMotionUpdates()
                 }
             } catch {
                 Task { @MainActor in
                     self.sessionIsRunning = false
+                    self.isSessionRunning = false
                     self.cameraStartupFailed = true
                     self.captureMessage = error.localizedDescription
                 }
@@ -469,6 +474,7 @@ final class CameraController: NSObject, @unchecked Sendable {
         }
         UIDevice.current.endGeneratingDeviceOrientationNotifications()
         sessionIsRunning = false
+        isSessionRunning = false
         sessionQueue.async { [weak self] in
             guard let self, self.session.isRunning else { return }
             self.session.stopRunning()
@@ -479,6 +485,11 @@ final class CameraController: NSObject, @unchecked Sendable {
     func toggleCamera() {
         useFrontCamera.toggle()
         let position: AVCaptureDevice.Position = useFrontCamera ? .front : .back
+        guard sessionIsRunning else {
+            useFrontCamera.toggle()
+            captureMessage = "Start the camera before switching lenses."
+            return
+        }
         sessionQueue.async { [weak self] in
             guard let self else { return }
             do {
@@ -491,7 +502,10 @@ final class CameraController: NSObject, @unchecked Sendable {
 
     @MainActor
     func capture() {
-        guard !isCapturing else { return }
+        guard !isCapturing, sessionIsRunning else {
+            captureMessage = "The camera is not ready yet. Try again in a moment."
+            return
+        }
         isCapturing = true
         captureMessage = nil
         sessionQueue.async { [weak self] in

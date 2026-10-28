@@ -9,6 +9,7 @@
 | Camera permission | First launch, allow | Live preview appears | Runtime device check pending |
 | Camera permission | Deny/revoke | Clear explanation and Settings route | Implemented; runtime check pending |
 | Camera selection | Rear and front | Correct camera preview and still | Physical-device check pending |
+| Camera readiness | Capture/switch during startup or after startup failure | Controls stay disabled until the session runs; retry available after failure | Implemented; physical-device check pending |
 | Capture | Portrait and landscape | JPEG has matching orientation | Physical-device check pending |
 | Photos export | Add-only allowed | First asset and Framed album are created together; later assets join when the album can be resolved | Code updated; physical-device runtime check pending |
 | Photos export | Existing album unavailable to add-only fetch | Save still succeeds to Photos Recents and UI reports destination accurately | Implemented; runtime check pending |
