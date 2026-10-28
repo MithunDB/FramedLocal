@@ -383,6 +383,7 @@ final class CameraController: NSObject, @unchecked Sendable {
     private var inProgressPhotoCaptures: [Int64: PhotoCaptureDelegate] = [:]
     private var activeInput: AVCaptureDeviceInput?
     private var isConfigured = false
+    @MainActor private var isConfiguring = false
     private var useFrontCamera = false
     private var sessionIsRunning = false
     private let motionManager = CMMotionManager()
@@ -440,8 +441,9 @@ final class CameraController: NSObject, @unchecked Sendable {
 
     @MainActor
     func startIfAuthorized() async {
-        guard authorization == .authorized, !sessionIsRunning else { return }
+        guard authorization == .authorized, !sessionIsRunning, !isConfiguring else { return }
         sessionIsRunning = true
+        isConfiguring = true
         isSessionRunning = false
 
         sessionQueue.async { [weak self] in
@@ -450,6 +452,7 @@ final class CameraController: NSObject, @unchecked Sendable {
                 try self.configureSession(position: .back)
                 self.session.startRunning()
                 Task { @MainActor in
+                    self.isConfiguring = false
                     self.cameraStartupFailed = false
                     self.isSessionRunning = true
                     self.startMotionUpdates()
@@ -457,6 +460,7 @@ final class CameraController: NSObject, @unchecked Sendable {
             } catch {
                 Task { @MainActor in
                     self.sessionIsRunning = false
+                    self.isConfiguring = false
                     self.isSessionRunning = false
                     self.cameraStartupFailed = true
                     self.captureMessage = error.localizedDescription
@@ -475,6 +479,7 @@ final class CameraController: NSObject, @unchecked Sendable {
         UIDevice.current.endGeneratingDeviceOrientationNotifications()
         sessionIsRunning = false
         isSessionRunning = false
+        isConfiguring = false
         sessionQueue.async { [weak self] in
             guard let self, self.session.isRunning else { return }
             self.session.stopRunning()
@@ -704,6 +709,8 @@ final class CameraController: NSObject, @unchecked Sendable {
 }
 
 private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
+    private let stateLock = NSLock()
+    private var analysisPending = false
     weak var analyzer: CompositionAnalyzer?
     var onResult: ((AnalysisResult) -> Void)?
     private var mostRecentPixelBuffer: CVPixelBuffer?
@@ -711,9 +718,20 @@ private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSam
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
                        from connection: AVCaptureConnection) {
         guard let source = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        stateLock.lock()
+        guard !analysisPending else {
+            stateLock.unlock()
+            return
+        }
+        analysisPending = true
+        stateLock.unlock()
         mostRecentPixelBuffer = source
         analyzer?.analyze(source) { [weak self] result in
             self?.onResult?(result)
+            guard let self else { return }
+            self.stateLock.lock()
+            self.analysisPending = false
+            self.stateLock.unlock()
         }
     }
 

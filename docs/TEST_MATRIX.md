@@ -20,5 +20,5 @@
 | Scene | Indoor, backlit, low light | Preview/capture remains responsive | Pending |
 | Scene | Horizon and landscape | Orientation and framing remain stable | Pending |
 | Performance | Repeated capture | No freeze or memory warning | Pending |
-| Composition analysis | Face/saliency and sampled image signals | One stable advisory message; capture remains available | Implemented; physical-scene tuning pending |
+| Composition analysis | Face/saliency and sampled image signals | One stable advisory message; capture remains available | Implemented on a dedicated serial analysis queue with a one-frame pending gate; physical-scene tuning pending |
 | Subject selection | Tap visible subject | Track selected face/object and recover to searching on loss | Implemented; physical-device check pending |
