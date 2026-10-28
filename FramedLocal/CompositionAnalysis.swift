@@ -164,9 +164,15 @@ enum VisionTapPointMapper {
 }
 
 enum SubjectSelectionResolver {
+    static let maximumFallbackDistance: CGFloat = 0.12
+
     static func resolve(point: CGPoint, candidates: [CGRect]) -> CGRect? {
-        candidates.first(where: { $0.contains(point) })
-            ?? candidates.min(by: { distance($0, point) < distance($1, point) })
+        if let containing = candidates.first(where: { $0.contains(point) }) { return containing }
+        guard let nearest = candidates.min(by: { distance($0, point) < distance($1, point) }),
+              distance(nearest, point) <= maximumFallbackDistance * maximumFallbackDistance else {
+            return nil
+        }
+        return nearest
     }
 }
 
@@ -387,7 +393,7 @@ final class CompositionAnalyzer: @unchecked Sendable {
 }
 
 private func distance(_ rect: CGRect, _ point: CGPoint) -> CGFloat {
-    let dx = rect.midX - point.x
-    let dy = rect.midY - point.y
+    let dx = max(max(rect.minX - point.x, 0), point.x - rect.maxX)
+    let dy = max(max(rect.minY - point.y, 0), point.y - rect.maxY)
     return dx * dx + dy * dy
 }

@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Bounded tap-to-select fallback: taps inside a detected face/saliency box select it; taps just outside can select the nearest box only within a 0.12 normalized distance; distant taps now report no subject instead of silently tracking an unrelated candidate.
+- Verification: iOS 27.1 simulator suite passed (50 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Tap tolerance and tracking feel require physical-device tuning.
+- Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: commit and push the selection-boundary fix, then continue source audit; user device tuning remains outstanding.
+
 - Corrected composition edge metrics to account for Vision's bottom-left normalized coordinates (`top = 1 - maxY`). Previously a subject near the top could be mistaken for one near the bottom, reversing vertical guidance. Added top/bottom edge regression assertions.
 - Verification: iOS 27.1 simulator suite passed (50 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Live camera guidance still requires iPhone validation.
 - Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.

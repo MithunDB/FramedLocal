@@ -238,12 +238,13 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertTrue(limiter.shouldAnalyze(at: 1.282))
     }
 
-    func testSubjectSelectionPrefersContainingBoxAndFallsBackToNearest() {
+    func testSubjectSelectionPrefersContainingBoxAndOnlyFallsBackWhenNearby() {
         let point = CGPoint(x: 0.5, y: 0.5)
         let far = CGRect(x: 0.05, y: 0.05, width: 0.1, height: 0.1)
         let containing = CGRect(x: 0.4, y: 0.4, width: 0.2, height: 0.2)
         XCTAssertEqual(SubjectSelectionResolver.resolve(point: point, candidates: [far, containing]), containing)
-        XCTAssertEqual(SubjectSelectionResolver.resolve(point: CGPoint(x: 0.8, y: 0.8), candidates: [far, containing]), containing)
+        XCTAssertEqual(SubjectSelectionResolver.resolve(point: CGPoint(x: 0.65, y: 0.5), candidates: [far, containing]), containing)
+        XCTAssertNil(SubjectSelectionResolver.resolve(point: CGPoint(x: 0.9, y: 0.9), candidates: [far, containing]))
         XCTAssertNil(SubjectSelectionResolver.resolve(point: point, candidates: []))
     }
 
