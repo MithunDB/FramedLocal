@@ -68,12 +68,12 @@ final class RendererTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), source)
     }
 
-    func testPhotoImportDownsamplesAndBakesOrientationForLargeSource() throws {
+    func testPhotoImportDownsamplesAndBakesOrientationForLargeSource() async throws {
         let largeLandscape = try sampleJPEG(size: CGSize(width: 3_200, height: 1_800), scale: 1)
         let rotatedSource = try jpegWithEXIFOrientation(largeLandscape, orientation: 6)
         let original = rotatedSource
 
-        let workingCopy = try PhotoImportService.editingCopy(from: rotatedSource)
+        let workingCopy = try await PhotoImportWorker.shared.editingCopy(from: rotatedSource)
         let size = try imageSize(workingCopy)
         let imageSource = try XCTUnwrap(CGImageSourceCreateWithData(workingCopy as CFData, nil))
         let properties = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any])
@@ -85,7 +85,7 @@ final class RendererTests: XCTestCase {
         XCTAssertEqual(rotatedSource, original)
     }
 
-    func testFileBackedPhotoImportDownsamplesWithoutLoadingOriginalData() throws {
+    func testFileBackedPhotoImportDownsamplesWithoutLoadingOriginalData() async throws {
         let largeLandscape = try sampleJPEG(size: CGSize(width: 3_200, height: 1_800), scale: 1)
         let source = try jpegWithEXIFOrientation(largeLandscape, orientation: 6)
         let url = FileManager.default.temporaryDirectory
@@ -93,7 +93,7 @@ final class RendererTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: url) }
         try source.write(to: url)
 
-        let workingCopy = try PhotoImportService.editingCopy(from: url)
+        let workingCopy = try await PhotoImportWorker.shared.editingCopy(from: url)
         let size = try imageSize(workingCopy)
         let imageSource = try XCTUnwrap(CGImageSourceCreateWithData(workingCopy as CFData, nil))
         let properties = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any])

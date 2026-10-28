@@ -20,7 +20,7 @@ enum PhotoImportService {
         do {
             if let file = try await item.loadTransferable(type: ImportedImageFile.self) {
                 defer { try? FileManager.default.removeItem(at: file.url) }
-                return try editingCopy(from: file.url)
+                return try await PhotoImportWorker.shared.editingCopy(from: file.url)
             }
         } catch {
             try Task.checkCancellation()
@@ -30,7 +30,7 @@ enum PhotoImportService {
               let data = try await item.loadTransferable(type: Data.self) else {
             throw ImportError.noImageData
         }
-        return try editingCopy(from: data)
+        return try await PhotoImportWorker.shared.editingCopy(from: data)
     }
 
     static func editingCopy(from data: Data,
@@ -95,6 +95,21 @@ enum PhotoImportService {
         try Task.checkCancellation()
         guard CGImageDestinationFinalize(destination) else { throw ImportError.unsupportedImage }
         return output as Data
+    }
+}
+
+/// Keeps synchronous ImageIO thumbnail decoding and JPEG encoding off the UI actor.
+actor PhotoImportWorker {
+    static let shared = PhotoImportWorker()
+
+    func editingCopy(from data: Data,
+                     maximumPixelDimension: Int = FrameRenderer.maximumPixelDimension) throws -> Data {
+        try PhotoImportService.editingCopy(from: data, maximumPixelDimension: maximumPixelDimension)
+    }
+
+    func editingCopy(from url: URL,
+                     maximumPixelDimension: Int = FrameRenderer.maximumPixelDimension) throws -> Data {
+        try PhotoImportService.editingCopy(from: url, maximumPixelDimension: maximumPixelDimension)
     }
 }
 
