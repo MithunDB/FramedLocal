@@ -1,5 +1,7 @@
 import CoreImage
 import CoreImage.CIFilterBuiltins
+import CoreGraphics
+import CoreFoundation
 import Foundation
 
 public enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
@@ -95,18 +97,44 @@ public actor FilmRenderer {
     }
 
     private func grain(_ image: CIImage, amount: Float) -> CIImage {
-        let noise = CIFilter.randomGenerator().outputImage?.cropped(to: image.extent)
-        guard let noise else { return image }
-        let monochrome = CIFilter.colorMonochrome()
-        monochrome.inputImage = noise
-        monochrome.color = CIColor(red: 0.5, green: 0.5, blue: 0.5)
-        monochrome.intensity = 1
+        let noise = Self.seededNoise(extent: image.extent, seed: 0x4652414D)
         let blend = CIFilter.softLightBlendMode()
-        blend.inputImage = monochrome.outputImage?.applyingFilter("CIColorMatrix", parameters: [
-            "inputAVector": CIVector(x: 0, y: 0, z: 0, w: CGFloat(amount))
+        let scaledNoise = noise.applyingFilter("CIColorMatrix", parameters: [
+            "inputRVector": CIVector(x: CGFloat(amount), y: 0, z: 0, w: 0),
+            "inputGVector": CIVector(x: 0, y: CGFloat(amount), z: 0, w: 0),
+            "inputBVector": CIVector(x: 0, y: 0, z: CGFloat(amount), w: 0),
+            "inputAVector": CIVector(x: 0, y: 0, z: 0, w: 0)
         ])
+        blend.inputImage = scaledNoise
         blend.backgroundImage = image
         return blend.outputImage?.cropped(to: image.extent) ?? image
+    }
+
+    private static func seededNoise(extent: CGRect, seed: UInt32) -> CIImage {
+        let width = max(Int(extent.width.rounded(.up)), 1)
+        let height = max(Int(extent.height.rounded(.up)), 1)
+        var state = seed
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        for pixel in 0..<(width * height) {
+            state = 1_664_525 &* state &+ 1_013_904_223
+            let value = UInt8(truncatingIfNeeded: state >> 24)
+            let offset = pixel * 4
+            pixels[offset] = value
+            pixels[offset + 1] = value
+            pixels[offset + 2] = value
+            pixels[offset + 3] = 255
+        }
+        let data = Data(pixels) as CFData
+        guard let provider = CGDataProvider(data: data),
+              let cgImage = CGImage(width: width, height: height, bitsPerComponent: 8,
+                                    bitsPerPixel: 32, bytesPerRow: width * 4,
+                                    space: CGColorSpaceCreateDeviceRGB(),
+                                    bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
+                                    provider: provider, decode: nil, shouldInterpolate: false,
+                                    intent: .defaultIntent) else {
+            return CIImage(color: .gray).cropped(to: extent)
+        }
+        return CIImage(cgImage: cgImage).cropped(to: extent)
     }
 
     enum RenderError: LocalizedError {

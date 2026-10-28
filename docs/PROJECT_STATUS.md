@@ -332,3 +332,18 @@ Read this file first after context compression. Then inspect `git status`, the l
 - Physical tracking behavior and calibration of the 0.5 threshold remain unverified without an iPhone camera.
 - Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: record the updated matrix result, run `git diff --check`, inspect the final diff, then commit and push. Connect and sign the iPhone 12 to continue physical verification.
+
+## Follow-up Turn — 2026-10-28 (guidance exposure cues and deterministic grain)
+
+- Continued implementation while physical-device testing is unavailable, per user request; current device inventory still lists simulator devices only.
+- Added `ExposureGuidance` to use the already-sampled mean brightness, clipped highlights, and clipped shadows. Exposure advice is evaluated after subject confidence, sharpness, and framing checks; dark scenes with substantial clipped shadows can now suggest adding light, while highlight clipping can suggest lowering exposure.
+- Replaced `CIFilter.randomGenerator()` in Night Grain with a fixed-seed local noise bitmap so the same input and preset produce stable output across preview/export. Added byte-for-byte repeat-render coverage.
+- Added unit tests for exposure decisions and deterministic grain. Simulator suite passed 18/18. Generic iOS device build passed after the exposure change; rerun after deterministic-grain update is still required.
+- First confidence-separation build earlier in this task failed because public API access control exposed an internal enum; fixed by preserving the public detection-only overload and using an internal source-aware overload. No other feature-build errors this turn.
+- Simulator renderer output still logs `CVPixelBufferCreate returned err -6680` from Core Image; all renderer tests pass. Xcode emits simulator build-version digit warnings; AppIntents metadata extraction warning is non-fatal.
+- Current blocker remains physical iPhone connectivity/signing/runtime validation, which user will handle later. No manual testing requested now.
+- Changed files in this follow-up: `FramedLocal/CompositionAnalysis.swift`, `FramedLocal/FilmRenderer.swift`, `FramedLocal/PhotoLibraryService.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `FramedLocalTests/RendererTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: update the matrix to 18 passing tests, run generic-device build and `git diff --check`, then continue code-level camera capture, authorization, cancellation, and rendering robustness review; physical-device checks remain for when the user can test.
+
+- Additional export audit in the same follow-up found the combined PhotoKit transaction's fallback condition checked the temporary `savedInAlbum` flag after removing it, and also depended on a persistent “album creation attempted” value that could trigger an unnecessary retry on future saves. The failure handler now snapshots the per-save flag before clearing it and retries asset-only saving only if an album change was part of the failed transaction. If the app already knows the album cannot be fetched under add-only access, it saves once directly to Recents. This avoids duplicate asset creation on the unavailable-album path.
+- Re-ran hosted simulator tests after the export correction: 18 passed, 0 failed. Generic iOS device build passed after deterministic grain and exposure guidance. `git diff --check` passed. Existing benign simulator/Core Image and Xcode build-version diagnostics remain.

@@ -40,6 +40,15 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertEqual(engine.update(message: "Move slowly so I can find the subject", time: 1.4, confidence: 0.25, source: .detection), "Move slowly so I can find the subject")
     }
 
+    func testExposureGuidanceUsesHighlightAndShadowClipping() {
+        XCTAssertEqual(ExposureGuidance.message(brightness: 0.5, clippedHighlightRatio: 0.13,
+                                                clippedShadowRatio: 0.1), "Lower exposure slightly")
+        XCTAssertEqual(ExposureGuidance.message(brightness: 0.25, clippedHighlightRatio: 0.01,
+                                                clippedShadowRatio: 0.4), "Add a little light")
+        XCTAssertNil(ExposureGuidance.message(brightness: 0.5, clippedHighlightRatio: 0.01,
+                                              clippedShadowRatio: 0.1))
+    }
+
     func testTapPointMapsFromCaptureCoordinatesIntoVisionOrientation() {
         let point = CGPoint(x: 0.2, y: 0.3)
         XCTAssertEqual(VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: point, orientation: .up),

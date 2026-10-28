@@ -13,6 +13,13 @@ final class RendererTests: XCTestCase {
         }
     }
 
+    func testNightGrainPresetProducesStableOutputForSameInput() async throws {
+        let source = try sampleJPEG()
+        let first = try await FilmRenderer.shared.render(source, preset: .nightGrain)
+        let second = try await FilmRenderer.shared.render(source, preset: .nightGrain)
+        XCTAssertEqual(first, second)
+    }
+
     func testFramesProduceNewCopyWithoutChangingSource() async throws {
         let source = try sampleJPEG()
         let original = source

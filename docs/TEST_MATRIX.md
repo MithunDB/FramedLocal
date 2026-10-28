@@ -4,7 +4,7 @@
 |---|---|---|---|
 | Build | iOS 27.1 simulator | App builds without signing | Passed |
 | Build | Generic iOS device destination | App builds without signing | Passed |
-| Unit tests | iOS 27.1 simulator | Guidance debounce/confidence and preset/frame JPEG-copy checks pass | Passed (16 tests, 0 failures) |
+| Unit tests | iOS 27.1 simulator | Guidance debounce/confidence and preset/frame JPEG-copy checks pass | Passed (18 tests, 0 failures) |
 | Launch | iOS 27.1 simulator | App installs and launches | Passed |
 | Camera permission | First launch, allow | Live preview appears | Runtime device check pending |
 | Camera permission | Deny/revoke | Clear explanation and Settings route | Implemented; runtime check pending |
@@ -31,3 +31,5 @@
 | Composition analysis | Face/saliency and sampled image signals | One stable advisory message; capture remains available | Preview-sized buffers, dedicated serial queue, explicit 7 Hz rate limiter, AVFoundation late-frame dropping, unrotated buffers with Vision orientation mapping; throttle unit test passed; physical-scene tuning pending |
 | Subject selection | Tap visible subject in rotated/aspect-filled preview | Preview-layer conversion maps tap into capture-device coordinates, then into Vision's oriented coordinates; no candidate clears the prior track | Mapping/resolution unit tests passed; physical-device selection check pending |
 | Guidance recovery | Selected subject disappears / confidence remains low | Detection and manual tracking use distinct confidence thresholds and recovery messages | Passed in simulator GuidanceEngine tests; live tracking-loss check pending |
+| Exposure cues | Bright clipping and low-light shadow clipping | Offer explainable lower-exposure or add-light suggestions after focus/framing checks | Passed in simulator unit tests; physical scene tuning pending |
+| Preset determinism | Render same source twice with Night Grain | Identical input produces identical JPEG output | Passed in simulator unit tests |

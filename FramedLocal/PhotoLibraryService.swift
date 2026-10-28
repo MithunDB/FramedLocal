@@ -71,8 +71,9 @@ actor PhotoLibraryService {
                     UserDefaults.standard.removeObject(forKey: savedInAlbumKey)
                     continuation.resume(returning: didSaveInAlbum)
                 } else {
+                    let attemptedAlbumChange = UserDefaults.standard.bool(forKey: savedInAlbumKey)
                     UserDefaults.standard.removeObject(forKey: savedInAlbumKey)
-                    if UserDefaults.standard.bool(forKey: self.albumCreationAttemptedKey) {
+                    if attemptedAlbumChange {
                         UserDefaults.standard.removeObject(forKey: self.albumIdentifierKey)
                         UserDefaults.standard.set(false, forKey: self.albumCreationAttemptedKey)
                         self.saveAssetOnly(from: temporaryURL) { fallbackSuccess, fallbackError in

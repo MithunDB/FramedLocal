@@ -90,6 +90,16 @@ struct AnalysisRateLimiter {
     }
 }
 
+enum ExposureGuidance {
+    static func message(brightness: Double, clippedHighlightRatio: Double,
+                        clippedShadowRatio: Double) -> String? {
+        if clippedHighlightRatio > 0.12 { return "Lower exposure slightly" }
+        if clippedShadowRatio > 0.35 && brightness < 0.32 { return "Add a little light" }
+        if brightness > 0.82 && clippedHighlightRatio > 0.06 { return "Lower exposure slightly" }
+        return nil
+    }
+}
+
 enum VisionTapPointMapper {
     /// Converts the capture-device point (normalized, top-left origin) to Vision's
     /// normalized, bottom-left coordinate space after the requested image orientation.
@@ -263,8 +273,12 @@ final class CompositionAnalyzer: @unchecked Sendable {
             message = "Move a little closer"
         } else if let tilt = metrics.horizonAngle, abs(tilt) > 0.10 {
             message = "Level the phone"
-        } else if metrics.clippedHighlightRatio > 0.12 {
-            message = "Lower exposure slightly"
+        } else if let exposureMessage = ExposureGuidance.message(
+            brightness: metrics.brightness,
+            clippedHighlightRatio: metrics.clippedHighlightRatio,
+            clippedShadowRatio: metrics.clippedShadowRatio
+        ) {
+            message = exposureMessage
         } else {
             message = "Suggested framing"
         }
