@@ -105,8 +105,14 @@ private struct ImportedImageFile: Transferable {
         FileRepresentation(importedContentType: .image) { received in
             let destination = FileManager.default.temporaryDirectory
                 .appendingPathComponent("Framed-Import-\(UUID().uuidString).\(received.file.pathExtension)")
-            try FileManager.default.copyItem(at: received.file, to: destination)
-            return ImportedImageFile(url: destination)
+            do {
+                try FileManager.default.copyItem(at: received.file, to: destination)
+                try Task.checkCancellation()
+                return ImportedImageFile(url: destination)
+            } catch {
+                try? FileManager.default.removeItem(at: destination)
+                throw error
+            }
         }
     }
 }
