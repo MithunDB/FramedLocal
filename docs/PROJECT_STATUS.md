@@ -26,6 +26,7 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 - Extracted PhotoKit transaction recovery into `PhotoSaveTransactionOutcome`, now used by the production completion handler. It requires a created asset before reporting any success or retry, distinguishes album/Recents success, retries asset-only only after an album mutation failure, and reports other failures. Added branch tests in `FramedLocalTests/GuidanceEngineTests.swift`; changed `FramedLocal/PhotoLibraryService.swift`.
 - Verification: iOS 27.1 simulator hosted suite passed (38 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted only simulator build-number `invalidDigitCount` diagnostics. PhotoKit transactions themselves still require a physical-device run.
+- Committed and pushed as `47a843b` (`Test Photos save recovery outcomes`).
 - Exact next smallest step: commit this policy/test change, then continue auditing camera/Photos interaction and prepare the physical-device install path.
 
 - Hardened asynchronous camera startup/recovery in `FramedLocal/ContentView.swift`: verify the session generation before calling `startRunning()` and again after it returns; if Stop/backgrounding/editor transition invalidated the request while start was in flight, stop the session immediately and do not resume Vision. This closes a hardware/privacy race where stale callbacks were ignored but the physical capture session could still start.
