@@ -257,6 +257,8 @@ final class CompositionAnalyzer: @unchecked Sendable {
                                                      source: metrics.confidenceSource)
                 completion(AnalysisResult(metrics: metrics, guidance: guidance))
             } catch {
+                selectedObservation = nil
+                trackingRequest = nil
                 let guidance = guidanceEngine.update(message: "Searching for a subject",
                                                      time: now,
                                                      confidence: 0.12,

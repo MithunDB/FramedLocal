@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Made Vision inference failures clear any stale `VNDetectedObjectObservation` and `VNTrackObjectRequest` before returning the debounced low-confidence fallback. The next frame can re-detect rather than repeatedly retrying a tracking request that itself failed.
+- Verification: iOS 27.1 simulator suite passed (50 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Injected Vision runtime failure remains a device/runtime validation item.
+- Changed files: `FramedLocal/CompositionAnalysis.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: commit and push tracking-state recovery, then continue local audit; live Vision behavior still needs the iPhone.
+
 - Bounded tap-to-select fallback: taps inside a detected face/saliency box select it; taps just outside can select the nearest box only within a 0.12 normalized distance; distant taps now report no subject instead of silently tracking an unrelated candidate.
 - Verification: iOS 27.1 simulator suite passed (50 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Tap tolerance and tracking feel require physical-device tuning.
 - Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/PROJECT_STATUS.md`.
