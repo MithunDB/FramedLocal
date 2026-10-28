@@ -24,6 +24,12 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Fixed a camera-source race in `FramedLocal/ContentView.swift`: the live analysis path pauses during session start/recovery/lens changes, clears old frame/selection state before resuming, and tags Vision work with an analysis generation so late results from a previous camera are discarded. Made the session generation lock-protected and nonisolated for the Sendable queue callbacks.
+- Corrected live Vision orientation propagation: analysis receives the current EXIF orientation on startup, recovery, lens switch, and subsequent device rotations, so landscape guidance follows the camera orientation.
+- Added `testAnalysisGenerationGateDropsResultsFromPreviousCameraSource()` and removed the new Swift 6 actor-isolation warnings; updated the session-generation test to use an immutable local.
+- Verification for this turn: iOS 27.1 simulator hosted tests passed (29 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted only simulator SDK/device build-number parsing diagnostics (`invalidDigitCount`), with both commands returning exit code 0. Physical iPhone testing remains unavailable.
+- No files committed or pushed for this turn yet.
+
 - Created this workspace documentation by copying the FramedLocal init specification and status template from the supplied document directory.
 - Created `FramedLocal.xcodeproj` and a native SwiftUI app (`FramedLocal/FramedLocalApp.swift`, `FramedLocal/ContentView.swift`, asset catalog).
 - Implemented camera authorization states, rear/front switching, serial-queue session configuration, live preview, JPEG still capture, and a denied-permission screen in `FramedLocal/ContentView.swift`.
@@ -148,6 +154,10 @@ Still needed before the requested end state is proven:
 - `docs/PROJECT_STATUS.md`
 
 ## Current Turn Errors And Attempts
+
+- The first test build reported Swift concurrency warnings because a `@Sendable` analysis-resume predicate accessed the MainActor-isolated `sessionGeneration` property. Made its backing reference `nonisolated` and kept synchronization inside the lock-protected `SessionGeneration`; the rerun passed without that warning.
+- The existing session-generation unit test used `var` even though the object is now a reference type; changed it to `let` to remove the compiler warning.
+- Xcode 27.1 logged `IDESchemeActionSDKRecord` / `IDESchemeActionDeviceRecord` `invalidDigitCount` diagnostics for simulator build numbers; simulator tests and generic-device build completed successfully despite those environment diagnostics.
 
 - Initial orientation build error: `captureOrientation` was out of scope. Replaced that use with the active session rotation angle; the simulator build passed.
 - The initial test target had no test action; added a shared scheme.

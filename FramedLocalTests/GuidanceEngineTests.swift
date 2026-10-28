@@ -57,7 +57,7 @@ final class GuidanceEngineTests: XCTestCase {
     }
 
     func testSessionGenerationInvalidatesCallbacksAfterStopOrRestart() {
-        var generation = SessionGeneration()
+        let generation = SessionGeneration()
         let firstStart = generation.advance()
         XCTAssertTrue(generation.isCurrent(firstStart))
 
@@ -67,6 +67,24 @@ final class GuidanceEngineTests: XCTestCase {
         let restarted = generation.advance()
         XCTAssertTrue(generation.isCurrent(restarted))
         XCTAssertFalse(generation.isCurrent(firstStart))
+    }
+
+    func testAnalysisGenerationGateDropsResultsFromPreviousCameraSource() {
+        let gate = AnalysisGenerationGate()
+        XCTAssertNil(gate.generationForFrame())
+
+        let rearCameraGeneration = gate.resume()
+        XCTAssertEqual(gate.generationForFrame(), rearCameraGeneration)
+        XCTAssertTrue(gate.acceptsResult(for: rearCameraGeneration))
+
+        gate.pause()
+        XCTAssertNil(gate.generationForFrame())
+        XCTAssertFalse(gate.acceptsResult(for: rearCameraGeneration))
+
+        let frontCameraGeneration = gate.resume()
+        XCTAssertNotEqual(frontCameraGeneration, rearCameraGeneration)
+        XCTAssertTrue(gate.acceptsResult(for: frontCameraGeneration))
+        XCTAssertFalse(gate.acceptsResult(for: rearCameraGeneration))
     }
 
     func testSessionRecoveryPolicyResumesOnlyWhenCameraWasRequested() {

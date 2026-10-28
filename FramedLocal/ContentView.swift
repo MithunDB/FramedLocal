@@ -395,7 +395,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     private var inProgressPhotoCaptures: [Int64: PhotoCaptureDelegate] = [:]
     private var activeInput: AVCaptureDeviceInput?
     private var isConfigured = false
-    @MainActor private var sessionGeneration = SessionGeneration()
+    nonisolated private let sessionGeneration = SessionGeneration()
     @MainActor private var selectionGeneration = SessionGeneration()
     @MainActor private var hasInstalledSessionObservers = false
     @MainActor private var interruptionObservers: [NSObjectProtocol] = []
@@ -498,6 +498,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor
     private func handleSessionInterruption() {
         guard sessionIsRunning else { return }
+        analysisDelegate.pause()
         isSessionRunning = false
         captureMessage = "Camera temporarily unavailable. It will resume when available."
     }
@@ -524,6 +525,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             resumeSessionAfterSystemEvent(failureMessage: "Camera could not resume after a system reset. Tap Retry camera.")
         case .showRetry:
             _ = sessionGeneration.advance()
+            analysisDelegate.pause()
             sessionIsRunning = false
             isSessionRunning = false
             isConfiguring = false
@@ -535,20 +537,30 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor
     private func resumeSessionAfterSystemEvent(failureMessage: String) {
         let generation = sessionGeneration.advance()
+        let visionOrientation = self.visionOrientation
         isConfiguring = true
+        analysisDelegate.pause()
         sessionQueue.async { [weak self] in
             guard let self else { return }
             if !self.session.isRunning { self.session.startRunning() }
             let resumed = self.session.isRunning
-            Task { @MainActor in
-                guard self.sessionGeneration.isCurrent(generation) else { return }
-                self.isConfiguring = false
-                self.isSessionRunning = resumed
-                if resumed {
-                    self.cameraStartupFailed = false
-                    self.captureMessage = nil
-                    self.startMotionUpdates()
-                } else {
+            if resumed {
+                self.analysisDelegate.resume(on: self.analysisQueue, orientation: visionOrientation,
+                                             while: { [weak self] in self?.sessionGeneration.isCurrent(generation) ?? false }) {
+                    Task { @MainActor in
+                        guard self.sessionGeneration.isCurrent(generation) else { return }
+                        self.isConfiguring = false
+                        self.isSessionRunning = true
+                        self.cameraStartupFailed = false
+                        self.captureMessage = nil
+                        self.startMotionUpdates()
+                    }
+                }
+            } else {
+                Task { @MainActor in
+                    guard self.sessionGeneration.isCurrent(generation) else { return }
+                    self.isConfiguring = false
+                    self.isSessionRunning = false
                     self.sessionIsRunning = false
                     self.cameraStartupFailed = true
                     self.captureMessage = failureMessage
@@ -565,6 +577,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         isConfiguring = true
         isSessionRunning = false
         let generation = sessionGeneration.advance()
+        let visionOrientation = self.visionOrientation
+        analysisDelegate.pause()
         let position: AVCaptureDevice.Position = isFrontCamera ? .front : .back
         let angle = rotationAngle(for: deviceOrientation)
 
@@ -573,12 +587,15 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             do {
                 try self.configureSession(position: position, rotationAngle: angle)
                 self.session.startRunning()
-                Task { @MainActor in
-                    guard self.sessionGeneration.isCurrent(generation) else { return }
-                    self.isConfiguring = false
-                    self.cameraStartupFailed = false
-                    self.isSessionRunning = true
-                    self.startMotionUpdates()
+                self.analysisDelegate.resume(on: self.analysisQueue, orientation: visionOrientation,
+                                             while: { [weak self] in self?.sessionGeneration.isCurrent(generation) ?? false }) {
+                    Task { @MainActor in
+                        guard self.sessionGeneration.isCurrent(generation) else { return }
+                        self.isConfiguring = false
+                        self.cameraStartupFailed = false
+                        self.isSessionRunning = true
+                        self.startMotionUpdates()
+                    }
                 }
             } catch {
                 Task { @MainActor in
@@ -596,6 +613,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor
     func stop() {
         _ = sessionGeneration.advance()
+        analysisDelegate.pause()
         clearSubjectSelection()
         motionManager.stopDeviceMotionUpdates()
         if let orientationObserver {
@@ -622,16 +640,33 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             captureMessage = "Start the camera before switching lenses."
             return
         }
+        isSessionRunning = false
+        isConfiguring = true
+        cameraStartupFailed = false
+        let generation = sessionGeneration.advance()
+        let visionOrientation = self.visionOrientation
+        analysisDelegate.pause()
         clearSubjectSelection()
         sessionQueue.async { [weak self] in
             guard let self else { return }
             do {
                 try self.configureSession(position: position, rotationAngle: angle)
+                self.analysisDelegate.resume(on: self.analysisQueue, orientation: visionOrientation,
+                                             while: { [weak self] in self?.sessionGeneration.isCurrent(generation) ?? false }) {
+                    Task { @MainActor in
+                        guard self.sessionGeneration.isCurrent(generation) else { return }
+                        self.isConfiguring = false
+                        self.isSessionRunning = true
+                    }
+                }
             } catch {
                 Task { @MainActor in
+                    guard self.sessionGeneration.isCurrent(generation) else { return }
                     self.isFrontCamera = position == .back
+                    self.isConfiguring = false
                     self.sessionIsRunning = false
                     self.isSessionRunning = false
+                    self.cameraStartupFailed = true
                     self.captureMessage = error.localizedDescription
                 }
             }
@@ -787,6 +822,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     private func updateConnectionsOrientation() {
         let angle = rotationAngle(for: deviceOrientation)
         let mirrored = isFrontCamera
+        analysisDelegate.updateOrientation(visionOrientation, on: analysisQueue)
         previewRotationAngle = angle
         sessionQueue.async { [weak self] in
             guard let self else { return }
@@ -903,16 +939,65 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     }
 }
 
-struct SessionGeneration: Sendable {
-    private(set) var value: UInt64 = 0
+final class SessionGeneration: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: UInt64 = 0
 
-    mutating func advance() -> UInt64 {
+    func advance() -> UInt64 {
+        lock.lock()
         value &+= 1
-        return value
+        let currentValue = value
+        lock.unlock()
+        return currentValue
     }
 
     func isCurrent(_ candidate: UInt64) -> Bool {
-        value == candidate
+        lock.lock()
+        defer { lock.unlock() }
+        return value == candidate
+    }
+}
+
+final class AnalysisGenerationGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var generation: UInt64 = 0
+    private var acceptsFrames = false
+
+    func pause() {
+        lock.lock()
+        acceptsFrames = false
+        generation &+= 1
+        lock.unlock()
+    }
+
+    func pause(ifCurrent generation: UInt64) {
+        lock.lock()
+        if self.generation == generation {
+            acceptsFrames = false
+            self.generation &+= 1
+        }
+        lock.unlock()
+    }
+
+    func resume() -> UInt64 {
+        lock.lock()
+        generation &+= 1
+        acceptsFrames = true
+        let currentGeneration = generation
+        lock.unlock()
+        return currentGeneration
+    }
+
+    func generationForFrame() -> UInt64? {
+        lock.lock()
+        defer { lock.unlock() }
+        return acceptsFrames ? generation : nil
+    }
+
+    func acceptsResult(for frameGeneration: UInt64) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return acceptsFrames && generation == frameGeneration
     }
 }
 
@@ -937,15 +1022,46 @@ enum SessionRecoveryPolicy {
 private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
     weak var analyzer: CompositionAnalyzer?
     var onResult: ((AnalysisResult) -> Void)?
+    private let generationGate = AnalysisGenerationGate()
+    private var analysisOrientation: CGImagePropertyOrientation = .right
     private var mostRecentPixelBuffer: CVPixelBuffer?
 
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
                        from connection: AVCaptureConnection) {
         guard let source = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         mostRecentPixelBuffer = source
-        analyzer?.analyze(source) { [weak self] result in
-            guard let result else { return }
-            self?.onResult?(result)
+        guard let generation = generationGate.generationForFrame() else { return }
+        let orientation = analysisOrientation
+        analyzer?.analyze(source, orientation: orientation) { [weak self] result in
+            guard let self, let result, self.generationGate.acceptsResult(for: generation) else { return }
+            self.onResult?(result)
+        }
+    }
+
+    func pause() {
+        generationGate.pause()
+    }
+
+    func updateOrientation(_ orientation: CGImagePropertyOrientation, on queue: DispatchQueue) {
+        queue.async { [weak self] in self?.analysisOrientation = orientation }
+    }
+
+    func resume(on queue: DispatchQueue, orientation: CGImagePropertyOrientation,
+                while shouldResume: @escaping @Sendable () -> Bool,
+                completion: @escaping @Sendable () -> Void) {
+        queue.async { [weak self] in
+            guard let self else { completion(); return }
+            self.mostRecentPixelBuffer = nil
+            self.analysisOrientation = orientation
+            self.analyzer?.clearSelection()
+            guard shouldResume() else { completion(); return }
+            let generation = self.generationGate.resume()
+            guard shouldResume() else {
+                self.generationGate.pause(ifCurrent: generation)
+                completion()
+                return
+            }
+            completion()
         }
     }
 

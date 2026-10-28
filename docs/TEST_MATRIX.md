@@ -4,7 +4,7 @@
 |---|---|---|---|
 | Build | iOS 27.1 simulator | App builds without signing | Passed |
 | Build | Generic iOS device destination | App builds without signing | Passed |
-| Unit tests | iOS 27.1 simulator | Guidance debounce/confidence and preset/frame JPEG-copy checks pass | Passed (28 tests, 0 failures) |
+| Unit tests | iOS 27.1 simulator | Guidance debounce/confidence and preset/frame JPEG-copy checks pass | Passed (29 tests, 0 failures) |
 | Launch | iOS 27.1 simulator | App installs and launches | Passed |
 | Camera permission | First launch, allow | Live preview appears | Runtime device check pending |
 | Camera permission | Deny/revoke | Clear explanation and Settings route | Implemented; runtime check pending |
@@ -13,9 +13,10 @@
 | Camera readiness | Capture/switch during startup or after startup failure | Controls stay disabled until the session runs; retry available after failure | Implemented; physical-device check pending |
 | Camera recovery | Configuration fails after adding part of a session | Partial inputs/outputs are removed so a retry can configure cleanly | Rollback implemented; needs runtime failure injection/device check |
 | Camera lifecycle | Stop/background during queued startup, then restart | Stale start completion cannot publish running state after stop/restart | Session generation unit test passed; physical lifecycle check pending |
+| Camera analysis lifecycle | Start/recovery/lens switch while Vision work is in flight | Clear prior frame/selection state, pause analysis while reconfiguring, and discard results from the prior camera generation | Analysis generation gate unit test passed; physical lens-switch check pending |
 | Camera interruption | System interrupts camera, then interruption ends | Show temporary unavailable state and resume only while camera is still desired | Recovery policy tests passed; physical interruption check pending |
 | Camera runtime error | Media services reset or other runtime error | Attempt automatic restart only for media reset; show Retry for other errors | Recovery policy tests passed; physical runtime-error injection pending |
-| Capture | Portrait and landscape | Camera JPEG pixels/EXIF match device orientation | Rotation angle and mirroring are explicitly configured; physical-device capture check pending; renderer output separately verified upright |
+| Capture and live analysis | Portrait and landscape | Camera JPEG pixels/EXIF and Vision detections use current device orientation | Rotation angle/mirroring configured; Vision orientation updated on device rotation; physical-device check pending; renderer output separately verified upright |
 | Capture completion | Processing error, capture-level error, or missing photo data | Delegate completes once and clears capture busy state | Result resolution passed in simulator unit tests; physical AVFoundation callback check pending |
 | Photos export | Add-only allowed | First asset and Framed album are created together; later assets join when the album can be resolved | Code updated; physical-device runtime check pending |
 | Photos export | Existing album unavailable to add-only fetch | Save still succeeds to Photos Recents and UI reports destination accurately | Recents status message unit test passed; runtime check pending |
