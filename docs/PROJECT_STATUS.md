@@ -26,6 +26,7 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 - Hardened asynchronous camera startup/recovery in `FramedLocal/ContentView.swift`: verify the session generation before calling `startRunning()` and again after it returns; if Stop/backgrounding/editor transition invalidated the request while start was in flight, stop the session immediately and do not resume Vision. This closes a hardware/privacy race where stale callbacks were ignored but the physical capture session could still start.
 - Verification: iOS 27.1 simulator suite passed (37 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Existing session-generation unit coverage validates stale request invalidation; physical timing and camera power state still need device verification. Xcode logged only `invalidDigitCount` simulator metadata diagnostics.
+- Committed and pushed as `39153ad` (`Guard stale camera session starts`).
 - Exact next smallest step: inspect and add focused PhotoKit transaction/fallback policy coverage, then return to physical install/camera/Photos checks when the iPhone is connected.
 
 - Stop the AVFoundation camera session and motion updates when a captured or imported image enters the editor, instead of leaving a hidden preview/analysis stream active. Reset the unavailable horizon sample on stop; Retake and editor Cancel explicitly re-request/start the camera session. Changed `FramedLocal/ContentView.swift`.
