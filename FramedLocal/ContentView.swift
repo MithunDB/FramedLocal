@@ -512,6 +512,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     private var activeInput: AVCaptureDeviceInput?
     private var isConfigured = false
     nonisolated private let sessionGeneration = SessionGeneration()
+    nonisolated private let motionGeneration = SessionGeneration()
     @MainActor private var selectionGeneration = SessionGeneration()
     @MainActor private var hasInstalledSessionObservers = false
     @MainActor private var interruptionObservers: [NSObjectProtocol] = []
@@ -618,6 +619,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         guard sessionIsRunning else { return }
         analysisDelegate.pause(on: analysisQueue)
         isSessionRunning = false
+        stopMotionUpdates()
         captureMessage = "Camera temporarily unavailable. It will resume when available."
     }
 
@@ -648,6 +650,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             isSessionRunning = false
             isConfiguring = false
             cameraStartupFailed = true
+            stopMotionUpdates()
             captureMessage = "Camera stopped unexpectedly: \(message)"
         }
     }
@@ -743,13 +746,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         _ = sessionGeneration.advance()
         analysisDelegate.pause(on: analysisQueue)
         clearSubjectSelection()
-        horizonTilt = nil
-        motionManager.stopDeviceMotionUpdates()
-        if let orientationObserver {
-            NotificationCenter.default.removeObserver(orientationObserver)
-            self.orientationObserver = nil
-        }
-        UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        stopMotionUpdates()
         sessionIsRunning = false
         isSessionRunning = false
         isConfiguring = false
@@ -757,6 +754,19 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             guard let self, self.session.isRunning else { return }
             self.session.stopRunning()
         }
+    }
+
+    @MainActor
+    private func stopMotionUpdates() {
+        _ = motionGeneration.advance()
+        motionManager.stopDeviceMotionUpdates()
+        horizonTilt = nil
+        horizonGuidanceState = HorizonGuidanceState()
+        if let orientationObserver {
+            NotificationCenter.default.removeObserver(orientationObserver)
+            self.orientationObserver = nil
+        }
+        UIDevice.current.endGeneratingDeviceOrientationNotifications()
     }
 
     @MainActor
@@ -923,6 +933,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
 
     @MainActor
     private func startMotionUpdates() {
+        let generation = motionGeneration.advance()
         UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         deviceOrientation = UIDevice.current.orientation
         updateConnectionsOrientation()
@@ -931,6 +942,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                                                                           object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                guard self.motionGeneration.isCurrent(generation) else { return }
                 let current = UIDevice.current.orientation
                 guard current.isPortrait || current.isLandscape else { return }
                 self.deviceOrientation = current
@@ -946,6 +958,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             let gravityY = motion.gravity.y
             Task { @MainActor in
                 guard let self else { return }
+                guard self.motionGeneration.isCurrent(generation) else { return }
                 self.horizonTilt = HorizonLeveling.angle(gravityX: gravityX, gravityY: gravityY,
                                                          orientation: self.deviceOrientation)
             }

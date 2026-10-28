@@ -5,7 +5,7 @@ This is the living status record for the private/local FramedLocal iOS app.
 ## Current State
 
 - Date: 2026-10-28
-- Phase: 7 — editor crop/aspect, bounded import/preview, memory-warning recovery, and paused-analysis buffer release implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
+- Phase: 7 — editor crop/aspect, bounded import/preview, memory-warning recovery, and camera analysis/motion lifecycle cleanup implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
 - Branch: `main`, tracking `origin/main` (private GitHub `MithunDB/FramedLocal`)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
@@ -23,6 +23,11 @@ This is the living status record for the private/local FramedLocal iOS app.
 Continue the private/local FramedLocal implementation through physical iPhone validation of camera capture, orientation, guidance, editing, and Photos export. Keep this file current so work can resume after context or usage limits.
 
 ## Last Completed Step
+
+- Reduced camera-interruption sensor work and rejected stale sensor callbacks. Camera interruption, unrecoverable runtime error, and explicit stop now stop Core Motion and device-orientation notifications, clear horizon state, and reset its stability timer. Motion/orientation callbacks carry a generation token so queued samples from a prior session cannot repopulate stale tilt or reconfigure camera connections after stop. Normal startup/recovery restarts updates.
+- Verification: iOS 27.1 simulator hosted suite passed (47 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. Actual interruption/motion sensor behavior needs physical-device validation.
+- Changed files: `FramedLocal/ContentView.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: add sensor stop/restart behavior to the camera lifecycle matrix and commit/push; continue final code review and await iPhone for hardware validation.
 
 - Added renderer-level coverage for crop positioning on a portrait-displayed EXIF-rotated source. The test uses split-color content to prove the vertical position values select different image regions while preserving square output dimensions and the original encoded bytes.
 - Verification: iOS 27.1 simulator hosted suite passed (47 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode logged recurring simulator metadata `invalidDigitCount` diagnostics only. UI slider direction/feel still needs physical-device review.
