@@ -118,6 +118,9 @@ final class GuidanceEngineTests: XCTestCase {
     func testCameraReadinessRequiresRunningCaptureSession() {
         XCTAssertEqual(CaptureSessionStartOutcome.resolve(isRunning: true), .started)
         XCTAssertEqual(CaptureSessionStartOutcome.resolve(isRunning: false), .failed)
+        XCTAssertTrue(CaptureAvailability.canCapture(sessionIsRunning: true, isCapturing: false))
+        XCTAssertFalse(CaptureAvailability.canCapture(sessionIsRunning: false, isCapturing: false))
+        XCTAssertFalse(CaptureAvailability.canCapture(sessionIsRunning: true, isCapturing: true))
     }
 
     func testPhotoCaptureResolverPrefersTerminalCaptureError() {

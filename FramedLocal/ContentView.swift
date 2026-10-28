@@ -522,7 +522,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor private var interruptionObservers: [NSObjectProtocol] = []
     @MainActor private var isConfiguring = false
     @MainActor @Published private(set) var isFrontCamera = false
-    @MainActor private var sessionIsRunning = false
+    @MainActor private var shouldRunSession = false
     private let motionManager = CMMotionManager()
     @MainActor private var deviceOrientation: UIDeviceOrientation = .portrait
     private let motionQueue = OperationQueue()
@@ -628,7 +628,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
 
     @MainActor
     private func handleSessionInterruption() {
-        guard sessionIsRunning else { return }
+        guard shouldRunSession else { return }
         analysisDelegate.pause(on: analysisQueue)
         isSessionRunning = false
         stopMotionUpdates()
@@ -637,7 +637,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
 
     @MainActor
     private func handleSessionInterruptionEnded() {
-        switch SessionRecoveryPolicy.interruptionEnded(shouldBeRunning: sessionIsRunning) {
+        switch SessionRecoveryPolicy.interruptionEnded(shouldBeRunning: shouldRunSession) {
         case .ignore: return
         case .resumeAutomatically:
             resumeSessionAfterSystemEvent(failureMessage: "Camera did not resume. Tap Retry camera.")
@@ -649,7 +649,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     private func handleSessionRuntimeError(domain: String, code: Int, message: String) {
         let isMediaServicesReset = domain == AVFoundationErrorDomain
             && code == AVError.mediaServicesWereReset.rawValue
-        switch SessionRecoveryPolicy.runtimeError(shouldBeRunning: sessionIsRunning,
+        switch SessionRecoveryPolicy.runtimeError(shouldBeRunning: shouldRunSession,
                                                   mediaServicesWereReset: isMediaServicesReset) {
         case .ignore:
             return
@@ -658,7 +658,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         case .showRetry:
             _ = sessionGeneration.advance()
             analysisDelegate.pause(on: analysisQueue)
-            sessionIsRunning = false
+            shouldRunSession = false
             isSessionRunning = false
             isConfiguring = false
             cameraStartupFailed = true
@@ -699,7 +699,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                     guard self.sessionGeneration.isCurrent(generation) else { return }
                     self.isConfiguring = false
                     self.isSessionRunning = false
-                    self.sessionIsRunning = false
+                    self.shouldRunSession = false
                     self.cameraStartupFailed = true
                     self.captureMessage = failureMessage
                 }
@@ -709,9 +709,9 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
 
     @MainActor
     func startIfAuthorized() async {
-        guard authorization == .authorized, !sessionIsRunning, !isConfiguring else { return }
+        guard authorization == .authorized, !shouldRunSession, !isConfiguring else { return }
         installSessionObserversIfNeeded()
-        sessionIsRunning = true
+        shouldRunSession = true
         isConfiguring = true
         isSessionRunning = false
         let generation = sessionGeneration.advance()
@@ -733,7 +733,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                 guard CaptureSessionStartOutcome.resolve(isRunning: self.session.isRunning) == .started else {
                     Task { @MainActor in
                         guard self.sessionGeneration.isCurrent(generation) else { return }
-                        self.sessionIsRunning = false
+                        self.shouldRunSession = false
                         self.isConfiguring = false
                         self.isSessionRunning = false
                         self.cameraStartupFailed = true
@@ -754,7 +754,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             } catch {
                 Task { @MainActor in
                     guard self.sessionGeneration.isCurrent(generation) else { return }
-                    self.sessionIsRunning = false
+                    self.shouldRunSession = false
                     self.isConfiguring = false
                     self.isSessionRunning = false
                     self.cameraStartupFailed = true
@@ -771,7 +771,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         analysisDelegate.pause(on: analysisQueue)
         clearSubjectSelection()
         stopMotionUpdates()
-        sessionIsRunning = false
+        shouldRunSession = false
         isSessionRunning = false
         isConfiguring = false
         sessionQueue.async { [weak self] in
@@ -798,7 +798,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         isFrontCamera.toggle()
         let position: AVCaptureDevice.Position = isFrontCamera ? .front : .back
         let angle = rotationAngle(for: deviceOrientation)
-        guard sessionIsRunning else {
+        guard shouldRunSession else {
             isFrontCamera.toggle()
             captureMessage = "Start the camera before switching lenses."
             return
@@ -818,7 +818,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                     Task { @MainActor in
                         guard self.sessionGeneration.isCurrent(generation) else { return }
                         self.isFrontCamera = position == .back
-                        self.sessionIsRunning = false
+                        self.shouldRunSession = false
                         self.isConfiguring = false
                         self.isSessionRunning = false
                         self.cameraStartupFailed = true
@@ -839,7 +839,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                 Task { @MainActor in
                     guard self.sessionGeneration.isCurrent(generation) else { return }
                     self.isFrontCamera = position == .back
-                    self.sessionIsRunning = false
+                    self.shouldRunSession = false
                     self.isConfiguring = false
                     self.isSessionRunning = false
                     self.cameraStartupFailed = true
@@ -851,7 +851,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
 
     @MainActor
     func capture() {
-        guard !isCapturing, sessionIsRunning else {
+        guard CaptureAvailability.canCapture(sessionIsRunning: isSessionRunning,
+                                             isCapturing: isCapturing) else {
             captureMessage = "The camera is not ready yet. Try again in a moment."
             return
         }
@@ -1212,6 +1213,12 @@ enum CaptureSessionStartOutcome: Equatable {
 
     static func resolve(isRunning: Bool) -> CaptureSessionStartOutcome {
         isRunning ? .started : .failed
+    }
+}
+
+enum CaptureAvailability {
+    static func canCapture(sessionIsRunning: Bool, isCapturing: Bool) -> Bool {
+        sessionIsRunning && !isCapturing
     }
 }
 

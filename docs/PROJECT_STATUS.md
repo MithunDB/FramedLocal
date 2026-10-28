@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Clarified camera session intent vs readiness by renaming the private desired-run flag to `shouldRunSession`. `capture()` now checks the published actual-session-ready state (and the capture-in-progress state) instead of the intent flag, preventing direct/programmatic capture attempts during a lens switch or recovery. Added policy assertions for stopped and busy capture states.
+- Verification: iOS 27.1 simulator hosted suite passed (48 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Physical capture timing remains pending.
+- Changed files: `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: commit and push capture-readiness enforcement, then continue local audit; physical capture tests remain pending.
+
 - PhotoKit album-placeholder audit proposed a guard that the SDK rejects because `placeholderForCreatedAssetCollection` is non-optional (`initializer for conditional binding must have Optional type, not PHObjectPlaceholder`). Reverted that speculative change; no app code remains from the attempt. Re-ran simulator suite (48/48), generic unsigned iOS build, and `git diff --check`; all passed. The compiler error was the only new error this turn.
 - Exact next smallest step: continue source audit for a verified improvement; do not add an impossible nil check to the album placeholder.
 
