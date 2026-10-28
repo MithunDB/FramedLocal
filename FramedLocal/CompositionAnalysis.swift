@@ -136,6 +136,12 @@ enum SubjectSelectionResolver {
     }
 }
 
+enum SubjectSelectionFeedback {
+    static func message(didSelectSubject: Bool) -> String {
+        didSelectSubject ? "Tracking selected subject" : "No subject found — try tapping closer"
+    }
+}
+
 /// Runs Vision and pixel sampling on a worker queue. Only small observations cross to UI.
 final class CompositionAnalyzer: @unchecked Sendable {
     private let queue = DispatchQueue(label: "local.mithundb.framed.vision", qos: .userInitiated)
@@ -219,16 +225,16 @@ final class CompositionAnalyzer: @unchecked Sendable {
     }
 
     func selectSubject(at normalizedPoint: CGPoint, in pixelBuffer: CVPixelBuffer,
-                       orientation: CGImagePropertyOrientation = .right) {
+                       orientation: CGImagePropertyOrientation = .right) -> Bool {
         if DispatchQueue.getSpecific(key: queueKey) != nil {
-            selectSubjectOnQueue(at: normalizedPoint, in: pixelBuffer, orientation: orientation)
+            return selectSubjectOnQueue(at: normalizedPoint, in: pixelBuffer, orientation: orientation)
         } else {
-            queue.sync { selectSubjectOnQueue(at: normalizedPoint, in: pixelBuffer, orientation: orientation) }
+            return queue.sync { selectSubjectOnQueue(at: normalizedPoint, in: pixelBuffer, orientation: orientation) }
         }
     }
 
     private func selectSubjectOnQueue(at normalizedPoint: CGPoint, in pixelBuffer: CVPixelBuffer,
-                                      orientation: CGImagePropertyOrientation) {
+                                      orientation: CGImagePropertyOrientation) -> Bool {
         let request = VNDetectFaceRectanglesRequest()
         let saliency = VNGenerateAttentionBasedSaliencyImageRequest()
         do {
@@ -238,7 +244,7 @@ final class CompositionAnalyzer: @unchecked Sendable {
             guard let selected = SubjectSelectionResolver.resolve(point: normalizedPoint, candidates: boxes) else {
                 selectedObservation = nil
                 trackingRequest = nil
-                return
+                return false
             }
             let observation = VNDetectedObjectObservation(boundingBox: selected)
             selectedObservation = observation
@@ -246,9 +252,11 @@ final class CompositionAnalyzer: @unchecked Sendable {
             tracking.trackingLevel = .accurate
             tracking.isLastFrame = false
             trackingRequest = tracking
+            return true
         } catch {
             selectedObservation = nil
             trackingRequest = nil
+            return false
         }
     }
 

@@ -427,3 +427,14 @@ Read this file first after context compression. Then inspect `git status`, the l
 - No manual PhotoKit/background test was run; physical-device validation remains outstanding.
 - Changed files: `FramedLocal/PhotoLibraryService.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
 - Exact next smallest step: update matrix to 27 passing tests and push the destination copy; continue reviewing local rendering/save lifecycle, then complete real Photos transaction and background tests on iPhone when user is available.
+
+## Follow-up Turn — 2026-10-28 (tap-to-track feedback and selection lifetime)
+
+- Vision tap-selection audit found the UI set “Finding selected subject…” but never replaced it after analysis completed. A tap with no current pixel buffer or no matching face/saliency candidate could leave that message indefinitely.
+- `CompositionAnalyzer.selectSubject` now returns whether it created a tracking request. `VideoAnalysisDelegate` returns that result on its analysis queue; the camera controller reports “Tracking selected subject” or “No subject found — try tapping closer.” Selection callbacks carry a generation token so delayed feedback from a previous tap or camera cannot overwrite newer state.
+- Stopping the session or switching lenses invalidates pending selection feedback and clears tracking selection on the serial analysis path, preventing a rear-camera subject box from carrying into the front camera or a resumed session.
+- First build failed with `ContentView.swift:972:1: error: Extraneous '}' at top level` from an extra brace in the delegate edit. Removed it and reran.
+- Simulator hosted tests passed 28/28 (verified through `.xcresult`, no failures or skips). Generic iOS device build succeeded. `git diff --check` passed. Xcode emitted existing simulator build-version digit warnings.
+- Real camera tap selection, no-subject feedback, and lens-switch clearing still require physical-device validation.
+- Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: record 28 passing tests and push; then continue review for analysis frames arriving during lens reconfiguration and verify tap selection on the iPhone when available.

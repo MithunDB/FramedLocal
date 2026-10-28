@@ -396,6 +396,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     private var activeInput: AVCaptureDeviceInput?
     private var isConfigured = false
     @MainActor private var sessionGeneration = SessionGeneration()
+    @MainActor private var selectionGeneration = SessionGeneration()
     @MainActor private var hasInstalledSessionObservers = false
     @MainActor private var interruptionObservers: [NSObjectProtocol] = []
     @MainActor private var isConfiguring = false
@@ -595,6 +596,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor
     func stop() {
         _ = sessionGeneration.advance()
+        clearSubjectSelection()
         motionManager.stopDeviceMotionUpdates()
         if let orientationObserver {
             NotificationCenter.default.removeObserver(orientationObserver)
@@ -620,6 +622,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             captureMessage = "Start the camera before switching lenses."
             return
         }
+        clearSubjectSelection()
         sessionQueue.async { [weak self] in
             guard let self else { return }
             do {
@@ -711,10 +714,29 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
 
     @MainActor
     func selectSubject(atCaptureDevicePoint point: CGPoint) {
+        guard isSessionRunning else { return }
+        let selectionToken = selectionGeneration.advance()
         let normalized = VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: point,
                                                           orientation: visionOrientation)
         captureMessage = "Finding selected subject…"
-        analysisDelegate.selectSubject(normalizedPoint: normalized, orientation: visionOrientation, on: analysisQueue)
+        analysisDelegate.selectSubject(normalizedPoint: normalized, orientation: visionOrientation,
+                                       on: analysisQueue) { [weak self] didSelect in
+            Task { @MainActor [weak self] in
+                guard let self, self.selectionGeneration.isCurrent(selectionToken) else { return }
+                self.captureMessage = SubjectSelectionFeedback.message(didSelectSubject: didSelect)
+            }
+        }
+    }
+
+    @MainActor
+    private func clearSubjectSelection() {
+        _ = selectionGeneration.advance()
+        analysisDelegate.clearSelection(on: analysisQueue)
+        if captureMessage == "Finding selected subject…"
+            || captureMessage == "Tracking selected subject"
+            || captureMessage == "No subject found — try tapping closer" {
+            captureMessage = nil
+        }
     }
 
     @MainActor private var visionOrientation: CGImagePropertyOrientation {
@@ -928,10 +950,22 @@ private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSam
     }
 
     func selectSubject(normalizedPoint: CGPoint, orientation: CGImagePropertyOrientation = .right,
-                       on queue: DispatchQueue) {
+                       on queue: DispatchQueue,
+                       completion: @escaping @Sendable (Bool) -> Void) {
         queue.async { [weak self] in
-            guard let self, let mostRecentPixelBuffer = self.mostRecentPixelBuffer else { return }
-            self.analyzer?.selectSubject(at: normalizedPoint, in: mostRecentPixelBuffer, orientation: orientation)
+            guard let self, let mostRecentPixelBuffer = self.mostRecentPixelBuffer else {
+                completion(false)
+                return
+            }
+            let didSelect = self.analyzer?.selectSubject(at: normalizedPoint, in: mostRecentPixelBuffer,
+                                                         orientation: orientation) ?? false
+            completion(didSelect)
+        }
+    }
+
+    func clearSelection(on queue: DispatchQueue) {
+        queue.async { [weak self] in
+            self?.analyzer?.clearSelection()
         }
     }
 }

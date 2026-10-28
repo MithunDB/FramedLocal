@@ -4,7 +4,7 @@
 |---|---|---|---|
 | Build | iOS 27.1 simulator | App builds without signing | Passed |
 | Build | Generic iOS device destination | App builds without signing | Passed |
-| Unit tests | iOS 27.1 simulator | Guidance debounce/confidence and preset/frame JPEG-copy checks pass | Passed (27 tests, 0 failures) |
+| Unit tests | iOS 27.1 simulator | Guidance debounce/confidence and preset/frame JPEG-copy checks pass | Passed (28 tests, 0 failures) |
 | Launch | iOS 27.1 simulator | App installs and launches | Passed |
 | Camera permission | First launch, allow | Live preview appears | Runtime device check pending |
 | Camera permission | Deny/revoke | Clear explanation and Settings route | Implemented; runtime check pending |
@@ -35,7 +35,7 @@
 | Scene | Horizon and landscape | Orientation and framing remain stable | Pending |
 | Performance | Repeated capture | No freeze or memory warning | Pending |
 | Composition analysis | Face/saliency and sampled image signals | One stable advisory message; capture remains available | Preview-sized buffers, dedicated serial queue, explicit 7 Hz rate limiter, AVFoundation late-frame dropping, unrotated buffers with Vision orientation mapping; throttle unit test passed; physical-scene tuning pending |
-| Subject selection | Tap visible subject in rotated/aspect-filled preview | Preview-layer conversion maps tap into capture-device coordinates, then into Vision's oriented coordinates; no candidate clears the prior track | Mapping/resolution unit tests passed; physical-device selection check pending |
+| Subject selection | Tap visible subject in rotated/aspect-filled preview | Preview-layer conversion maps tap into capture-device coordinates; report found/missing subject, ignore stale tap feedback, and clear tracking on stop/lens switch | Mapping/resolution/feedback unit tests passed; physical-device selection check pending |
 | Guidance recovery | Selected subject disappears / confidence remains low | Detection and manual tracking use distinct confidence thresholds and recovery messages | Passed in simulator GuidanceEngine tests; live tracking-loss check pending |
 | Exposure cues | Bright clipping and low-light shadow clipping | Offer explainable lower-exposure or add-light suggestions after focus/framing checks | Passed in simulator unit tests; physical scene tuning pending |
 | Guidance haptics | Haptics enabled/disabled and stable guidance | Haptic fires only on entry to “Hold steady” when enabled; visual advice remains visible when disabled | Decision logic passed in simulator unit tests; physical haptic pending |

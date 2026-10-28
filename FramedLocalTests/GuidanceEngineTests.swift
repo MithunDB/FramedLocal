@@ -166,4 +166,9 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertEqual(SubjectSelectionResolver.resolve(point: CGPoint(x: 0.8, y: 0.8), candidates: [far, containing]), containing)
         XCTAssertNil(SubjectSelectionResolver.resolve(point: point, candidates: []))
     }
+
+    func testSubjectSelectionFeedbackCoversFoundAndMissingSubjects() {
+        XCTAssertEqual(SubjectSelectionFeedback.message(didSelectSubject: true), "Tracking selected subject")
+        XCTAssertEqual(SubjectSelectionFeedback.message(didSelectSubject: false), "No subject found — try tapping closer")
+    }
 }
