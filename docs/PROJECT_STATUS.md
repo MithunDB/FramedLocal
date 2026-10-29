@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Reduced peak Night Grain bitmap memory by generating the seeded noise pixels directly into one `Data` allocation instead of building a full Swift byte array and copying it into `Data`. Preserved the per-65,536-pixel cancellation checks and added checked multiplication before allocating the RGBA buffer.
+- Verification: iOS 27.1 simulator suite passed (51 tests, 0 failures, 0 skipped), including byte-for-byte deterministic Night Grain output; generic unsigned iOS device build passed; `git diff --check` passed. No new errors; recurring Xcode simulator metadata `invalidDigitCount` diagnostics only. Physical-device memory/latency remains unmeasured.
+- Changed files: `FramedLocal/FilmRenderer.swift`, `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.
+- Exact next smallest step: commit and push the renderer allocation improvement; later measure Night Grain memory/latency on iPhone 12 during device acceptance.
+
 - Rechecked local signing/install readiness while continuing the code audit. A valid Apple Development certificate is present, but no provisioning profile exists for `local.mithundb.framed`; the iPhone is still absent from `devicectl`. A generic signed build with a command-line team override failed with Xcode's exact error: `No profiles for 'local.mithundb.framed' were found ... Automatic signing is disabled and unable to generate a profile. To enable automatic signing, pass -allowProvisioningUpdates to xcodebuild.` Did not request portal provisioning without a connected/registered device. Unsigned generic iOS build and simulator suite remain green.
 - Changed files: `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.
 - Exact next smallest step: when the iPhone is available, connect/pair it and allow Xcode automatic provisioning, then build/install and work through the physical acceptance matrix.

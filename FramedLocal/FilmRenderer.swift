@@ -209,19 +209,24 @@ public actor FilmRenderer {
         let width = max(Int(extent.width.rounded(.up)), 1)
         let height = max(Int(extent.height.rounded(.up)), 1)
         var state = seed
-        var pixels = [UInt8](repeating: 0, count: width * height * 4)
-        for pixel in 0..<(width * height) {
-            if pixel.isMultiple(of: 65_536) { try Task.checkCancellation() }
-            state = 1_664_525 &* state &+ 1_013_904_223
-            let value = UInt8(truncatingIfNeeded: state >> 24)
-            let offset = pixel * 4
-            pixels[offset] = value
-            pixels[offset + 1] = value
-            pixels[offset + 2] = value
-            pixels[offset + 3] = 255
+        let (pixelCount, pixelCountOverflow) = width.multipliedReportingOverflow(by: height)
+        let (byteCount, byteCountOverflow) = pixelCount.multipliedReportingOverflow(by: 4)
+        guard !pixelCountOverflow, !byteCountOverflow else { throw RenderError.invalidImage }
+        var data = Data(count: byteCount)
+        try data.withUnsafeMutableBytes { (rawBuffer: UnsafeMutableRawBufferPointer) throws -> Void in
+            guard let pixels = rawBuffer.bindMemory(to: UInt8.self).baseAddress else { return }
+            for pixel in 0..<pixelCount {
+                if pixel.isMultiple(of: 65_536) { try Task.checkCancellation() }
+                state = 1_664_525 &* state &+ 1_013_904_223
+                let value = UInt8(truncatingIfNeeded: state >> 24)
+                let offset = pixel * 4
+                pixels[offset] = value
+                pixels[offset + 1] = value
+                pixels[offset + 2] = value
+                pixels[offset + 3] = 255
+            }
         }
-        let data = Data(pixels) as CFData
-        guard let provider = CGDataProvider(data: data),
+        guard let provider = CGDataProvider(data: data as CFData),
               let cgImage = CGImage(width: width, height: height, bitsPerComponent: 8,
                                     bitsPerPixel: 32, bytesPerRow: width * 4,
                                     space: CGColorSpaceCreateDeviceRGB(),
