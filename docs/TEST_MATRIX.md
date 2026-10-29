@@ -3,11 +3,11 @@
 | Area | Scenario | Expected result | Status |
 |---|---|---|---|
 | Build | iOS 27.1 simulator | App builds without signing | Passed |
-| Compatibility tests | iOS 26.2 iPhone 17 Pro simulator | Hosted app unit suite runs on an earlier available iOS runtime | Passed (53 tests, 0 failures, 0 skipped) |
+| Compatibility tests | iOS 26.2 iPhone 17 Pro simulator | Hosted app unit suite runs on an earlier available iOS runtime | Passed (54 tests, 0 failures, 0 skipped) |
 | Build | Generic iOS device destination | App builds without signing | Passed |
 | Device signing | Pair iPhone 12, select its development team, and provision the app | Xcode produces an installable signed build for `local.mithundb.framed` | Valid Apple Development identity installed; generic signed build confirms no provisioning profile exists; device not connected; allow Xcode provisioning after pairing |
 | App icon | iOS asset catalog | Universal 1024×1024 icon is included and compiles for simulator/device | Passed asset-catalog builds; physical home-screen appearance pending |
-| Unit tests | iOS 27.1 simulator | Guidance, camera/session policies, renderer, import orientation/bounds, crop, cancellation, and PhotoKit transaction logic | Passed (53 tests, 0 failures; latest run after bounded Night Grain allocation guard) |
+| Unit tests | iOS 27.1 simulator | Guidance, camera/session policies, renderer, import orientation/bounds, crop, cancellation, and PhotoKit transaction logic | Passed (54 tests, 0 failures; latest run after media-reset sensor observer recovery) |
 | Launch | iOS 27.1 simulator | App installs and launches; permission prompt and camera-unavailable fallback are presented | Passed simulator install/launch; simulator has no camera; physical launch/capture pending |
 | Privacy configuration | Built Info.plist, source, and project dependency scan | Camera and add-only Photos prompts only; picker import without full library authorization; no app network client/analytics dependency | Static inspection passed; physical permission flow pending |
 | Camera permission | First launch, allow | Live preview appears | Runtime device check pending |
@@ -26,7 +26,7 @@
 | Camera guidance lifecycle | Stop, interruption, recovery, or switch lenses, then resume | Reset stale visible guidance, selected subject, debounce state, and analysis throttle for the new stream | Reset path implemented and builds/tests pass; physical transition behavior pending |
 | Camera analysis memory | Stop, interrupt, or reconfigure while late video frames arrive | Ignore frames after pause and release the retained preview pixel buffer on the analysis queue | Code hardened; simulator/device memory behavior pending |
 | Camera interruption | System interrupts camera, then interruption ends | Show temporary unavailable state and resume only while camera is still desired | Recovery policy tests passed; physical interruption check pending |
-| Camera interruption sensors | Interrupt/stop/recover while motion or orientation callbacks are queued | Stop sensor updates while unavailable; ignore callbacks from the previous generation; restart updates after recovery | Code hardened; physical sensor/runtime check pending |
+| Camera interruption sensors | Interrupt/stop/recover or media-services reset while motion/orientation callbacks are queued | Stop old sensor updates and remove the old orientation observer; reject callbacks from the prior generation and register a current observer after recovery | Reset path and sensor-generation policy covered; physical interruption/reset/rotation check pending |
 | Camera runtime error | Media services reset or other runtime error | Attempt automatic restart only for media reset; show Retry for other errors | Recovery policy tests passed; physical runtime-error injection pending |
 | Capture and live analysis | Portrait and landscape | Camera JPEG pixels/EXIF and Vision detections use current device orientation | Rotation angle/mirroring configured; Vision orientation updated on device rotation; capture method now requires actual session-ready state; physical-device check pending; renderer output separately verified upright |
 | Capture completion | Processing error, capture-level error, or missing photo data | Delegate completes once and clears capture busy state | Result resolution passed in simulator unit tests; physical AVFoundation callback check pending |

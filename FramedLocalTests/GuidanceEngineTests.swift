@@ -109,6 +109,17 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertFalse(generation.isCurrent(firstStart))
     }
 
+    func testSensorObserverGenerationIsReplacedAcrossRecovery() {
+        let generation = SessionGeneration()
+        let beforeRecovery = generation.advance()
+
+        _ = generation.advance() // stopMotionUpdates invalidates queued sensor callbacks
+        let afterRecovery = generation.advance()
+
+        XCTAssertFalse(generation.isCurrent(beforeRecovery))
+        XCTAssertTrue(generation.isCurrent(afterRecovery))
+    }
+
     func testAnalysisGenerationGateDropsResultsFromPreviousCameraSource() {
         let gate = AnalysisGenerationGate()
         XCTAssertNil(gate.generationForFrame())

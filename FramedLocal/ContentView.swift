@@ -661,6 +661,9 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         case .ignore:
             return
         case .resumeAutomatically:
+            // Media-services reset can invalidate sensor callbacks and their
+            // orientation observer; remove them before installing a new generation.
+            stopMotionUpdates()
             resumeSessionAfterSystemEvent(failureMessage: "Camera could not resume after a system reset. Tap Retry camera.")
         case .showRetry:
             _ = sessionGeneration.advance()

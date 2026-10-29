@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Fixed sensor cleanup on AVFoundation media-services reset. Automatic camera recovery now stops the old Core Motion stream and removes the orientation observer before restarting; this prevents an observer tied to an invalid generation from silently ignoring all later device rotations. Added a sensor-generation replacement regression check.
+- Verification: iOS 27.1 simulator suite passed (54 tests, 0 failures, 0 skipped); iOS 26.2 simulator suite passed (54 tests, 0 failures, 0 skipped); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Actual media-reset and orientation behavior remains physical-device-only.
+- Changed files: `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.
+- Exact next smallest step: commit and push the sensor recovery fix; exercise media-services reset and post-recovery rotation on the iPhone when available.
+
 - Hardened the Night Grain allocation boundary: validate that the Core Image extent is finite, positive, and within the renderer's 2,400-pixel bound (allowing one pixel for rounding) before converting to `Int`; then retain checked pixel/byte multiplication. Added a 3,200×1,800 source regression test proving the Night Grain render path remains capped.
 - Verification: iOS 27.1 simulator suite passed (53 tests, 0 failures, 0 skipped); iOS 26.2 simulator suite passed (53 tests, 0 failures, 0 skipped); generic unsigned iOS device build passed; `git diff --check` passed. Recurring Xcode simulator metadata `invalidDigitCount` diagnostics only. Physical memory behavior remains unmeasured.
 - Changed files: `FramedLocal/FilmRenderer.swift`, `FramedLocalTests/RendererTests.swift`, `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.
