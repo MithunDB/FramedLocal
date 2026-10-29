@@ -1,13 +1,21 @@
 import AVFoundation
 import Combine
+import CoreImage
 import SwiftUI
 import UIKit
 import PhotosUI
 import CoreVideo
 import CoreMotion
 import ImageIO
+import MetalKit
 
 struct ContentView: View {
+    private enum EditorTool: String, CaseIterable {
+        case look = "Look"
+        case crop = "Crop"
+        case frame = "Frame"
+    }
+
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var camera = CameraController()
     @State private var selectedPreset: FilmPreset = .natural
@@ -15,6 +23,8 @@ struct ContentView: View {
     @State private var cropPosition = CropPosition.center
     @State private var selectedFrame: FrameLayout = .whiteBorder
     @State private var includesDateStamp = true
+    @State private var showsCompositionGuides = true
+    @State private var selectedEditorTool: EditorTool = .look
     @State private var editorStampDate = Date()
     @State private var previewImage: UIImage?
     @State private var photoPickerItem: PhotosPickerItem?
@@ -28,13 +38,9 @@ struct ContentView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if camera.authorization == .authorized && camera.importedImage == nil {
-                CameraPreview(session: camera.session, rotationAngle: camera.previewRotationAngle,
-                              isMirrored: camera.isFrontCamera) { capturePoint in
-                    camera.selectSubject(atCaptureDevicePoint: capturePoint)
-                }
-                    .ignoresSafeArea()
-            } else if camera.importedImage != nil {
+            if camera.authorization == .authorized && camera.latestCapture == nil && camera.importedImage == nil {
+                cameraPreviewContent
+            } else if camera.latestCapture != nil || camera.importedImage != nil {
                 Color.black.ignoresSafeArea()
             } else {
                 permissionContent
@@ -52,75 +58,130 @@ struct ContentView: View {
             if camera.authorization == .authorized && camera.latestCapture == nil && camera.importedImage == nil {
                 VStack {
                     Spacer()
-                    Text(camera.guidanceText)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 9)
-                        .background(.black.opacity(0.45), in: Capsule())
+                    if showsCompositionGuides {
+                        VStack(spacing: 8) {
+                            Text(camera.guidanceText)
+                                .font(.caption.weight(.medium))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 12)
+                                .padding(.vertical, 9)
+                                .background(.black.opacity(0.45), in: Capsule())
+                            if let zoom = camera.suggestedZoomFactor {
+                                Button {
+                                    camera.applyZoomFactor(zoom)
+                                } label: {
+                                    Label("Zoom to \(zoom, format: .number.precision(.fractionLength(1)))×",
+                                          systemImage: "plus.magnifyingglass")
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 8)
+                                        .background(.cyan.opacity(0.38), in: Capsule())
+                                }
+                                .accessibilityHint("Adjusts camera zoom to make the detected subject larger in the preview")
+                            }
+                        }
                         .padding(.bottom, 165)
+                    }
                 }
                 .allowsHitTesting(false)
             }
 
             VStack {
-                HStack {
-                    Text("FRAMED")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .tracking(3)
-                    Spacer()
-                    Button {
-                        camera.toggleCamera()
-                    } label: {
-                        Image(systemName: "arrow.triangle.2.circlepath.camera")
-                            .font(.system(size: 20, weight: .regular))
-                            .frame(width: 44, height: 44)
+                if camera.isSaving {
+                    HStack {
+                        Text("SAVING TO PHOTOS")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .tracking(2)
+                        Spacer()
+                        ProgressView().tint(.white)
                     }
-            .disabled(camera.authorization != .authorized || !camera.isSessionRunning || camera.isCapturing || camera.isSaving || isImporting)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 22)
+                    .padding(.top, 12)
+                } else if camera.latestCapture != nil || camera.importedImage != nil {
+                    HStack {
+                        Text("EDIT COPY")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .tracking(2)
+                        Spacer()
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 22)
+                    .padding(.top, 12)
+                } else {
+                    HStack {
+                        Text("FRAMED")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .tracking(3)
+                        Spacer()
+                        Button {
+                            camera.toggleCamera()
+                        } label: {
+                            Image(systemName: "arrow.triangle.2.circlepath.camera")
+                                .font(.system(size: 20, weight: .regular))
+                                .frame(width: 44, height: 44)
+                        }
+                        .disabled(camera.authorization != .authorized || !camera.isSessionRunning || camera.isCapturing || isImporting)
 
-                    Button {
-                        camera.setHapticsEnabled(!camera.hapticsEnabled)
-                    } label: {
-                        Image(systemName: "hand.tap")
-                            .font(.system(size: 18, weight: .regular))
-                            .overlay(alignment: .topTrailing) {
-                                if !camera.hapticsEnabled {
-                                    Image(systemName: "slash.circle.fill")
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .offset(x: 5, y: -4)
+                        Button {
+                            camera.setHapticsEnabled(!camera.hapticsEnabled)
+                        } label: {
+                            Image(systemName: "hand.tap")
+                                .font(.system(size: 18, weight: .regular))
+                                .overlay(alignment: .topTrailing) {
+                                    if !camera.hapticsEnabled {
+                                        Image(systemName: "slash.circle.fill")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .offset(x: 5, y: -4)
+                                    }
                                 }
-                            }
-                            .frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel(camera.hapticsEnabled ? "Turn guidance haptics off" : "Turn guidance haptics on")
-                    .accessibilityValue(camera.hapticsEnabled ? "On" : "Off")
+                                .frame(width: 44, height: 44)
+                        }
+                        .accessibilityLabel(camera.hapticsEnabled ? "Turn guidance haptics off" : "Turn guidance haptics on")
+                        .accessibilityValue(camera.hapticsEnabled ? "On" : "Off")
 
-                    PhotosPicker(selection: $photoPickerItem, matching: .images, photoLibrary: .shared()) {
-                        Image(systemName: "photo.on.rectangle")
-                            .font(.system(size: 19, weight: .regular))
-                            .frame(width: 44, height: 44)
+                        Button {
+                            showsCompositionGuides.toggle()
+                        } label: {
+                            Image(systemName: showsCompositionGuides ? "viewfinder" : "viewfinder.circle")
+                                .font(.system(size: 18, weight: .regular))
+                                .frame(width: 44, height: 44)
+                        }
+                        .accessibilityLabel(showsCompositionGuides ? "Hide composition guides" : "Show composition guides")
+
+                        PhotosPicker(selection: $photoPickerItem, matching: .images, photoLibrary: .shared()) {
+                            Image(systemName: "photo.on.rectangle")
+                                .font(.system(size: 19, weight: .regular))
+                                .frame(width: 44, height: 44)
+                        }
+                        .accessibilityLabel("Choose a photo to edit")
+                        .disabled(isImporting)
                     }
-                    .accessibilityLabel("Choose a photo to edit")
-                    .disabled(isImporting || camera.isSaving)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 22)
+                    .padding(.top, 12)
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 22)
-                .padding(.top, 12)
 
                 Spacer()
 
-            if !isImporting || camera.latestCapture != nil || camera.importedImage != nil {
-                    VStack(spacing: 10) {
-                        presetPicker
-                        cropAspectPicker
-                        cropPositionControl
-                        framePicker
+                if camera.isSaving {
+                    VStack(spacing: 12) {
+                        ProgressView().tint(.white)
+                        Text("Saving a new copy…")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.82))
                     }
-                    .disabled(camera.isSaving)
-                    .padding(.bottom, 20)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 18)
+                    .background(.black.opacity(0.48), in: RoundedRectangle(cornerRadius: 18))
+                    .padding(.bottom, 36)
+                } else if !isImporting || camera.latestCapture != nil || camera.importedImage != nil {
+                    editorControls
+                        .padding(.bottom, 14)
                 }
 
-                if let captureMessage = camera.captureMessage {
+                if !camera.isSaving, let captureMessage = camera.captureMessage {
                     Text(captureMessage)
                         .font(.footnote)
                         .foregroundStyle(.white)
@@ -135,14 +196,14 @@ struct ContentView: View {
                         .padding(.bottom, 8)
                     }
                 }
-                if isImporting {
+                if isImporting && !camera.isSaving {
                     Button("Cancel import", action: cancelImport)
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(.white)
                         .padding(.bottom, 8)
                 }
 
-                if camera.latestCapture != nil {
+                if !camera.isSaving && camera.latestCapture != nil {
                     HStack(spacing: 18) {
                         Button("Retake") {
                             camera.discardCapture()
@@ -151,7 +212,7 @@ struct ContentView: View {
                         }
                         .foregroundStyle(.white)
                         .disabled(camera.isSaving)
-                        Button("Save to Photos") {
+                        Button(isCurrentRenderSaved ? "Saved" : "Save to Photos") {
                             camera.saveLatestCapture()
                         }
                         .font(.subheadline.weight(.medium))
@@ -159,17 +220,17 @@ struct ContentView: View {
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
                         .background(.white, in: Capsule())
-                        .disabled(camera.isSaving || isRendering || camera.renderedCapture == nil)
+                        .disabled(camera.isSaving || isRendering || camera.renderedCapture == nil || isCurrentRenderSaved)
                     }
                     .padding(.bottom, 12)
-                } else if camera.importedImage != nil {
+                } else if !camera.isSaving && camera.importedImage != nil {
                     HStack(spacing: 18) {
                         Button("Cancel") {
                             cancelImport()
                         }
                         .foregroundStyle(.white)
                         .disabled(camera.isSaving)
-                        Button("Export New Copy") {
+                        Button(isCurrentRenderSaved ? "Saved" : "Export New Copy") {
                             camera.saveLatestCapture()
                         }
                         .font(.subheadline.weight(.medium))
@@ -177,11 +238,12 @@ struct ContentView: View {
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
                         .background(.white, in: Capsule())
-                        .disabled(camera.isSaving || isRendering || camera.renderedCapture == nil)
+                        .disabled(camera.isSaving || isRendering || camera.renderedCapture == nil || isCurrentRenderSaved)
                     }
                     .padding(.bottom, 12)
                 }
 
+                if !camera.isSaving && camera.latestCapture == nil && camera.importedImage == nil {
                 HStack {
                     Spacer()
                     Button {
@@ -190,16 +252,19 @@ struct ContentView: View {
                         }
                     } label: {
                         Circle()
-                            .stroke(.white.opacity(0.85), lineWidth: 3)
+                            .stroke(camera.isFramingAligned ? Color.cyan : Color.white.opacity(0.85), lineWidth: 3)
                             .frame(width: 76, height: 76)
                             .overlay {
                                 Circle().fill(.white).padding(7)
                             }
                     }
+                    .accessibilityLabel("Take photo")
+                    .accessibilityValue(camera.isFramingAligned ? "Composition guide aligned" : "Composition guide active")
                     .disabled(camera.authorization != .authorized || !camera.isSessionRunning || camera.isCapturing || camera.isSaving || camera.latestCapture != nil || camera.importedImage != nil)
                     Spacer()
                 }
                 .padding(.bottom, 28)
+                }
             }
         }
         .preferredColorScheme(.dark)
@@ -207,6 +272,8 @@ struct ContentView: View {
             handleMemoryWarning()
         }
         .task {
+            camera.updateLivePreviewSettings(currentLivePreviewSettings)
+            camera.setCompositionGuidanceEnabled(showsCompositionGuides)
             await camera.requestPermissionAndStart()
             await camera.startIfAuthorized()
         }
@@ -236,11 +303,22 @@ struct ContentView: View {
             importPhoto(item)
         }
         .onChange(of: selectedPreset) { _, _ in
+            camera.updateLivePreviewSettings(currentLivePreviewSettings)
             if let data = camera.latestCapture ?? camera.importedImage { renderTask?.cancel(); renderTask = renderPreview(data) }
         }
         .onChange(of: selectedCropAspect) { _, _ in
             cropPosition = .center
+            camera.updateLivePreviewSettings(currentLivePreviewSettings)
             if let data = camera.latestCapture ?? camera.importedImage { renderTask?.cancel(); renderTask = renderPreview(data) }
+        }
+        .onChange(of: cropPosition) { _, _ in
+            camera.updateLivePreviewSettings(currentLivePreviewSettings)
+        }
+        .onChange(of: camera.isFrontCamera) { _, _ in
+            camera.updateLivePreviewSettings(currentLivePreviewSettings)
+        }
+        .onChange(of: showsCompositionGuides) { _, isEnabled in
+            camera.setCompositionGuidanceEnabled(isEnabled)
         }
         .onChange(of: selectedFrame) { _, _ in
             if let data = camera.latestCapture ?? camera.importedImage { renderTask?.cancel(); renderTask = renderPreview(data) }
@@ -436,6 +514,109 @@ struct ContentView: View {
         renderTask = renderPreview(data)
     }
 
+    private var currentLivePreviewSettings: LivePreviewSettings {
+        LivePreviewSettings(preset: selectedPreset, cropAspect: selectedCropAspect,
+                            cropPosition: cropPosition, isMirrored: camera.isFrontCamera)
+    }
+
+    private var cameraPreviewContent: some View {
+        ZStack {
+            CameraPreview(session: camera.session, rotationAngle: camera.previewRotationAngle,
+                          isMirrored: camera.isFrontCamera,
+                          isVisible: !currentLivePreviewSettings.requiresProcessedPreview) { capturePoint in
+                camera.selectSubject(atCaptureDevicePoint: capturePoint)
+            }
+            if currentLivePreviewSettings.requiresProcessedPreview {
+                MetalLivePreview(mailbox: camera.livePreviewMailbox, isActive: camera.isSessionRunning)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            }
+
+            if selectedCropAspect == .original {
+                if showsCompositionGuides {
+                    LiveCompositionOverlay(subjectRect: camera.trackedSubjectRect,
+                                           targetThird: camera.compositionTargetThird,
+                                           isTracking: camera.isSubjectTracking,
+                                           isAligned: camera.isFramingAligned,
+                                           isMirrored: camera.isFrontCamera)
+                        .ignoresSafeArea()
+                }
+                LiveFrameTreatment(layout: selectedFrame, dateStamp: includesDateStamp, date: editorStampDate)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            } else {
+                GeometryReader { geometry in
+                    let previewRect = fittedPreviewRect(in: geometry.size,
+                                                        aspect: selectedCropAspect.ratio ?? 1)
+                    if showsCompositionGuides {
+                        LiveCompositionOverlay(subjectRect: camera.trackedSubjectRect,
+                                               targetThird: camera.compositionTargetThird,
+                                               isTracking: camera.isSubjectTracking,
+                                               isAligned: camera.isFramingAligned,
+                                               isMirrored: camera.isFrontCamera)
+                            .frame(width: previewRect.width, height: previewRect.height)
+                            .position(x: previewRect.midX, y: previewRect.midY)
+                    }
+                    LiveFrameTreatment(layout: selectedFrame, dateStamp: includesDateStamp, date: editorStampDate)
+                        .frame(width: previewRect.width, height: previewRect.height)
+                        .position(x: previewRect.midX, y: previewRect.midY)
+                        .allowsHitTesting(false)
+                }
+            }
+        }
+        .background(Color.black)
+        .ignoresSafeArea()
+    }
+
+    private func fittedPreviewRect(in size: CGSize, aspect: CGFloat) -> CGRect {
+        guard size.width > 0, size.height > 0, aspect.isFinite, aspect > 0 else { return .zero }
+        let containerAspect = size.width / size.height
+        let fittedSize: CGSize
+        if containerAspect > aspect {
+            fittedSize = CGSize(width: size.height * aspect, height: size.height)
+        } else {
+            fittedSize = CGSize(width: size.width, height: size.width / aspect)
+        }
+        return CGRect(x: (size.width - fittedSize.width) / 2,
+                      y: (size.height - fittedSize.height) / 2,
+                      width: fittedSize.width, height: fittedSize.height)
+    }
+
+    private var isCurrentRenderSaved: Bool {
+        camera.captureMessage?.hasPrefix("Saved to Photos") == true
+    }
+
+    private var editorControls: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                ForEach(EditorTool.allCases, id: \.self) { tool in
+                    Button(tool.rawValue) { selectedEditorTool = tool }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(selectedEditorTool == tool ? .black : .white.opacity(0.82))
+                        .padding(.horizontal, 15)
+                        .padding(.vertical, 7)
+                        .background(selectedEditorTool == tool ? Color.white : Color.white.opacity(0.14), in: Capsule())
+                        .accessibilityAddTraits(selectedEditorTool == tool ? .isSelected : [])
+                }
+            }
+
+            Group {
+                switch selectedEditorTool {
+                case .look:
+                    presetPicker
+                case .crop:
+                    VStack(spacing: 7) {
+                        cropAspectPicker
+                        cropPositionControl
+                    }
+                case .frame:
+                    framePicker
+                }
+            }
+        }
+        .disabled(camera.isSaving)
+    }
+
     private func renderPreview(_ data: Data) -> Task<Void, Never> {
         let preset = selectedPreset
         let cropAspect = selectedCropAspect
@@ -447,6 +628,9 @@ struct ContentView: View {
         let taskID = UUID()
         camera.renderTaskID = taskID
         camera.renderError = nil
+        if camera.captureMessage?.hasPrefix("Saved to Photos") == true {
+            camera.captureMessage = nil
+        }
         camera.renderedCapture = nil
         previewImage = nil
         isRendering = true
@@ -509,6 +693,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     private let analysisOutput = AVCaptureVideoDataOutput()
     private let analysisDelegate = VideoAnalysisDelegate()
     private let compositionAnalyzer = CompositionAnalyzer()
+    let livePreviewMailbox = LivePreviewMailbox()
     private let analysisQueue = DispatchQueue(label: "local.mithundb.framed.analysis-frames", qos: .userInitiated)
     private let sessionQueue = DispatchQueue(label: "local.mithundb.framed.camera-session")
     private var photoOutput = AVCapturePhotoOutput()
@@ -523,6 +708,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor private var isConfiguring = false
     @MainActor @Published private(set) var isFrontCamera = false
     @MainActor private var shouldRunSession = false
+    @MainActor private var compositionGuidanceEnabled = true
+    @MainActor private var livePreviewSettings = LivePreviewSettings()
     private let motionManager = CMMotionManager()
     @MainActor private var deviceOrientation: UIDeviceOrientation = .portrait
     private let motionQueue = OperationQueue()
@@ -548,6 +735,13 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     var importedImage: Data?
     @MainActor @Published
     var guidanceText = "Searching for a subject"
+    @MainActor @Published private(set) var trackedSubjectRect: CGRect?
+    @MainActor @Published private(set) var compositionTargetThird: CGPoint?
+    @MainActor @Published private(set) var isSubjectTracking = false
+    @MainActor @Published private(set) var isFramingAligned = false
+    @MainActor @Published private(set) var suggestedZoomFactor: Double?
+    @MainActor @Published private(set) var currentZoomFactor = 1.0
+    @MainActor private var maximumZoomFactor = 3.0
     @MainActor @Published
     private(set) var hapticsEnabled = UserDefaults.standard.object(forKey: "FramedLocal.guidanceHapticsEnabled") as? Bool ?? true
     @MainActor @Published
@@ -582,6 +776,57 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     func setHapticsEnabled(_ enabled: Bool) {
         hapticsEnabled = enabled
         UserDefaults.standard.set(enabled, forKey: "FramedLocal.guidanceHapticsEnabled")
+    }
+
+    @MainActor
+    func updateLivePreviewSettings(_ settings: LivePreviewSettings) {
+        livePreviewSettings = settings
+        livePreviewMailbox.update(settings: settings)
+        analysisDelegate.updatePreviewSettings(settings, on: analysisQueue)
+        updateVideoFrameDeliveryPolicy()
+    }
+
+    @MainActor
+    func setCompositionGuidanceEnabled(_ enabled: Bool) {
+        guard compositionGuidanceEnabled != enabled else { return }
+        compositionGuidanceEnabled = enabled
+        analysisDelegate.updateGuidanceEnabled(enabled, on: analysisQueue)
+        updateVideoFrameDeliveryPolicy()
+        if enabled {
+            guidanceText = "Searching for a subject"
+            if isSessionRunning, shouldRunSession { startMotionUpdates() }
+        } else {
+            stopMotionUpdates()
+            clearSubjectSelection()
+            trackedSubjectRect = nil
+            compositionTargetThird = nil
+            suggestedZoomFactor = nil
+            isSubjectTracking = false
+            isFramingAligned = false
+            guidanceText = "Composition guides off"
+        }
+    }
+
+    @MainActor
+    func applyZoomFactor(_ factor: Double) {
+        let requestedFactor = min(max(factor, 1), maximumZoomFactor)
+        sessionQueue.async { [weak self] in
+            guard let self, let device = self.activeInput?.device else { return }
+            do {
+                try device.lockForConfiguration()
+                defer { device.unlockForConfiguration() }
+                let appliedFactor = min(requestedFactor, Double(device.activeFormat.videoMaxZoomFactor))
+                device.videoZoomFactor = CGFloat(appliedFactor)
+                Task { @MainActor [weak self] in
+                    self?.currentZoomFactor = appliedFactor
+                    self?.suggestedZoomFactor = nil
+                }
+            } catch {
+                Task { @MainActor [weak self] in
+                    self?.captureMessage = "Camera zoom is temporarily unavailable."
+                }
+            }
+        }
     }
 
     @MainActor
@@ -629,8 +874,30 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor
     private func pauseAnalysis() {
         analysisDelegate.pause(on: analysisQueue)
+        livePreviewMailbox.clearFrame()
         guidanceText = "Searching for a subject"
+        trackedSubjectRect = nil
+        compositionTargetThird = nil
+        isSubjectTracking = false
+        isFramingAligned = false
+        suggestedZoomFactor = nil
         lastGuidanceHapticMessage = nil
+    }
+
+    @MainActor
+    private func updateVideoFrameDeliveryPolicy() {
+        let shouldDeliverFrames = CameraFrameDeliveryPolicy.shouldDeliverFrames(
+            sessionIsRunning: shouldRunSession,
+            guidanceEnabled: compositionGuidanceEnabled,
+            previewRequiresProcessing: livePreviewSettings.requiresProcessedPreview
+        )
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            self.analysisOutput.setSampleBufferDelegate(
+                shouldDeliverFrames ? self.analysisDelegate : nil,
+                queue: shouldDeliverFrames ? self.analysisQueue : nil
+            )
+        }
     }
 
     @MainActor
@@ -701,7 +968,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                         self.isSessionRunning = true
                         self.cameraStartupFailed = false
                         self.captureMessage = nil
-                        self.startMotionUpdates()
+                        self.updateVideoFrameDeliveryPolicy()
+                        if self.compositionGuidanceEnabled { self.startMotionUpdates() }
                     }
                 }
             } else {
@@ -758,7 +1026,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                         self.isConfiguring = false
                         self.cameraStartupFailed = false
                         self.isSessionRunning = true
-                        self.startMotionUpdates()
+                        self.updateVideoFrameDeliveryPolicy()
+                        if self.compositionGuidanceEnabled { self.startMotionUpdates() }
                     }
                 }
             } catch {
@@ -785,7 +1054,9 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         isSessionRunning = false
         isConfiguring = false
         sessionQueue.async { [weak self] in
-            guard let self, self.session.isRunning else { return }
+            guard let self else { return }
+            self.analysisOutput.setSampleBufferDelegate(nil, queue: nil)
+            guard self.session.isRunning else { return }
             self.session.stopRunning()
         }
     }
@@ -845,6 +1116,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                         guard self.sessionGeneration.isCurrent(generation) else { return }
                         self.isConfiguring = false
                         self.isSessionRunning = true
+                        self.updateVideoFrameDeliveryPolicy()
                     }
                 }
             } catch {
@@ -940,7 +1212,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
 
     @MainActor
     func selectSubject(atCaptureDevicePoint point: CGPoint) {
-        guard isSessionRunning else { return }
+        guard isSessionRunning, compositionGuidanceEnabled else { return }
         let selectionToken = selectionGeneration.advance()
         let normalized = VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: point,
                                                           orientation: visionOrientation)
@@ -985,6 +1257,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
 
     @MainActor
     private func startMotionUpdates() {
+        guard compositionGuidanceEnabled else { return }
         let generation = motionGeneration.advance()
         UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         deviceOrientation = UIDevice.current.orientation
@@ -1004,11 +1277,19 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         }
         guard motionManager.isDeviceMotionAvailable else { return }
         motionManager.deviceMotionUpdateInterval = 0.2
-        motionManager.startDeviceMotionUpdates(to: motionQueue) { [weak self] motion, _ in
+        motionManager.startDeviceMotionUpdates(to: motionQueue,
+                                               withHandler: deviceMotionHandler(generation: generation))
+    }
+
+    /// Core Motion invokes this callback on `motionQueue`, which is not MainActor.
+    /// Keeping the closure in a nonisolated method avoids inheriting the actor
+    /// isolation of `startMotionUpdates()` and trapping on Swift's executor check.
+    nonisolated private func deviceMotionHandler(generation: UInt64) -> CMDeviceMotionHandler {
+        { [weak self] motion, _ in
             guard let motion else { return }
             let gravityX = motion.gravity.x
             let gravityY = motion.gravity.y
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 guard self.motionGeneration.isCurrent(generation) else { return }
                 self.horizonTilt = HorizonLeveling.angle(gravityX: gravityX, gravityY: gravityY,
@@ -1074,6 +1355,14 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             guard session.canAddInput(input) else { throw CameraError.cannotAddCamera }
             session.addInput(input)
             activeInput = input
+            try device.lockForConfiguration()
+            device.videoZoomFactor = 1
+            device.unlockForConfiguration()
+            let maximumZoom = min(3, Double(device.activeFormat.videoMaxZoomFactor))
+            Task { @MainActor [weak self] in
+                self?.currentZoomFactor = 1
+                self?.maximumZoomFactor = max(1, maximumZoom)
+            }
 
             if let previewConnection = session.connections.first(where: { $0.inputPorts.contains(where: { $0.mediaType == .video }) }),
                previewConnection.isVideoMirroringSupported {
@@ -1089,6 +1378,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             analysisOutput.automaticallyConfiguresOutputBufferDimensions = true
             analysisOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
             analysisDelegate.analyzer = compositionAnalyzer
+            analysisDelegate.livePreviewMailbox = livePreviewMailbox
             analysisOutput.setSampleBufferDelegate(analysisDelegate, queue: analysisQueue)
             if let connection = analysisOutput.connection(with: .video) {
                 if connection.isVideoRotationAngleSupported(0) { connection.videoRotationAngle = 0 }
@@ -1107,8 +1397,17 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                     guard self.analysisDelegate.acceptsResult(for: generation) else { return }
                     let levelHintIsStable = self.horizonGuidanceState.shouldShowLevelHint(
                         angle: self.horizonTilt, at: MonotonicClock.now)
-                    let message = levelHintIsStable && result.guidance == "Suggested framing"
+                    let fallback = levelHintIsStable && result.guidance == "Suggested framing"
                         ? "Level the phone" : result.guidance
+                    let advice = LiveCompositionCoach.advice(for: result.metrics, fallback: fallback,
+                                                             currentZoomFactor: self.currentZoomFactor,
+                                                             maximumZoomFactor: self.maximumZoomFactor)
+                    self.trackedSubjectRect = advice.subjectRect
+                    self.compositionTargetThird = advice.targetThird
+                    self.isSubjectTracking = advice.isTracking
+                    self.isFramingAligned = advice.isAligned
+                    self.suggestedZoomFactor = advice.suggestedZoomFactor
+                    let message = advice.message
                     self.guidanceText = message
                     if GuidanceHaptics.shouldTrigger(message: message,
                                                      previousMessage: self.lastGuidanceHapticMessage,
@@ -1154,6 +1453,12 @@ final class SessionGeneration: @unchecked Sendable {
         let currentValue = value
         lock.unlock()
         return currentValue
+    }
+
+    func current() -> UInt64 {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
     }
 
     func isCurrent(_ candidate: UInt64) -> Bool {
@@ -1206,6 +1511,91 @@ final class AnalysisGenerationGate: @unchecked Sendable {
     }
 }
 
+struct LivePreviewFrame: @unchecked Sendable {
+    let identifier: UInt64
+    let pixelBuffer: CVPixelBuffer
+    let orientation: CGImagePropertyOrientation
+    let settings: LivePreviewSettings
+}
+
+final class LivePreviewMailbox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var settings = LivePreviewSettings()
+    private var frame: LivePreviewFrame?
+    private var nextIdentifier: UInt64 = 0
+
+    func update(settings: LivePreviewSettings) {
+        lock.lock()
+        self.settings = settings
+        if !settings.requiresProcessedPreview { frame = nil }
+        lock.unlock()
+    }
+
+    func submit(_ pixelBuffer: CVPixelBuffer, orientation: CGImagePropertyOrientation) {
+        lock.lock()
+        guard settings.requiresProcessedPreview else { lock.unlock(); return }
+        nextIdentifier &+= 1
+        frame = LivePreviewFrame(identifier: nextIdentifier, pixelBuffer: pixelBuffer,
+                                 orientation: orientation, settings: settings)
+        lock.unlock()
+    }
+
+    func clearFrame() {
+        lock.lock()
+        frame = nil
+        lock.unlock()
+    }
+
+    func latestFrame() -> LivePreviewFrame? {
+        lock.lock()
+        defer { lock.unlock() }
+        return frame
+    }
+}
+
+final class AnalysisWorkGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var minimumInterval: TimeInterval
+    private var lastStart: TimeInterval?
+    private var isWorking = false
+
+    init(minimumInterval: TimeInterval = 0.28) {
+        self.minimumInterval = minimumInterval
+    }
+
+    func begin(at time: TimeInterval) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !isWorking, lastStart.map({ time - $0 >= minimumInterval }) ?? true else { return false }
+        isWorking = true
+        lastStart = time
+        return true
+    }
+
+    func finish() {
+        lock.lock()
+        isWorking = false
+        lock.unlock()
+    }
+
+    func finish(nextMinimumInterval: TimeInterval?) {
+        lock.lock()
+        isWorking = false
+        if let nextMinimumInterval, nextMinimumInterval.isFinite, nextMinimumInterval > 0 {
+            minimumInterval = nextMinimumInterval
+        }
+        lock.unlock()
+    }
+}
+
+enum CameraFrameDeliveryPolicy {
+    static func shouldDeliverFrames(sessionIsRunning: Bool,
+                                    guidanceEnabled: Bool,
+                                    previewRequiresProcessing: Bool) -> Bool {
+        sessionIsRunning && (guidanceEnabled || previewRequiresProcessing)
+    }
+}
+
 enum SessionRecoveryAction: Equatable {
     case ignore
     case resumeAutomatically
@@ -1242,7 +1632,12 @@ enum CaptureAvailability {
 private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
     weak var analyzer: CompositionAnalyzer?
     var onResult: ((AnalysisResult, UInt64) -> Void)?
+    weak var livePreviewMailbox: LivePreviewMailbox?
     private let generationGate = AnalysisGenerationGate()
+    private let guidanceGeneration = SessionGeneration()
+    private let analysisWorkGate = AnalysisWorkGate()
+    private var previewSettings = LivePreviewSettings()
+    private var guidanceEnabled = true
     private var analysisOrientation: CGImagePropertyOrientation = .right
     private var mostRecentPixelBuffer: CVPixelBuffer?
 
@@ -1253,10 +1648,24 @@ private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSam
             mostRecentPixelBuffer = nil
             return
         }
-        mostRecentPixelBuffer = source
         let orientation = analysisOrientation
-        analyzer?.analyze(source, orientation: orientation) { [weak self] result in
-            guard let self, let result, self.generationGate.acceptsResult(for: generation) else { return }
+        if previewSettings.requiresProcessedPreview {
+            livePreviewMailbox?.submit(source, orientation: orientation)
+        }
+        guard guidanceEnabled else {
+            mostRecentPixelBuffer = nil
+            return
+        }
+        mostRecentPixelBuffer = source
+        let guidanceToken = guidanceGeneration.current()
+        guard analysisWorkGate.begin(at: MonotonicClock.now) else { return }
+        guard let analyzer else { analysisWorkGate.finish(); return }
+        analyzer.analyze(AnalysisPixelBuffer(value: source), orientation: orientation) { [weak self] result in
+            guard let self else { return }
+            let isTracking = result?.metrics.confidenceSource == .tracking
+            self.analysisWorkGate.finish(nextMinimumInterval: isTracking ? (1.0 / 12.0) : 0.28)
+            guard let result, self.generationGate.acceptsResult(for: generation),
+                  self.guidanceGeneration.isCurrent(guidanceToken) else { return }
             self.onResult?(result, generation)
         }
     }
@@ -1270,11 +1679,28 @@ private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSam
         queue.async { [weak self] in
             self?.mostRecentPixelBuffer = nil
             self?.analyzer?.clearSelection()
+            self?.livePreviewMailbox?.clearFrame()
         }
     }
 
     func updateOrientation(_ orientation: CGImagePropertyOrientation, on queue: DispatchQueue) {
         queue.async { [weak self] in self?.analysisOrientation = orientation }
+    }
+
+    func updatePreviewSettings(_ settings: LivePreviewSettings, on queue: DispatchQueue) {
+        queue.async { [weak self] in self?.previewSettings = settings }
+    }
+
+    func updateGuidanceEnabled(_ enabled: Bool, on queue: DispatchQueue) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            if self.guidanceEnabled != enabled { _ = self.guidanceGeneration.advance() }
+            self.guidanceEnabled = enabled
+            if !enabled {
+                self.mostRecentPixelBuffer = nil
+                self.analyzer?.clearSelection()
+            }
+        }
     }
 
     func resume(on queue: DispatchQueue, orientation: CGImagePropertyOrientation,
@@ -1306,6 +1732,7 @@ private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSam
             }
             let didSelect = self.analyzer?.selectSubject(at: normalizedPoint, in: mostRecentPixelBuffer,
                                                          orientation: orientation) ?? false
+            self.analysisWorkGate.finish(nextMinimumInterval: didSelect ? (1.0 / 12.0) : 0.28)
             completion(didSelect)
         }
     }
@@ -1373,6 +1800,7 @@ private struct CameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
     let rotationAngle: CGFloat
     let isMirrored: Bool
+    let isVisible: Bool
     let onTap: (CGPoint) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -1384,6 +1812,7 @@ private struct CameraPreview: UIViewRepresentable {
         view.addGestureRecognizer(UITapGestureRecognizer(target: context.coordinator,
                                                           action: #selector(Coordinator.handleTap(_:))))
         context.coordinator.previewView = view
+        view.previewLayer.isHidden = !isVisible
         view.previewLayer.session = session
         view.previewLayer.videoGravity = .resizeAspectFill
         if let connection = view.previewLayer.connection {
@@ -1401,6 +1830,7 @@ private struct CameraPreview: UIViewRepresentable {
     func updateUIView(_ uiView: PreviewView, context: Context) {
         context.coordinator.onTap = onTap
         context.coordinator.previewView = uiView
+        uiView.previewLayer.isHidden = !isVisible
         if uiView.previewLayer.session !== session {
             uiView.previewLayer.session = session
         }
@@ -1434,7 +1864,277 @@ private struct CameraPreview: UIViewRepresentable {
     }
 }
 
+private struct MetalLivePreview: UIViewRepresentable {
+    let mailbox: LivePreviewMailbox
+    let isActive: Bool
+
+    func makeUIView(context: Context) -> MetalPreviewContainer {
+        MetalPreviewContainer(mailbox: mailbox)
+    }
+
+    func updateUIView(_ uiView: MetalPreviewContainer, context: Context) {
+        uiView.setActive(isActive)
+    }
+}
+
+@MainActor
+private final class MetalPreviewContainer: UIView {
+    private var metalPreview: LiveMetalPreviewView?
+
+    init(mailbox: LivePreviewMailbox) {
+        super.init(frame: .zero)
+        backgroundColor = .black
+        isUserInteractionEnabled = false
+        guard let device = MTLCreateSystemDefaultDevice() else { return }
+        let preview = LiveMetalPreviewView(frame: .zero, device: device, mailbox: mailbox)
+        preview.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        addSubview(preview)
+        metalPreview = preview
+    }
+
+    func setActive(_ active: Bool) {
+        metalPreview?.setActive(active)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("MetalPreviewContainer is created in code.")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        metalPreview?.frame = bounds
+    }
+}
+
+@MainActor
+private final class LiveMetalPreviewView: MTKView, MTKViewDelegate {
+    private let mailbox: LivePreviewMailbox
+    private let imageContext: CIContext
+    private let commandQueue: MTLCommandQueue?
+    private var lastFrameIdentifier: UInt64 = 0
+
+    init(frame: CGRect, device: MTLDevice, mailbox: LivePreviewMailbox) {
+        self.mailbox = mailbox
+        imageContext = CIContext(mtlDevice: device, options: [.cacheIntermediates: false])
+        commandQueue = device.makeCommandQueue()
+        super.init(frame: frame, device: device)
+        delegate = self
+        isOpaque = true
+        backgroundColor = .black
+        clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
+        framebufferOnly = false
+        preferredFramesPerSecond = 30
+        isPaused = true
+    }
+
+    func setActive(_ active: Bool) {
+        isPaused = !active
+        if active { setNeedsDisplay() }
+    }
+
+    @available(*, unavailable)
+    required init(coder: NSCoder) {
+        fatalError("LiveMetalPreviewView is created in code.")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let scale: CGFloat = 1.5
+        let requested = CGSize(width: max(1, bounds.width * scale),
+                               height: max(1, bounds.height * scale))
+        if drawableSize != requested { drawableSize = requested }
+    }
+
+    func draw(in view: MTKView) {
+        guard let frame = mailbox.latestFrame(), frame.identifier != lastFrameIdentifier,
+              let drawable = currentDrawable,
+              let commandBuffer = commandQueue?.makeCommandBuffer() else { return }
+        lastFrameIdentifier = frame.identifier
+
+        var image = CIImage(cvPixelBuffer: frame.pixelBuffer)
+            .oriented(forExifOrientation: Int32(frame.orientation.rawValue))
+        image = FilmRenderer.centerCrop(image, aspect: frame.settings.cropAspect.ratio,
+                                        position: frame.settings.cropPosition)
+        image = LiveFilmLook.apply(frame.settings.preset, to: image)
+        image = image.transformed(by: CGAffineTransform(translationX: -image.extent.minX,
+                                                         y: -image.extent.minY))
+        if frame.settings.isMirrored {
+            let width = image.extent.width
+            image = image.transformed(by: CGAffineTransform(scaleX: -1, y: 1))
+                .transformed(by: CGAffineTransform(translationX: width, y: 0))
+        }
+
+        let canvas = CGRect(x: 0, y: 0, width: drawable.texture.width, height: drawable.texture.height)
+        let extent = image.extent
+        let scaleX = canvas.width / extent.width
+        let scaleY = canvas.height / extent.height
+        let scale = frame.settings.cropAspect == .original
+            ? max(scaleX, scaleY)
+            : min(scaleX, scaleY)
+        image = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        let scaledExtent = image.extent
+        image = image.transformed(by: CGAffineTransform(
+            translationX: canvas.midX - scaledExtent.midX,
+            y: canvas.midY - scaledExtent.midY
+        ))
+        let background = CIImage(color: .black).cropped(to: canvas)
+        let composited = image.composited(over: background).cropped(to: canvas)
+        imageContext.render(composited, to: drawable.texture, commandBuffer: commandBuffer,
+                            bounds: canvas, colorSpace: CGColorSpaceCreateDeviceRGB())
+        commandBuffer.present(drawable)
+        commandBuffer.commit()
+    }
+
+    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
+}
+
 private final class PreviewView: UIView {
     override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
     var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
+}
+
+private struct LiveFrameTreatment: View {
+    let layout: FrameLayout
+    let dateStamp: Bool
+    let date: Date
+
+    private var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy.MM.dd"
+        return formatter.string(from: date)
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            let inset = min(geometry.size.width, geometry.size.height) * 0.035
+            ZStack {
+                if layout == .whiteBorder {
+                    Rectangle()
+                        .stroke(.white.opacity(0.95), lineWidth: 8)
+                        .padding(inset)
+                } else if layout == .paperPrint {
+                    Rectangle()
+                        .stroke(Color(red: 0.94, green: 0.90, blue: 0.81), lineWidth: 10)
+                        .padding(inset)
+                    if dateStamp {
+                        HStack {
+                            Spacer()
+                            Text(formattedDate)
+                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundStyle(Color(red: 0.28, green: 0.23, blue: 0.16))
+                        }
+                        .padding(.horizontal, inset + 12)
+                        .frame(height: 30)
+                        .background(Color(red: 0.94, green: 0.90, blue: 0.81))
+                        .padding(.horizontal, inset)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, inset)
+                    }
+                }
+
+                if dateStamp && layout != .paperPrint {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            Text(formattedDate)
+                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundStyle(layout == .whiteBorder ? .black : .white)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 6)
+                                .background(layout == .whiteBorder ? Color.white : Color.black.opacity(0.45),
+                                            in: Capsule())
+                        }
+                        .padding(.horizontal, inset + 10)
+                        .padding(.bottom, inset + 8)
+                    }
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private struct LiveCompositionOverlay: View {
+    let subjectRect: CGRect?
+    let targetThird: CGPoint?
+    let isTracking: Bool
+    let isAligned: Bool
+    let isMirrored: Bool
+
+    var body: some View {
+        Canvas { context, size in
+            var grid = Path()
+            for fraction in [CGFloat(1.0 / 3.0), CGFloat(2.0 / 3.0)] {
+                let x = size.width * fraction
+                let y = size.height * fraction
+                grid.move(to: CGPoint(x: x, y: 0))
+                grid.addLine(to: CGPoint(x: x, y: size.height))
+                grid.move(to: CGPoint(x: 0, y: y))
+                grid.addLine(to: CGPoint(x: size.width, y: y))
+            }
+            context.stroke(grid, with: .color(.white.opacity(0.24)), lineWidth: 0.75)
+
+            if let targetThird {
+                let targetX = isMirrored ? 1 - targetThird.x : targetThird.x
+                let point = CGPoint(x: targetX * size.width,
+                                    y: (1 - targetThird.y) * size.height)
+                var marker = Path(ellipseIn: CGRect(x: point.x - 5, y: point.y - 5, width: 10, height: 10))
+                marker.move(to: CGPoint(x: point.x - 10, y: point.y))
+                marker.addLine(to: CGPoint(x: point.x + 10, y: point.y))
+                marker.move(to: CGPoint(x: point.x, y: point.y - 10))
+                marker.addLine(to: CGPoint(x: point.x, y: point.y + 10))
+                context.stroke(marker, with: .color(.cyan.opacity(0.82)), lineWidth: 1.5)
+            }
+
+        }
+        .overlay {
+            if let subjectRect {
+                let color: Color = isAligned ? .cyan : (isTracking ? .mint : .white)
+                LiveSubjectBrackets(rect: subjectRect, isMirrored: isMirrored)
+                    .stroke(color, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .animation(.linear(duration: 0.08), value: subjectRect)
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct LiveSubjectBrackets: Shape {
+    var rect: CGRect
+    let isMirrored: Bool
+
+    var animatableData: AnimatablePair<AnimatablePair<CGFloat, CGFloat>, AnimatablePair<CGFloat, CGFloat>> {
+        get { AnimatablePair(AnimatablePair(rect.minX, rect.minY), AnimatablePair(rect.width, rect.height)) }
+        set {
+            rect = CGRect(x: newValue.first.first, y: newValue.first.second,
+                          width: newValue.second.first, height: newValue.second.second)
+        }
+    }
+
+    func path(in bounds: CGRect) -> Path {
+        let x = isMirrored ? 1 - rect.maxX : rect.minX
+        let tracked = CGRect(x: bounds.minX + x * bounds.width,
+                             y: bounds.minY + (1 - rect.maxY) * bounds.height,
+                             width: rect.width * bounds.width,
+                             height: rect.height * bounds.height)
+        let corner = min(max(min(tracked.width, tracked.height) * 0.24, 9), 22)
+        var path = Path()
+        path.move(to: CGPoint(x: tracked.minX, y: tracked.minY + corner))
+        path.addLine(to: CGPoint(x: tracked.minX, y: tracked.minY))
+        path.addLine(to: CGPoint(x: tracked.minX + corner, y: tracked.minY))
+        path.move(to: CGPoint(x: tracked.maxX - corner, y: tracked.minY))
+        path.addLine(to: CGPoint(x: tracked.maxX, y: tracked.minY))
+        path.addLine(to: CGPoint(x: tracked.maxX, y: tracked.minY + corner))
+        path.move(to: CGPoint(x: tracked.minX, y: tracked.maxY - corner))
+        path.addLine(to: CGPoint(x: tracked.minX, y: tracked.maxY))
+        path.addLine(to: CGPoint(x: tracked.minX + corner, y: tracked.maxY))
+        path.move(to: CGPoint(x: tracked.maxX - corner, y: tracked.maxY))
+        path.addLine(to: CGPoint(x: tracked.maxX, y: tracked.maxY))
+        path.addLine(to: CGPoint(x: tracked.maxX, y: tracked.maxY - corner))
+        return path
+    }
 }

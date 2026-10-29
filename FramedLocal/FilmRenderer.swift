@@ -45,6 +45,99 @@ enum CropMovementAxis: Equatable, Sendable {
     case vertical
 }
 
+struct LivePreviewSettings: Equatable, Sendable {
+    var preset: FilmPreset = .natural
+    var cropAspect: CropAspect = .original
+    var cropPosition: CropPosition = .center
+    var isMirrored = false
+
+    var requiresProcessedPreview: Bool {
+        preset != .natural || cropAspect != .original
+    }
+}
+
+/// Small, GPU-rendered approximation used only for the live camera display.
+/// Full-resolution, deterministic film rendering remains in `FilmRenderer` after capture.
+enum LiveFilmLook {
+    private static let grainTile = CIFilter.randomGenerator().outputImage?
+        .cropped(to: CGRect(x: 0, y: 0, width: 64, height: 64))
+
+    static func apply(_ preset: FilmPreset, to source: CIImage) -> CIImage {
+        guard preset != .natural else { return source }
+        let controls = CIFilter.colorControls()
+        controls.inputImage = source
+        var image = source
+        switch preset {
+        case .natural:
+            return source
+        case .warmPrint:
+            controls.saturation = 1.06
+            controls.contrast = 1.06
+            controls.brightness = 0.01
+            image = controls.outputImage ?? image
+            image = temperature(image, kelvin: 5_700, tint: 7)
+            image = vignette(image, intensity: 0.18, radius: 1.5)
+        case .softMono:
+            controls.saturation = 0
+            controls.contrast = 0.94
+            controls.brightness = 0.025
+            image = controls.outputImage ?? image
+            image = vignette(image, intensity: 0.12, radius: 1.4)
+        case .fadedColor:
+            controls.saturation = 0.78
+            controls.contrast = 0.88
+            controls.brightness = 0.045
+            image = controls.outputImage ?? image
+            image = temperature(image, kelvin: 6_400, tint: 3)
+        case .nightGrain:
+            controls.saturation = 0.88
+            controls.contrast = 1.12
+            controls.brightness = -0.015
+            image = controls.outputImage ?? image
+            image = temperature(image, kelvin: 4_900, tint: -5)
+            image = vignette(image, intensity: 0.32, radius: 1.1)
+            image = tiledGrain(over: image, amount: 0.12)
+        }
+        return image.cropped(to: source.extent)
+    }
+
+    private static func temperature(_ image: CIImage, kelvin: Float, tint: Float) -> CIImage {
+        let filter = CIFilter.temperatureAndTint()
+        filter.inputImage = image
+        filter.neutral = CIVector(x: 6_500, y: 0)
+        filter.targetNeutral = CIVector(x: CGFloat(kelvin), y: CGFloat(tint))
+        return filter.outputImage ?? image
+    }
+
+    private static func vignette(_ image: CIImage, intensity: Float, radius: Float) -> CIImage {
+        let filter = CIFilter.vignette()
+        filter.inputImage = image
+        filter.intensity = intensity
+        filter.radius = Float(max(image.extent.width, image.extent.height)) * radius
+        return filter.outputImage ?? image
+    }
+
+    private static func tiledGrain(over image: CIImage, amount: Float) -> CIImage {
+        guard let grainTile else {
+            return image
+        }
+        let tiled = grainTile.applyingFilter("CIAffineTile")
+        let scaledNoise = tiled.applyingFilter("CIColorMatrix", parameters: [
+            "inputRVector": CIVector(x: CGFloat(amount), y: 0, z: 0, w: 0),
+            "inputGVector": CIVector(x: 0, y: CGFloat(amount), z: 0, w: 0),
+            "inputBVector": CIVector(x: 0, y: 0, z: CGFloat(amount), w: 0),
+            "inputAVector": CIVector(x: 0, y: 0, z: 0, w: 1),
+            "inputBiasVector": CIVector(x: CGFloat(0.5 - amount / 2),
+                                         y: CGFloat(0.5 - amount / 2),
+                                         z: CGFloat(0.5 - amount / 2), w: 0)
+        ])
+        let blend = CIFilter.softLightBlendMode()
+        blend.inputImage = scaledNoise
+        blend.backgroundImage = image
+        return blend.outputImage?.cropped(to: image.extent) ?? image
+    }
+}
+
 public struct CropPosition: Equatable, Sendable {
     public var horizontal: Double
     public var vertical: Double
@@ -124,7 +217,7 @@ public actor FilmRenderer {
         context.clearCaches()
     }
 
-    private static func centerCrop(_ image: CIImage, aspect: CGFloat?, position: CropPosition) -> CIImage {
+    static func centerCrop(_ image: CIImage, aspect: CGFloat?, position: CropPosition) -> CIImage {
         guard let aspect, image.extent.width > 0, image.extent.height > 0 else { return image }
         let crop = CropGeometry.cropRect(in: image.extent, aspect: aspect, position: position)
         let centered = image.cropped(to: crop)

@@ -284,4 +284,88 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertEqual(SubjectSelectionFeedback.message(didSelectSubject: true), "Tracking selected subject")
         XCTAssertEqual(SubjectSelectionFeedback.message(didSelectSubject: false), "No subject found — try tapping closer")
     }
+
+    func testLiveCoachKeepsSearchGuidanceUntilThereIsAConfidentSubject() {
+        let metrics = CompositionMetrics(subjectRect: nil, faceRects: [], brightness: 0.5,
+                                         clippedHighlightRatio: 0, clippedShadowRatio: 0,
+                                         sharpness: 0, subjectEdgeDistance: nil, confidence: 0.12)
+        let advice = LiveCompositionCoach.advice(for: metrics, fallback: "Searching for a subject",
+                                                 currentZoomFactor: 1, maximumZoomFactor: 3)
+
+        XCTAssertNil(advice.subjectRect)
+        XCTAssertNil(advice.targetThird)
+        XCTAssertNil(advice.suggestedZoomFactor)
+        XCTAssertEqual(advice.message, "Searching for a subject")
+        XCTAssertFalse(advice.isAligned)
+    }
+
+    func testLiveCoachSuggestsAThirdAndZoomForSmallFace() {
+        let face = CGRect(x: 0.2, y: 0.25, width: 0.08, height: 0.12)
+        let metrics = CompositionMetrics(subjectRect: face, faceRects: [face], brightness: 0.5,
+                                         clippedHighlightRatio: 0, clippedShadowRatio: 0,
+                                         sharpness: 0.1, subjectEdgeDistance: nil, confidence: 0.82)
+        let advice = LiveCompositionCoach.advice(for: metrics, fallback: "Searching",
+                                                 currentZoomFactor: 1, maximumZoomFactor: 2.5)
+
+        XCTAssertEqual(advice.subjectRect, face)
+        XCTAssertEqual(advice.targetThird?.x ?? 0, 1.0 / 3.0, accuracy: 0.000_001)
+        XCTAssertEqual(advice.targetThird?.y ?? 0, 1.0 / 3.0, accuracy: 0.000_001)
+        XCTAssertEqual(advice.suggestedZoomFactor ?? 0, 2.5, accuracy: 0.000_001)
+        XCTAssertEqual(advice.message, "Zoom in to bring the subject closer")
+        XCTAssertFalse(advice.isAligned)
+    }
+
+    func testLiveCoachReportsAlignmentAtAThirdWithoutCallingItBest() {
+        let face = CGRect(x: 0.55, y: 0.55, width: 0.24, height: 0.24)
+        let metrics = CompositionMetrics(subjectRect: face, faceRects: [face], brightness: 0.5,
+                                         clippedHighlightRatio: 0, clippedShadowRatio: 0,
+                                         sharpness: 0.08, subjectEdgeDistance: nil, confidence: 0.82)
+        let advice = LiveCompositionCoach.advice(for: metrics, fallback: "Searching",
+                                                 currentZoomFactor: 1, maximumZoomFactor: 3)
+
+        XCTAssertEqual(advice.message, "Framing is aligned")
+        XCTAssertTrue(advice.isAligned)
+        XCTAssertNil(advice.suggestedZoomFactor)
+    }
+
+    func testAnalysisWorkGateAvoidsQueueingOverlappingVisionWork() {
+        let gate = AnalysisWorkGate(minimumInterval: 0.28)
+
+        XCTAssertTrue(gate.begin(at: 1.0))
+        XCTAssertFalse(gate.begin(at: 1.4)) // work never queues behind an in-flight Vision pass
+        gate.finish()
+        XCTAssertFalse(gate.begin(at: 1.27)) // minimum interval is measured from last start
+        XCTAssertTrue(gate.begin(at: 1.281))
+        gate.finish()
+    }
+
+    func testAnalysisWorkGateRaisesCadenceForTrackingThenLowersItForDetection() {
+        let gate = AnalysisWorkGate(minimumInterval: 0.28)
+
+        XCTAssertTrue(gate.begin(at: 1.0))
+        gate.finish(nextMinimumInterval: 1.0 / 12.0)
+        XCTAssertFalse(gate.begin(at: 1.05))
+        XCTAssertTrue(gate.begin(at: 1.084))
+        gate.finish(nextMinimumInterval: 0.28)
+        XCTAssertFalse(gate.begin(at: 1.2))
+        XCTAssertTrue(gate.begin(at: 1.365))
+        gate.finish()
+    }
+
+    func testNaturalOriginalPreviewDoesNotEnablePerFrameRendering() {
+        XCTAssertFalse(LivePreviewSettings().requiresProcessedPreview)
+        XCTAssertTrue(LivePreviewSettings(preset: .softMono).requiresProcessedPreview)
+        XCTAssertTrue(LivePreviewSettings(cropAspect: .square).requiresProcessedPreview)
+    }
+
+    func testVideoOutputDetachesWhenGuidanceAndProcessedPreviewAreInactive() {
+        XCTAssertFalse(CameraFrameDeliveryPolicy.shouldDeliverFrames(
+            sessionIsRunning: true, guidanceEnabled: false, previewRequiresProcessing: false))
+        XCTAssertTrue(CameraFrameDeliveryPolicy.shouldDeliverFrames(
+            sessionIsRunning: true, guidanceEnabled: true, previewRequiresProcessing: false))
+        XCTAssertTrue(CameraFrameDeliveryPolicy.shouldDeliverFrames(
+            sessionIsRunning: true, guidanceEnabled: false, previewRequiresProcessing: true))
+        XCTAssertFalse(CameraFrameDeliveryPolicy.shouldDeliverFrames(
+            sessionIsRunning: false, guidanceEnabled: true, previewRequiresProcessing: true))
+    }
 }

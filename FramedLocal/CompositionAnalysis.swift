@@ -29,6 +29,69 @@ struct CompositionMetrics: Sendable {
     var horizonAngle: Double? = nil
 }
 
+struct LiveCompositionAdvice: Sendable {
+    let subjectRect: CGRect?
+    let targetThird: CGPoint?
+    let message: String
+    let suggestedZoomFactor: Double?
+    let isAligned: Bool
+    let isTracking: Bool
+}
+
+enum LiveCompositionCoach {
+    private static let thirds: [CGFloat] = [1.0 / 3.0, 2.0 / 3.0]
+
+    static func advice(for metrics: CompositionMetrics, fallback: String,
+                       currentZoomFactor: Double, maximumZoomFactor: Double) -> LiveCompositionAdvice {
+        guard metrics.confidence >= 0.3, let subject = metrics.subjectRect else {
+            return LiveCompositionAdvice(subjectRect: nil, targetThird: nil, message: fallback,
+                                         suggestedZoomFactor: nil, isAligned: false,
+                                         isTracking: metrics.confidenceSource == .tracking)
+        }
+
+        let targetX = nearestThird(to: subject.midX)
+        let targetY = nearestThird(to: subject.midY)
+        let targetWidth = metrics.faceRects.isEmpty ? 0.34 : 0.24
+        let currentWidth = max(Double(subject.width), 0.001)
+        let safeCurrentZoom = max(currentZoomFactor, 1)
+        let safeMaximumZoom = max(safeCurrentZoom, maximumZoomFactor)
+        let rawSuggestedZoom = safeCurrentZoom * targetWidth / currentWidth
+        let suggestedZoom: Double? = currentWidth < targetWidth * 0.78 && rawSuggestedZoom > safeCurrentZoom + 0.12
+            ? min(rawSuggestedZoom, safeMaximumZoom)
+            : nil
+
+        let horizontalError = targetX - subject.midX
+        let verticalError = targetY - subject.midY
+        let sizeIsClose = currentWidth >= targetWidth * 0.72 && currentWidth <= targetWidth * 1.35
+        let isAligned = abs(horizontalError) <= 0.10 && abs(verticalError) <= 0.12 && sizeIsClose
+        let message: String
+
+        if suggestedZoom != nil {
+            message = "Zoom in to bring the subject closer"
+        } else if currentWidth > targetWidth * 1.35 {
+            message = "Step back to give the subject more room"
+        } else if abs(horizontalError) > 0.10 {
+            let side = horizontalError > 0 ? "right" : "left"
+            message = "Shift the subject toward the \(side) third"
+        } else if abs(verticalError) > 0.12 {
+            let side = verticalError > 0 ? "upper" : "lower"
+            message = "Shift the subject toward the \(side) third"
+        } else if metrics.sharpness < 0.035 {
+            message = "Hold steady"
+        } else {
+            message = "Framing is aligned"
+        }
+
+        return LiveCompositionAdvice(subjectRect: subject, targetThird: CGPoint(x: targetX, y: targetY),
+                                     message: message, suggestedZoomFactor: suggestedZoom,
+                                     isAligned: isAligned, isTracking: metrics.confidenceSource == .tracking)
+    }
+
+    private static func nearestThird(to value: CGFloat) -> CGFloat {
+        thirds.min(by: { abs($0 - value) < abs($1 - value) }) ?? (1.0 / 3.0)
+    }
+}
+
 enum SubjectConfidenceSource: Equatable, Sendable {
     case detection
     case tracking
@@ -77,6 +140,11 @@ public struct GuidanceEngine {
 struct AnalysisResult: Sendable {
     let metrics: CompositionMetrics
     let guidance: String
+}
+
+/// Holds the capture output's retained immutable frame while Vision analyzes it off-queue.
+struct AnalysisPixelBuffer: @unchecked Sendable {
+    let value: CVPixelBuffer
 }
 
 struct AnalysisRateLimiter {
@@ -191,35 +259,29 @@ final class CompositionAnalyzer: @unchecked Sendable {
     private let queue = DispatchQueue(label: "local.mithundb.framed.vision", qos: .userInitiated)
     private let queueKey = DispatchSpecificKey<UInt8>()
     private let sequence = VNSequenceRequestHandler()
-    private var rateLimiter = AnalysisRateLimiter(minimumInterval: 0.14)
     private var selectedObservation: VNDetectedObjectObservation?
     private var trackingRequest: VNTrackObjectRequest?
+    private var lastSaliencyAnalysisTime = -Double.infinity
+    private var cachedSaliencyRect: CGRect?
     private var guidanceEngine = GuidanceEngine()
 
     init() {
         queue.setSpecific(key: queueKey, value: 1)
     }
 
-    func analyze(_ pixelBuffer: CVPixelBuffer, orientation: CGImagePropertyOrientation = .right,
+    func analyze(_ pixelBuffer: AnalysisPixelBuffer, orientation: CGImagePropertyOrientation = .right,
                  completion: @escaping @Sendable (AnalysisResult?) -> Void) {
-        if DispatchQueue.getSpecific(key: queueKey) != nil {
-            analyzeOnQueue(pixelBuffer, orientation: orientation, completion: completion)
-        } else {
-            queue.sync { analyzeOnQueue(pixelBuffer, orientation: orientation, completion: completion) }
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.analyzeOnQueue(pixelBuffer.value, orientation: orientation, completion: completion)
         }
     }
 
     private func analyzeOnQueue(_ pixelBuffer: CVPixelBuffer, orientation: CGImagePropertyOrientation,
                                 completion: @Sendable (AnalysisResult?) -> Void) {
             let now = MonotonicClock.now
-            guard rateLimiter.shouldAnalyze(at: now) else {
-                completion(nil)
-                return
-            }
 
             do {
-                let faces = VNDetectFaceRectanglesRequest()
-                let saliency = VNGenerateAttentionBasedSaliencyImageRequest()
                 if let tracking = trackingRequest {
                     try sequence.perform([tracking], on: pixelBuffer, orientation: orientation)
                     if let observation = tracking.results?.first as? VNDetectedObjectObservation,
@@ -231,19 +293,39 @@ final class CompositionAnalyzer: @unchecked Sendable {
                         trackingRequest = nil
                     }
                 }
-                try sequence.perform([faces, saliency], on: pixelBuffer, orientation: orientation)
-
-                let faceObservations = faces.results ?? []
+                var faceObservations: [VNFaceObservation] = []
+                if trackingRequest == nil {
+                    let faces = VNDetectFaceRectanglesRequest()
+                    try sequence.perform([faces], on: pixelBuffer, orientation: orientation)
+                    faceObservations = faces.results ?? []
+                    if faceObservations.isEmpty, now - lastSaliencyAnalysisTime >= 1.0 {
+                        let saliency = VNGenerateAttentionBasedSaliencyImageRequest()
+                        try sequence.perform([saliency], on: pixelBuffer, orientation: orientation)
+                        cachedSaliencyRect = (saliency.results?.first as? VNSaliencyImageObservation)?
+                            .salientObjects?.max(by: { $0.confidence < $1.confidence })?.boundingBox
+                        lastSaliencyAnalysisTime = now
+                    }
+                    if selectedObservation == nil,
+                       let detectedRect = faceObservations.max(by: {
+                           $0.boundingBox.width * $0.boundingBox.height
+                               < $1.boundingBox.width * $1.boundingBox.height
+                       })?.boundingBox ?? cachedSaliencyRect {
+                        let initialObservation = VNDetectedObjectObservation(boundingBox: detectedRect)
+                        let request = VNTrackObjectRequest(detectedObjectObservation: initialObservation)
+                        request.trackingLevel = .fast
+                        request.isLastFrame = false
+                        trackingRequest = request
+                    }
+                }
+                if now - lastSaliencyAnalysisTime > 2.0 { cachedSaliencyRect = nil }
                 let faceRects = faceObservations.map(\.boundingBox)
-                let saliencyRect = (saliency.results?.first as? VNSaliencyImageObservation)?.salientObjects?
-                    .max(by: { $0.confidence < $1.confidence })?.boundingBox
                 let subjectRect = selectedObservation?.boundingBox
                     ?? faceObservations.max(by: { $0.boundingBox.width * $0.boundingBox.height < $1.boundingBox.width * $1.boundingBox.height })?.boundingBox
-                    ?? saliencyRect
+                    ?? cachedSaliencyRect
                 let samples = Self.sampleLuminance(pixelBuffer)
                 let edgeDistances = subjectRect.map(Self.edgeDistances)
                 let confidence = self.selectedObservation.map { Double($0.confidence) }
-                    ?? (faceObservations.isEmpty ? (saliencyRect == nil ? 0.12 : 0.58) : 0.82)
+                    ?? (faceObservations.isEmpty ? (cachedSaliencyRect == nil ? 0.12 : 0.58) : 0.82)
                 let confidenceSource: SubjectConfidenceSource = self.selectedObservation == nil ? .detection : .tracking
                 let metrics = CompositionMetrics(
                     subjectRect: subjectRect,
@@ -314,8 +396,9 @@ final class CompositionAnalyzer: @unchecked Sendable {
         queue.async { [weak self] in
             self?.selectedObservation = nil
             self?.trackingRequest = nil
+            self?.lastSaliencyAnalysisTime = -Double.infinity
+            self?.cachedSaliencyRect = nil
             self?.guidanceEngine = GuidanceEngine()
-            self?.rateLimiter = AnalysisRateLimiter(minimumInterval: 0.14)
         }
     }
 
