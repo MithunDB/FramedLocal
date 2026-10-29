@@ -50,9 +50,9 @@ This is the living status record for the local-first FramedLocal iOS app.
 
 - User observed the key values did not line up with the radial tick marks, requested soft snapping to 0.5×/1×/2×/5×, and asked the wheel to close on release. Root cause: marks used evenly spaced angles while labels used logarithmic magnification positions. Tick marks now use the same logarithmic scale as the labels, with exact key-stop marks inserted into that scale.
 - Added a small magnetic zone around 0.5×, 1×, 2×, and 5× plus selection haptics and unit coverage. Reduced hold delay from 0.38s to 0.24s, then to the user's requested 0.15s. The wheel now disappears as soon as the touch/drag ends; no close button is needed. Website demo follows the same snap-and-release behavior.
-- Verification: signed generic iOS build passed; simulator suite passed 70/70; `node --check site/app.js` and `git diff --check` passed. Updated build installed and launched on iPhone 12. Physical feel and touch behavior still need the user's on-device confirmation. Pages deployment awaits this follow-up push.
+- Verification: signed generic iOS build passed; simulator suite passed 70/70; `node --check site/app.js` and `git diff --check` passed. Updated build installed and launched on iPhone 12. Pages deployment for commit `35f24a2` completed successfully and the published site contains the release-to-dismiss instructions. Physical feel and touch behavior still need the user's on-device confirmation.
 - Changed files: `FramedLocal/CameraControls.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `README.md`, `site/app.js`, `site/index.html`, `site/styles.css`, and this status file.
-- Exact next smallest step: rebuild, reinstall, and push the 0.15s timing adjustment, confirm GitHub Pages deploys, then have the user try hold, drag, snap, and release behavior on the iPhone.
+- Exact next smallest step: user checks the 0.15s hold, marker alignment/key-stop snapping, continuous lens transition, and dismissal on release on the iPhone; adjust from that feedback if needed.
 
 ## Current Objective
 
