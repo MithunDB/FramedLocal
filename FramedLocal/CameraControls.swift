@@ -59,9 +59,23 @@ public struct DigitalFraming: Equatable, Sendable {
 }
 
 enum CameraControlPolicy {
+    private static let zoomWheelStops = [0.5, 1.0, 2.0, 5.0]
+
     static func clampedZoom(_ requested: Double, minimum: Double = 1, maximum: Double) -> Double {
         guard requested.isFinite, minimum.isFinite, maximum.isFinite else { return max(1, minimum) }
         return min(max(requested, minimum), max(minimum, maximum))
+    }
+
+    static func snappedZoom(_ requested: Double, range: ClosedRange<Double>,
+                            thresholdInStops: Double = 0.08) -> Double? {
+        guard requested.isFinite, range.lowerBound.isFinite, range.upperBound.isFinite,
+              range.lowerBound > 0, range.upperBound >= range.lowerBound else { return nil }
+        let value = min(max(requested, range.lowerBound), range.upperBound)
+        let candidate = zoomWheelStops
+            .filter { range.contains($0) }
+            .min { abs(log2(value / $0)) < abs(log2(value / $1)) }
+        guard let candidate, abs(log2(value / candidate)) <= thresholdInStops else { return nil }
+        return candidate
     }
 
     static func framing(for subject: CGRect?, isMirrored: Bool, enabled: Bool,

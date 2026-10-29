@@ -42,6 +42,7 @@ struct ContentView: View {
     @State private var dragStartFrameCenter: CGPoint?
     @State private var showsZoomWheel = false
     @State private var cameraChromeSize: CGSize = .zero
+    @State private var lastZoomWheelSnap: Double?
 
     var body: some View {
         ZStack {
@@ -405,7 +406,7 @@ struct ContentView: View {
                         Color.clear.allowsHitTesting(false)
                         if showsZoomWheel, camera.latestCapture == nil, camera.importedImage == nil {
                             RadialZoomWheel(value: overallZoomFactor, range: overallZoomRange,
-                                            onChange: applyOverallZoom, onDismiss: { showsZoomWheel = false })
+                                onChange: applyZoomWheelValue, onDismiss: dismissZoomWheel)
                                 .frame(width: geometry.size.width - 24, height: 205)
                                 .position(x: geometry.size.width / 2, y: geometry.size.height * 0.69)
                                 .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .bottom)))
@@ -484,7 +485,21 @@ struct ContentView: View {
         let range = overallZoomRange
         let low = log2(range.lowerBound)
         let high = log2(max(range.upperBound, range.lowerBound + 0.001))
-        applyOverallZoom(pow(2, low + progress * (high - low)))
+        applyZoomWheelValue(pow(2, low + progress * (high - low)))
+    }
+
+    private func applyZoomWheelValue(_ requested: Double) {
+        let snapped = CameraControlPolicy.snappedZoom(requested, range: overallZoomRange)
+        if snapped != lastZoomWheelSnap {
+            if snapped != nil { UISelectionFeedbackGenerator().selectionChanged() }
+            lastZoomWheelSnap = snapped
+        }
+        applyOverallZoom(snapped ?? requested)
+    }
+
+    private func dismissZoomWheel() {
+        withAnimation(.easeOut(duration: 0.16)) { showsZoomWheel = false }
+        lastZoomWheelSnap = nil
     }
 
     private func zoomChoice(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -495,7 +510,7 @@ struct ContentView: View {
             .background(selected ? Color.cyan : .clear, in: Circle())
             .contentShape(Circle())
             .gesture(
-                LongPressGesture(minimumDuration: 0.38, maximumDistance: 26)
+                LongPressGesture(minimumDuration: 0.24, maximumDistance: 32)
                     .sequenced(before: DragGesture(minimumDistance: 0,
                                                    coordinateSpace: .named("cameraChrome")))
                     .onChanged { sequence in
@@ -518,7 +533,11 @@ struct ContentView: View {
                         }
                     }
                     .onEnded { sequence in
-                        if case .first(false) = sequence { action() }
+                        switch sequence {
+                        case .first(false): action()
+                        case .second(true, _): dismissZoomWheel()
+                        default: break
+                        }
                     }
             )
             .accessibilityAddTraits(.isButton)
@@ -2662,6 +2681,17 @@ private struct RadialZoomWheel: View {
     let onChange: (Double) -> Void
     let onDismiss: () -> Void
 
+    private var tickZoomValues: [Double] {
+        let lowerLog = log2(max(range.lowerBound, 0.001))
+        let upperLog = log2(max(range.upperBound, range.lowerBound + 0.001))
+        let count = max(1, Int(ceil((upperLog - lowerLog) * 12)))
+        let regularTicks = (0...count).map { index in
+            pow(2, lowerLog + (upperLog - lowerLog) * Double(index) / Double(count))
+        }
+        let keyStops = [0.5, 1.0, 2.0, 5.0].filter { range.contains($0) }
+        return Array(Set((regularTicks + keyStops).filter { range.contains($0) })).sorted()
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height + 2)
@@ -2675,9 +2705,11 @@ private struct RadialZoomWheel: View {
                         ZoomWheelArc(center: center, radius: radius)
                             .stroke(.white.opacity(0.28), style: StrokeStyle(lineWidth: 1))
                     }
-                ForEach(0...48, id: \.self) { index in
-                    let angle = Double.pi + Double.pi * Double(index) / 48
-                    let major = index.isMultiple(of: 4)
+                ForEach(tickZoomValues, id: \.self) { tickValue in
+                    let progress = upperLog > lowerLog
+                        ? (log2(tickValue) - lowerLog) / (upperLog - lowerLog) : 0.5
+                    let angle = Double.pi + Double.pi * progress
+                    let major = [0.5, 1.0, 2.0, 5.0].contains { abs(log2(tickValue / $0)) < 0.000_1 }
                     Capsule()
                         .fill(major ? .white.opacity(0.86) : .white.opacity(0.38))
                         .frame(width: major ? 1.5 : 1, height: major ? 12 : 6)
@@ -2713,16 +2745,6 @@ private struct RadialZoomWheel: View {
                     .tracking(1.5)
                     .foregroundStyle(.white.opacity(0.7))
                     .position(x: geometry.size.width / 2, y: 101)
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.85))
-                        .frame(width: 32, height: 32)
-                        .background(.white.opacity(0.12), in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close zoom wheel")
-                .position(x: geometry.size.width - 27, y: 28)
             }
             .contentShape(Rectangle())
             .simultaneousGesture(
@@ -2734,6 +2756,7 @@ private struct RadialZoomWheel: View {
                         let nextProgress = (angle - .pi) / .pi
                         onChange(pow(2, lowerLog + nextProgress * (upperLog - lowerLog)))
                     }
+                    .onEnded { _ in onDismiss() }
             )
             .accessibilityElement()
             .accessibilityLabel("Camera zoom wheel")

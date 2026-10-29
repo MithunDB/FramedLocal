@@ -42,9 +42,17 @@ This is the living status record for the local-first FramedLocal iOS app.
 - User clarified that the previous always-visible linear ruler was not the desired interaction. Replaced it with discrete 0.5×, 1×, and 2× controls; a 0.38-second hold on a control opens a temporary semi-circular, tick-marked wheel above the shutter. The same held gesture can continue onto the arc; releasing leaves the wheel open for a separate drag as well. Moving around the arc adjusts magnification, including switching between ultra-wide and wide at 1×. Pinch remains available, and the wheel has VoiceOver adjustment and an explicit close control.
 - Rebuilt the GitHub Pages sample to use the same quick-stop / hold-to-open wheel flow. The wheel is hidden initially; tapping a stop selects it, holding opens the radial demo, and the sample preview responds to zoom. README now documents the intended interaction.
 - The prior `cdc1530` dial was already pushed at the user's direction; this follow-up corrects that public update rather than rewriting remote history.
-- Verification: signed generic iOS build passed; iOS 26.2 simulator suite passed 69/69; `node --check site/app.js` and `git diff --check` passed. Corrected app installed and launched on iPhone 12. GitHub Pages deployment for this correction is pending the next push.
+- Verification: signed generic iOS build passed; iOS 26.2 simulator suite passed 69/69; `node --check site/app.js` and `git diff --check` passed. Corrected app installed and launched on iPhone 12. This interaction was then tuned in the follow-up below.
 - Changed files: `FramedLocal/ContentView.swift`, `README.md`, `site/index.html`, `site/styles.css`, `site/app.js`, and this status file.
-- Exact next smallest step: commit/push this correction and confirm Pages deployment succeeds; on iPhone, hold each zoom stop and try a short arc drag for physical interaction feedback.
+- Superseded by the follow-up immediately below, which adds key-stop alignment, snapping, and release dismissal.
+
+## Active Follow-up — 2026-10-29 (zoom marker alignment, key-stop snapping, and release dismissal)
+
+- User observed the key values did not line up with the radial tick marks, requested soft snapping to 0.5×/1×/2×/5×, and asked the wheel to close on release. Root cause: marks used evenly spaced angles while labels used logarithmic magnification positions. Tick marks now use the same logarithmic scale as the labels, with exact key-stop marks inserted into that scale.
+- Added a small magnetic zone around 0.5×, 1×, 2×, and 5× plus selection haptics and unit coverage. Reduced hold delay from 0.38s to 0.24s. The wheel now disappears as soon as the touch/drag ends; no close button is needed. Website demo follows the same snap-and-release behavior.
+- Verification: signed generic iOS build passed; simulator suite passed 70/70; `node --check site/app.js` and `git diff --check` passed. Updated build installed and launched on iPhone 12. Physical feel and touch behavior still need the user's on-device confirmation. Pages deployment awaits this follow-up push.
+- Changed files: `FramedLocal/CameraControls.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `README.md`, `site/app.js`, `site/index.html`, `site/styles.css`, and this status file.
+- Exact next smallest step: push this adjustment, confirm GitHub Pages deploys, then ask the user to hold a zoom stop, drag across the arc, and release to check its alignment and timing.
 
 ## Current Objective
 

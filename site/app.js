@@ -12,30 +12,37 @@
   const zoomTicks = document.querySelector("#demoZoomTicks");
   const zoomPointer = document.querySelector("#demoZoomPointer");
   const zoomStops = document.querySelector("#demoZoomStops");
-  const closeZoomDial = document.querySelector("#closeDemoZoom");
   let sampleZoom = 1;
   let zoomDragStart = null;
   let zoomHoldTimer = null;
   let zoomLongPressTriggered = false;
+  const keyZoomStops = [0.5, 1, 2, 5];
+  const zoomLogMin = Math.log2(0.5);
+  const zoomLogMax = Math.log2(5);
+  const zoomSnapTolerance = 0.08;
+  const zoomProgress = (value) => (Math.log2(value) - zoomLogMin) / (zoomLogMax - zoomLogMin);
 
-  for (let index = 0; index <= 48; index += 1) {
-    const angle = Math.PI + Math.PI * index / 48;
-    const inner = index % 4 === 0 ? 111 : 118;
-    const outer = 128;
-    const x1 = 140 + Math.cos(angle) * inner;
-    const y1 = 155 + Math.sin(angle) * inner;
-    const x2 = 140 + Math.cos(angle) * outer;
-    const y2 = 155 + Math.sin(angle) * outer;
-    const tick = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    tick.setAttribute("d", `M ${x1} ${y1} L ${x2} ${y2}`);
-    tick.classList.add("zoom-wheel-tick");
-    if (index % 4 === 0) tick.classList.add("is-major");
-    zoomTicks.append(tick);
+  const tickValues = [];
+  const tickCount = Math.ceil((zoomLogMax - zoomLogMin) * 12);
+  for (let index = 0; index <= tickCount; index += 1) {
+    tickValues.push(2 ** (zoomLogMin + (zoomLogMax - zoomLogMin) * index / tickCount));
   }
-
-  for (const stop of [0.5, 1, 2, 5]) {
-    const progress = (Math.log2(stop) - Math.log2(0.5)) / (Math.log2(5) - Math.log2(0.5));
+  tickValues.push(...keyZoomStops);
+  [...new Set(tickValues.map((value) => value.toFixed(6)))].map(Number).sort((a, b) => a - b).forEach((tickValue) => {
+    const progress = zoomProgress(tickValue);
     const angle = Math.PI + Math.PI * progress;
+    const isKeyStop = keyZoomStops.includes(tickValue);
+    const inner = isKeyStop ? 111 : 118;
+    const outer = 128;
+    const tick = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    tick.setAttribute("d", `M ${140 + Math.cos(angle) * inner} ${155 + Math.sin(angle) * inner} L ${140 + Math.cos(angle) * outer} ${155 + Math.sin(angle) * outer}`);
+    tick.classList.add("zoom-wheel-tick");
+    if (isKeyStop) tick.classList.add("is-major");
+    zoomTicks.append(tick);
+  });
+
+  for (const stop of keyZoomStops) {
+    const angle = Math.PI + Math.PI * zoomProgress(stop);
     const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
     label.setAttribute("x", String(140 + Math.cos(angle) * 91));
     label.setAttribute("y", String(155 + Math.sin(angle) * 91 + 3));
@@ -46,7 +53,12 @@
 
   const updateZoomDial = (requested) => {
     sampleZoom = Math.min(5, Math.max(0.5, requested));
-    const progress = (Math.log2(sampleZoom) - Math.log2(0.5)) / (Math.log2(5) - Math.log2(0.5));
+    const snap = keyZoomStops
+      .map((stop) => ({ stop, distance: Math.abs(Math.log2(sampleZoom / stop)) }))
+      .filter(({ distance }) => distance <= zoomSnapTolerance)
+      .sort((a, b) => a.distance - b.distance)[0];
+    if (snap) sampleZoom = snap.stop;
+    const progress = zoomProgress(sampleZoom);
     const angle = Math.PI + Math.PI * progress;
     const innerX = 140 + Math.cos(angle) * 105;
     const innerY = 155 + Math.sin(angle) * 105;
@@ -64,6 +76,8 @@
 
   const setZoomFromWheelPointer = (event) => {
     const bounds = zoomDial.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right
+        || event.clientY < bounds.top || event.clientY > bounds.bottom) return;
     const scaleX = bounds.width / 280;
     const scaleY = bounds.height / 155;
     const x = (event.clientX - (bounds.left + bounds.width / 2)) / scaleX;
@@ -76,7 +90,6 @@
   };
 
   zoomDial.addEventListener("pointerdown", (event) => {
-    if (event.target === closeZoomDial) return;
     zoomDragStart = true;
     zoomDial.setPointerCapture(event.pointerId);
     setZoomFromWheelPointer(event);
@@ -85,29 +98,48 @@
     if (!zoomDragStart) return;
     setZoomFromWheelPointer(event);
   });
-  zoomDial.addEventListener("pointerup", () => { zoomDragStart = null; });
-  zoomDial.addEventListener("pointercancel", () => { zoomDragStart = null; });
+  const releaseWheel = () => {
+    zoomDragStart = null;
+    zoomDial.hidden = true;
+  };
+  zoomDial.addEventListener("pointerup", releaseWheel);
+  zoomDial.addEventListener("pointercancel", releaseWheel);
   zoomDial.addEventListener("keydown", (event) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
     updateZoomDial(sampleZoom * 2 ** (event.key === "ArrowRight" ? 1 / 12 : -1 / 12));
   });
-  closeZoomDial.addEventListener("click", () => { zoomDial.hidden = true; });
+  zoomDial.addEventListener("keyup", (event) => {
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "Escape") {
+      zoomDial.hidden = true;
+    }
+  });
   zoomStops.querySelectorAll("button").forEach((button) => {
     const stop = Number(button.dataset.zoomStop);
-    button.addEventListener("pointerdown", () => {
+    let holdOrigin = null;
+    button.addEventListener("pointerdown", (event) => {
       zoomLongPressTriggered = false;
+      holdOrigin = { x: event.clientX, y: event.clientY };
+      button.setPointerCapture(event.pointerId);
       zoomHoldTimer = window.setTimeout(() => {
         zoomLongPressTriggered = true;
         updateZoomDial(stop);
         zoomDial.hidden = false;
-        zoomDial.focus({ preventScroll: true });
-      }, 380);
+      }, 240);
     });
-    const cancelHold = () => { window.clearTimeout(zoomHoldTimer); };
-    button.addEventListener("pointerup", cancelHold);
-    button.addEventListener("pointercancel", cancelHold);
-    button.addEventListener("pointerleave", cancelHold);
+    button.addEventListener("pointermove", (event) => {
+      if (!zoomLongPressTriggered || !holdOrigin) return;
+      if (Math.hypot(event.clientX - holdOrigin.x, event.clientY - holdOrigin.y) > 10) {
+        setZoomFromWheelPointer(event);
+      }
+    });
+    const releaseStop = () => {
+      window.clearTimeout(zoomHoldTimer);
+      if (zoomLongPressTriggered) zoomDial.hidden = true;
+      holdOrigin = null;
+    };
+    button.addEventListener("pointerup", releaseStop);
+    button.addEventListener("pointercancel", releaseStop);
     button.addEventListener("click", () => {
       if (zoomLongPressTriggered) {
         zoomLongPressTriggered = false;

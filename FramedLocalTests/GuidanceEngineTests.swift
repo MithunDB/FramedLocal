@@ -9,6 +9,14 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertEqual(CameraControlPolicy.clampedZoom(.infinity, maximum: 4), 1)
     }
 
+    func testRadialZoomWheelSnapsNearSupportedCameraStops() {
+        let range = 0.5...5.0
+        XCTAssertEqual(CameraControlPolicy.snappedZoom(0.97, range: range), 1.0)
+        XCTAssertEqual(CameraControlPolicy.snappedZoom(1.95, range: range), 2.0)
+        XCTAssertEqual(CameraControlPolicy.snappedZoom(5.2, range: range), 5.0)
+        XCTAssertNil(CameraControlPolicy.snappedZoom(1.14, range: range))
+    }
+
     func testAutomaticFramingCentersAndLimitsTheTrackedSubject() {
         let subject = CGRect(x: 0.2, y: 0.35, width: 0.3, height: 0.2)
         let framing = CameraControlPolicy.framing(for: subject, isMirrored: false, enabled: true)

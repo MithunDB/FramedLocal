@@ -140,7 +140,6 @@ a:focus-visible, button:focus-visible, input:focus-visible + .switch-track, summ
 .zoom-wheel-stop { fill: #ffffffd9; font-size: 9px; text-anchor: middle; }
 .zoom-wheel-pointer { fill: none; stroke: #ffe45c; stroke-width: 3; stroke-linecap: round; }
 .zoom-wheel-value { fill: #ffe45c; font-size: 15px; font-weight: 700; text-anchor: middle; font-variant-numeric: tabular-nums; }
-.zoom-wheel-close { position: absolute; top: 18px; right: 22px; width: 22px; height: 22px; border: 1px solid #ffffff42; border-radius: 50%; color: #fff; background: #ffffff18; font-size: 15px; line-height: 1; cursor: pointer; }
 .camera-bottom { position: absolute; z-index: 4; left: 20px; right: 20px; bottom: 29px; display: flex; justify-content: space-between; align-items: center; }
 .mini-control { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid #ffffff6e; border-radius: 50%; color: white; background: #f6fbff2d; backdrop-filter: blur(8px); cursor: pointer; font-size: 19px; }
 .mini-control:hover { background: #ffffff58; }
