@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Rechecked the remaining source-only acceptance surface after the lens-switch recovery change. Capture, local editing/import, presets/frames, Vision guidance/tracking, and save paths are implemented; no new code gap was confirmed. PhotoKit's add-only path deliberately falls back to Photos Recents when an album cannot be fetched, preserving the no-full-library-access rule. Whether the created `Framed` album can be reused under the iPhone's add-only authorization must be confirmed on-device.
+- No tests/builds were run in this audit-only step. Apple PhotoKit documentation reviewed; no code changed. Current known verification remains 54/54 simulator tests on iOS 27.1 and iOS 26.2 plus a successful generic unsigned iOS build. Physical signing, installation, capture, album reuse, and export remain pending.
+- Changed files: `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: once the iPhone 12 is available, pair it, select the development team, provision/install the app, then run the physical-device matrix. No further source-only implementation gap is currently identified.
+
 - Hardened the front/rear lens-switch failure paths to stop Core Motion and remove the current orientation observer before presenting Retry. The next successful `startIfAuthorized()` can now install a fresh observer generation instead of leaving a stale callback alive after the failed switch.
 - Verification: iOS 27.1 simulator suite passed (54 tests, 0 failures, 0 skipped); iOS 26.2 simulator suite passed (54 tests, 0 failures, 0 skipped); generic unsigned iOS device build passed; `git diff --check` passed. Recurring Xcode simulator metadata `invalidDigitCount` diagnostics only. Lens-switch failure/retry still requires physical camera validation.
 - Review: local read-only diff review found no actionable defect; CodeRabbit CLI review raised 0 issues. The repo is not installed in the connected CodeRabbit organization, so the CLI used its free review allowance.
