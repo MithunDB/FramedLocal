@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Hardened the front/rear lens-switch failure paths to stop Core Motion and remove the current orientation observer before presenting Retry. The next successful `startIfAuthorized()` can now install a fresh observer generation instead of leaving a stale callback alive after the failed switch.
+- Verification: iOS 27.1 simulator suite passed (54 tests, 0 failures, 0 skipped); iOS 26.2 simulator suite passed (54 tests, 0 failures, 0 skipped); generic unsigned iOS device build passed; `git diff --check` passed. Recurring Xcode simulator metadata `invalidDigitCount` diagnostics only. Lens-switch failure/retry still requires physical camera validation.
+- Changed files: `FramedLocal/ContentView.swift`, `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.
+- Exact next smallest step: commit and push this sensor cleanup; test a failed lens switch followed by Retry and device rotation on iPhone 12 when available.
+
 - Fixed sensor cleanup on AVFoundation media-services reset. Automatic camera recovery now stops the old Core Motion stream and removes the orientation observer before restarting; this prevents an observer tied to an invalid generation from silently ignoring all later device rotations. Added a sensor-generation replacement regression check.
 - Verification: iOS 27.1 simulator suite passed (54 tests, 0 failures, 0 skipped); iOS 26.2 simulator suite passed (54 tests, 0 failures, 0 skipped); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Actual media-reset and orientation behavior remains physical-device-only.
 - Changed files: `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.

@@ -829,6 +829,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                 guard CaptureSessionStartOutcome.resolve(isRunning: self.session.isRunning) == .started else {
                     Task { @MainActor in
                         guard self.sessionGeneration.isCurrent(generation) else { return }
+                        self.stopMotionUpdates()
                         self.isFrontCamera = position == .back
                         self.shouldRunSession = false
                         self.isConfiguring = false
@@ -850,6 +851,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                 if self.session.isRunning { self.session.stopRunning() }
                 Task { @MainActor in
                     guard self.sessionGeneration.isCurrent(generation) else { return }
+                    self.stopMotionUpdates()
                     self.isFrontCamera = position == .back
                     self.shouldRunSession = false
                     self.isConfiguring = false
