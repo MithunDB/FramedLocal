@@ -1,12 +1,12 @@
 # FramedLocal Project Status
 
-This is the living status record for the private/local FramedLocal iOS app.
+This is the living status record for the local-first FramedLocal iOS app.
 
 ## Current State
 
 - Date: 2026-10-28
 - Phase: 7 — editor crop/aspect, bounded import/preview, memory-warning recovery, and camera analysis/motion lifecycle cleanup implemented; simulator/generic-device builds and unit checks pass; physical-device verification remains
-- Branch: `main`, tracking `origin/main` (private GitHub `MithunDB/FramedLocal`)
+- Branch: `main`, tracking `origin/main` (GitHub `MithunDB/FramedLocal`; repository made public at the user's request on 2026-10-28)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
 - iOS SDK: 27.1; installed simulator runtimes: iOS 26.2, 27.0, 27.1
@@ -20,15 +20,16 @@ This is the living status record for the private/local FramedLocal iOS app.
 
 ## Current Objective
 
-Continue the private/local FramedLocal implementation through physical iPhone validation of camera capture, orientation, guidance, editing, and Photos export. Keep this file current so work can resume after context or usage limits.
+Continue the local-first FramedLocal implementation through physical iPhone validation of camera capture, orientation, guidance, editing, and Photos export. Keep this file current so work can resume after context or usage limits.
 
 ## Companion Website — 2026-10-28
 
 - Created a sky-blue, project-specific FramedLocal site in `site/`, following the visual clarity and interactive-preview structure of the user's ZeroClick site without reusing its palette or assets. The interactive sample supports five looks, three frames, date stamp, capture/print-preview modes, front/rear preview, orientation, grid, guidance, and reset. All illustration assets are local; the page does not access a visitor camera or make network requests.
-- Added `.github/workflows/pages.yml` to deploy only `site/` to GitHub Pages, and updated `README.md` with the intended project URL `https://mithundb.github.io/FramedLocal/`. The FramedLocal source repository remains private. GitHub Pages is not configured yet; private-source Pages depends on the account plan, so deployment outcome must be checked after push.
+- Added `.github/workflows/pages.yml` to deploy only `site/` to GitHub Pages at `https://mithundb.github.io/FramedLocal/`. The user then explicitly requested that the existing app repository be made public; GitHub now reports it public. Initial deployment from the private repo failed with `Your current plan does not support GitHub Pages for this repository.` After making the repo public and enabling Pages, deployment run `40804412818` succeeded.
+- During the private-repo Pages diagnosis, a site-only repo `MithunDB/FramedLocalSite` was briefly created and its deployment succeeded. After the user redirected the plan to make `MithunDB/FramedLocal` public, the temporary site Pages site was deleted, its repo made private, and the repo archived. The canonical public site is `https://mithundb.github.io/FramedLocal/`.
 - Changed files: `.github/workflows/pages.yml`, `README.md`, `site/index.html`, `site/styles.css`, `site/app.js`, `site/assets/mark.svg`, `site/assets/sample-coast.svg`, `docs/PROJECT_STATUS.md`.
 - Verification: local browser preview at desktop and mobile widths; preset, print-preview, lens-switch, sample-capture, and reset interactions worked; browser console showed no warnings/errors. `node --check site/app.js`, local HTTP checks for HTML/CSS/SVG assets (all 200), and `git diff --check` passed. No Xcode build or app test run in this website-only step.
-- Exact next smallest step: commit and push the site, then verify the Pages action and intended URL. If GitHub blocks Pages because the private repository/account plan is not eligible, keep the source repo private and choose a separate public site repository or hosting plan before making any source visibility change.
+- Exact next smallest step: commit and push the README/status correction, verify the final GitHub state, then resume physical iPhone installation and acceptance when the device is available.
 
 ## Last Completed Step
 
