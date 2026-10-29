@@ -5,7 +5,7 @@ This is the living status record for the local-first FramedLocal iOS app.
 ## Current State
 
 - Date: 2026-10-29
-- Phase: 9 — camera essentials, dial-style zoom, digital auto-framing, Original border cleanup, and camera launch intent implemented; simulator suite passes; latest signed iPhone 12 build installed/launched; physical feature acceptance remains
+- Phase: 9 — camera essentials, hold-activated radial zoom wheel, digital auto-framing, Original border cleanup, and camera launch intent implemented; simulator suite passes; latest signed iPhone 12 build installed/launched; physical feature acceptance remains
 - Branch: `main`, tracking `origin/main` (GitHub `MithunDB/FramedLocal`; repository made public at the user's request on 2026-10-28)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
@@ -31,11 +31,20 @@ This is the living status record for the local-first FramedLocal iOS app.
 
 ## Active Follow-up — 2026-10-29 (rotary zoom dial and clean GitHub project page)
 
-- Replaced the three fixed 0.5×/1×/2× zoom chips with a compact camera-style zoom wheel: the 0.5× and 1× lens shortcuts remain; drag moves the tick ruler under a fixed cyan indicator and smoothly ramps AVFoundation zoom. The readout follows the selected lens; VoiceOver can adjust zoom in 1/12-stop increments. Pinch zoom remains available.
-- Updated the interactive GitHub Pages sample with a draggable, wheel-scrollable, keyboard-accessible zoom dial and zoomed sample preview. Updated the site feature copy and rebuilt README as a clean project landing page with the site link, concise feature list, local/privacy notes, build instructions, and current-status link.
+- The first pass replaced the three fixed 0.5×/1×/2× zoom chips with an always-visible camera-style zoom ruler. User clarified that the dial should open only after holding one of the fixed zoom stops; see the corrected interaction in the following entry.
+- Updated the interactive GitHub Pages sample and README as a clean project landing page with the site link, concise feature list, local/privacy notes, build instructions, and current-status link.
 - Verification: signed generic iOS build passed; simulator suite passed 69/69; website JavaScript syntax check and `git diff --check` passed. The build was installed and FramedLocal relaunched on the connected iPhone 12.
 - Changed files include `FramedLocal/ContentView.swift`, `README.md`, `site/index.html`, `site/styles.css`, `site/app.js`, and this status file, alongside the previously recorded in-progress camera and extension changes.
-- Exact next smallest step: commit/push the reviewed current work, set the GitHub repository description/homepage to match the project site, then confirm GitHub Pages deployment completes. The physical feel of the dial still needs user feedback on the iPhone.
+- Completed in the following follow-up: published the README/site refresh, set the repository description and homepage, and confirmed the Pages deployment. The user then clarified the desired zoom gesture; see below.
+
+## Active Follow-up — 2026-10-29 (hold-to-open camera zoom wheel correction)
+
+- User clarified that the previous always-visible linear ruler was not the desired interaction. Replaced it with discrete 0.5×, 1×, and 2× controls; a 0.38-second hold on a control opens a temporary semi-circular, tick-marked wheel above the shutter. The same held gesture can continue onto the arc; releasing leaves the wheel open for a separate drag as well. Moving around the arc adjusts magnification, including switching between ultra-wide and wide at 1×. Pinch remains available, and the wheel has VoiceOver adjustment and an explicit close control.
+- Rebuilt the GitHub Pages sample to use the same quick-stop / hold-to-open wheel flow. The wheel is hidden initially; tapping a stop selects it, holding opens the radial demo, and the sample preview responds to zoom. README now documents the intended interaction.
+- The prior `cdc1530` dial was already pushed at the user's direction; this follow-up corrects that public update rather than rewriting remote history.
+- Verification: signed generic iOS build passed; iOS 26.2 simulator suite passed 69/69; `node --check site/app.js` and `git diff --check` passed. Corrected app installed and launched on iPhone 12. GitHub Pages deployment for this correction is pending the next push.
+- Changed files: `FramedLocal/ContentView.swift`, `README.md`, `site/index.html`, `site/styles.css`, `site/app.js`, and this status file.
+- Exact next smallest step: commit/push this correction and confirm Pages deployment succeeds; on iPhone, hold each zoom stop and try a short arc drag for physical interaction feedback.
 
 ## Current Objective
 

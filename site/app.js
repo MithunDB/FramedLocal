@@ -7,52 +7,116 @@
   const gridToggle = document.querySelector("#gridToggle");
   const dateToggle = document.querySelector("#dateToggle");
   const shutter = document.querySelector("#shutter");
-  const zoomDial = document.querySelector("#demoZoom");
+  const zoomDial = document.querySelector("#demoZoomDial");
   const zoomReadout = document.querySelector("#demoZoomValue");
-  const zoomRuler = document.querySelector("#demoZoomRuler");
+  const zoomTicks = document.querySelector("#demoZoomTicks");
+  const zoomPointer = document.querySelector("#demoZoomPointer");
+  const zoomStops = document.querySelector("#demoZoomStops");
+  const closeZoomDial = document.querySelector("#closeDemoZoom");
   let sampleZoom = 1;
   let zoomDragStart = null;
+  let zoomHoldTimer = null;
+  let zoomLongPressTriggered = false;
 
-  for (let index = -6; index <= 12; index += 1) {
-    const tick = document.createElement("i");
-    tick.dataset.tick = String(index);
-    if (index % 6 === 0) tick.classList.add("is-major");
-    zoomRuler.append(tick);
+  for (let index = 0; index <= 48; index += 1) {
+    const angle = Math.PI + Math.PI * index / 48;
+    const inner = index % 4 === 0 ? 111 : 118;
+    const outer = 128;
+    const x1 = 140 + Math.cos(angle) * inner;
+    const y1 = 155 + Math.sin(angle) * inner;
+    const x2 = 140 + Math.cos(angle) * outer;
+    const y2 = 155 + Math.sin(angle) * outer;
+    const tick = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    tick.setAttribute("d", `M ${x1} ${y1} L ${x2} ${y2}`);
+    tick.classList.add("zoom-wheel-tick");
+    if (index % 4 === 0) tick.classList.add("is-major");
+    zoomTicks.append(tick);
+  }
+
+  for (const stop of [0.5, 1, 2, 5]) {
+    const progress = (Math.log2(stop) - Math.log2(0.5)) / (Math.log2(5) - Math.log2(0.5));
+    const angle = Math.PI + Math.PI * progress;
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", String(140 + Math.cos(angle) * 91));
+    label.setAttribute("y", String(155 + Math.sin(angle) * 91 + 3));
+    label.classList.add("zoom-wheel-stop");
+    label.textContent = `${stop}×`;
+    zoomTicks.append(label);
   }
 
   const updateZoomDial = (requested) => {
-    sampleZoom = Math.min(4, Math.max(0.5, requested));
-    const position = Math.log2(sampleZoom) * 6;
+    sampleZoom = Math.min(5, Math.max(0.5, requested));
+    const progress = (Math.log2(sampleZoom) - Math.log2(0.5)) / (Math.log2(5) - Math.log2(0.5));
+    const angle = Math.PI + Math.PI * progress;
+    const innerX = 140 + Math.cos(angle) * 105;
+    const innerY = 155 + Math.sin(angle) * 105;
+    const outerX = 140 + Math.cos(angle) * 126;
+    const outerY = 155 + Math.sin(angle) * 126;
     zoomReadout.textContent = `${sampleZoom.toFixed(1)}×`;
     zoomDial.setAttribute("aria-valuenow", sampleZoom.toFixed(1));
     zoomDial.setAttribute("aria-valuetext", `${sampleZoom.toFixed(1)} times`);
     device.style.setProperty("--camera-zoom", String(Math.max(0.82, 1 + (sampleZoom - 1) * 0.36)));
-    zoomRuler.querySelectorAll("i").forEach((tick) => {
-      const index = Number(tick.dataset.tick);
-      tick.style.left = `calc(50% + ${(index - position) * 9}px)`;
-      tick.classList.toggle("is-current", Math.abs(index - position) < 0.35);
+    zoomPointer.setAttribute("d", `M ${innerX} ${innerY} L ${outerX} ${outerY}`);
+    zoomStops.querySelectorAll("button").forEach((button) => {
+      button.classList.toggle("is-selected", Math.abs(sampleZoom - Number(button.dataset.zoomStop)) < 0.04);
     });
   };
 
+  const setZoomFromWheelPointer = (event) => {
+    const bounds = zoomDial.getBoundingClientRect();
+    const scaleX = bounds.width / 280;
+    const scaleY = bounds.height / 155;
+    const x = (event.clientX - (bounds.left + bounds.width / 2)) / scaleX;
+    const y = (event.clientY - bounds.bottom) / scaleY;
+    let angle = Math.atan2(y, x);
+    if (angle < 0) angle += Math.PI * 2;
+    angle = Math.min(Math.PI * 2, Math.max(Math.PI, angle));
+    const progress = (angle - Math.PI) / Math.PI;
+    updateZoomDial(2 ** (Math.log2(0.5) + progress * (Math.log2(5) - Math.log2(0.5))));
+  };
+
   zoomDial.addEventListener("pointerdown", (event) => {
-    zoomDragStart = { x: event.clientX, value: sampleZoom };
+    if (event.target === closeZoomDial) return;
+    zoomDragStart = true;
     zoomDial.setPointerCapture(event.pointerId);
+    setZoomFromWheelPointer(event);
   });
   zoomDial.addEventListener("pointermove", (event) => {
     if (!zoomDragStart) return;
-    updateZoomDial(zoomDragStart.value * 2 ** ((zoomDragStart.x - event.clientX) / 140));
+    setZoomFromWheelPointer(event);
   });
   zoomDial.addEventListener("pointerup", () => { zoomDragStart = null; });
   zoomDial.addEventListener("pointercancel", () => { zoomDragStart = null; });
-  zoomDial.addEventListener("wheel", (event) => {
-    event.preventDefault();
-    updateZoomDial(sampleZoom * 2 ** (-event.deltaY / 480));
-  }, { passive: false });
   zoomDial.addEventListener("keydown", (event) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
     updateZoomDial(sampleZoom * 2 ** (event.key === "ArrowRight" ? 1 / 12 : -1 / 12));
   });
+  closeZoomDial.addEventListener("click", () => { zoomDial.hidden = true; });
+  zoomStops.querySelectorAll("button").forEach((button) => {
+    const stop = Number(button.dataset.zoomStop);
+    button.addEventListener("pointerdown", () => {
+      zoomLongPressTriggered = false;
+      zoomHoldTimer = window.setTimeout(() => {
+        zoomLongPressTriggered = true;
+        updateZoomDial(stop);
+        zoomDial.hidden = false;
+        zoomDial.focus({ preventScroll: true });
+      }, 380);
+    });
+    const cancelHold = () => { window.clearTimeout(zoomHoldTimer); };
+    button.addEventListener("pointerup", cancelHold);
+    button.addEventListener("pointercancel", cancelHold);
+    button.addEventListener("pointerleave", cancelHold);
+    button.addEventListener("click", () => {
+      if (zoomLongPressTriggered) {
+        zoomLongPressTriggered = false;
+        return;
+      }
+      updateZoomDial(stop);
+    });
+  });
+  updateZoomDial(sampleZoom);
   updateZoomDial(sampleZoom);
 
   const pressButtons = (selector, selectedElement) => {
@@ -151,6 +215,7 @@
     device.dataset.guidance = "on";
     device.dataset.grid = "on";
     device.dataset.date = "on";
+    zoomDial.hidden = true;
     updateZoomDial(1);
     dateToggle.checked = true;
     guidanceToggle.classList.add("is-selected");

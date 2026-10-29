@@ -40,6 +40,8 @@ struct ContentView: View {
     @State private var renderTask: Task<Void, Never>?
     @State private var pinchStartZoom: Double?
     @State private var dragStartFrameCenter: CGPoint?
+    @State private var showsZoomWheel = false
+    @State private var cameraChromeSize: CGSize = .zero
 
     var body: some View {
         ZStack {
@@ -71,6 +73,7 @@ struct ContentView: View {
         }
         .onChange(of: cropPosition) { _, _ in handlePreviewSettingsChange(render: false) }
         .onChange(of: camera.isFrontCamera) { _, _ in handlePreviewSettingsChange(render: false) }
+        .onChange(of: camera.isFrontCamera) { _, _ in showsZoomWheel = false }
         .onChange(of: showsCompositionGuides) { _, isEnabled in camera.setCompositionGuidanceEnabled(isEnabled) }
         .onChange(of: selectedFrame) { _, _ in renderCurrentSource() }
         .onChange(of: includesDateStamp) { _, _ in renderCurrentSource() }
@@ -395,57 +398,133 @@ struct ContentView: View {
                 .padding(.bottom, 28)
                 }
         }
+        .overlay(alignment: .bottom) {
+            if showsZoomWheel, camera.latestCapture == nil, camera.importedImage == nil {
+                GeometryReader { geometry in
+                    ZStack {
+                        Color.clear.allowsHitTesting(false)
+                        if showsZoomWheel, camera.latestCapture == nil, camera.importedImage == nil {
+                            RadialZoomWheel(value: overallZoomFactor, range: overallZoomRange,
+                                            onChange: applyOverallZoom, onDismiss: { showsZoomWheel = false })
+                                .frame(width: geometry.size.width - 24, height: 205)
+                                .position(x: geometry.size.width / 2, y: geometry.size.height * 0.69)
+                                .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .bottom)))
+                        }
+                    }
+                    .onAppear { cameraChromeSize = geometry.size }
+                    .onChange(of: geometry.size) { _, size in cameraChromeSize = size }
+                }
+                .zIndex(5)
+                .accessibilityAddTraits(.isModal)
+            }
+        }
+        .coordinateSpace(name: "cameraChrome")
     }
 
     private var cameraLensZoomBar: some View {
-        VStack(spacing: 5) {
-            HStack(spacing: 7) {
-                if !camera.isFrontCamera {
-                    zoomChoice("0.5×", action: { camera.selectRearLens(.ultraWide) },
-                               selected: camera.selectedRearLens == .ultraWide && abs(camera.currentZoomFactor - 1) < 0.04)
+        HStack(spacing: 12) {
+            if !camera.isFrontCamera {
+                zoomChoice("0.5×", selected: camera.selectedRearLens == .ultraWide
+                           && abs(camera.currentZoomFactor - 1) < 0.04) {
+                    camera.selectRearLens(.ultraWide)
                 }
-                zoomChoice("1×", action: { camera.selectRearLens(camera.isFrontCamera ? nil : .wide, zoom: 1) },
-                           selected: (camera.isFrontCamera || camera.selectedRearLens == .wide) && abs(camera.currentZoomFactor - 1) < 0.04)
-                Spacer(minLength: 0)
-                Text("Drag to zoom")
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.58))
             }
-            CameraZoomDial(value: displayedZoomFactor, range: displayedZoomRange) { value in
-                let deviceFactor = !camera.isFrontCamera && camera.selectedRearLens == .ultraWide
-                    ? value * 2 : value
-                camera.applyZoomFactor(deviceFactor)
+            zoomChoice("1×", selected: (camera.isFrontCamera || camera.selectedRearLens == .wide)
+                       && abs(camera.currentZoomFactor - 1) < 0.04) {
+                camera.selectRearLens(camera.isFrontCamera ? nil : .wide, zoom: 1)
+            }
+            zoomChoice("2×", selected: (camera.isFrontCamera || camera.selectedRearLens == .wide)
+                       && abs(camera.currentZoomFactor - 2) < 0.04) {
+                camera.selectRearLens(camera.isFrontCamera ? nil : .wide, zoom: 2)
             }
         }
-        .padding(.horizontal, 13)
-        .padding(.vertical, 9)
-        .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 17))
-        .frame(maxWidth: 290)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(.black.opacity(0.42), in: Capsule())
     }
 
-    private var displayedZoomFactor: Double {
-        if !camera.isFrontCamera && camera.selectedRearLens == .ultraWide {
-            return camera.currentZoomFactor * 0.5
+    private var overallZoomFactor: Double {
+        guard !camera.isFrontCamera, camera.selectedRearLens == .ultraWide else {
+            return camera.currentZoomFactor
         }
-        return camera.currentZoomFactor
+        return camera.currentZoomFactor * 0.5
     }
 
-    private var displayedZoomRange: ClosedRange<Double> {
-        if !camera.isFrontCamera && camera.selectedRearLens == .ultraWide {
-            return 0.5...max(0.5, camera.maximumZoomFactor * 0.5)
-        }
-        return 1...max(1, camera.maximumZoomFactor)
+    private var overallZoomRange: ClosedRange<Double> {
+        camera.isFrontCamera
+            ? 1...max(1, camera.maximumZoomFactor)
+            : 0.5...max(1, camera.maximumRearWideZoomFactor)
     }
 
-    private func zoomChoice(_ title: String, action: @escaping () -> Void, selected: Bool) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.caption2.weight(.semibold).monospacedDigit())
-                .foregroundStyle(selected ? .black : .white)
-                .frame(minWidth: 38, minHeight: 30)
-                .background(selected ? Color.cyan : .clear, in: Circle())
+    private func applyOverallZoom(_ value: Double) {
+        guard !camera.isFrontCamera else {
+            camera.applyZoomFactor(value)
+            return
         }
-        .accessibilityLabel("Zoom \(title)")
+        if value < 1, camera.selectedRearLens != .ultraWide {
+            camera.selectRearLens(.ultraWide, zoom: value * 2)
+        } else if value >= 1, camera.selectedRearLens != .wide {
+            camera.selectRearLens(.wide, zoom: value)
+        } else {
+            camera.applyZoomFactor(camera.selectedRearLens == .ultraWide ? value * 2 : value)
+        }
+    }
+
+    private func applyZoomWheelDrag(at point: CGPoint) {
+        let size = cameraChromeSize
+        guard size.width > 24, size.height > 205 else { return }
+        let wheelWidth = size.width - 24
+        let local = CGPoint(x: point.x - 12,
+                            y: point.y - (size.height * 0.69 - 102.5))
+        guard local.x >= 0, local.x <= wheelWidth, local.y >= 0, local.y <= 205 else { return }
+        var angle = atan2(Double(local.y - 207), Double(local.x - wheelWidth / 2))
+        if angle < 0 { angle += 2 * .pi }
+        angle = min(max(angle, .pi), 2 * .pi)
+        let progress = (angle - .pi) / .pi
+        let range = overallZoomRange
+        let low = log2(range.lowerBound)
+        let high = log2(max(range.upperBound, range.lowerBound + 0.001))
+        applyOverallZoom(pow(2, low + progress * (high - low)))
+    }
+
+    private func zoomChoice(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Text(title)
+            .font(.caption2.weight(.semibold).monospacedDigit())
+            .foregroundStyle(selected ? .black : .white)
+            .frame(minWidth: 42, minHeight: 34)
+            .background(selected ? Color.cyan : .clear, in: Circle())
+            .contentShape(Circle())
+            .gesture(
+                LongPressGesture(minimumDuration: 0.38, maximumDistance: 26)
+                    .sequenced(before: DragGesture(minimumDistance: 0,
+                                                   coordinateSpace: .named("cameraChrome")))
+                    .onChanged { sequence in
+                        switch sequence {
+                        case .second(true, let drag):
+                            if !showsZoomWheel {
+                                action()
+                                camera.pauseAutomaticFraming()
+                                withAnimation(.spring(response: 0.32, dampingFraction: 0.84)) {
+                                    showsZoomWheel = true
+                                }
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
+                            if let drag,
+                               hypot(drag.translation.width, drag.translation.height) > 9 {
+                                applyZoomWheelDrag(at: drag.location)
+                            }
+                        default:
+                            break
+                        }
+                    }
+                    .onEnded { sequence in
+                        if case .first(false) = sequence { action() }
+                    }
+            )
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel("Zoom \(title)")
+            .accessibilityHint("Tap to set this zoom. Touch and hold to open the zoom wheel.")
+            .accessibilityAction(.default, action)
     }
 
     private var livePinchGesture: some Gesture {
@@ -459,6 +538,7 @@ struct ContentView: View {
     }
 
     private func handleLatestCaptureChange(_ data: Data?) {
+        if data != nil { showsZoomWheel = false }
         guard let data else {
             renderTask?.cancel()
             isRendering = false
@@ -1032,6 +1112,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor @Published private(set) var suggestedZoomFactor: Double?
     @MainActor @Published private(set) var currentZoomFactor = 1.0
     @MainActor @Published private(set) var maximumZoomFactor = 5.0
+    @MainActor @Published private(set) var maximumRearWideZoomFactor = 5.0
     @MainActor @Published private(set) var selectedRearLens: RearCameraLens = .wide
     @MainActor @Published private(set) var flashSetting: CameraFlashSetting = .automatic
     @MainActor @Published private(set) var timerSetting: CaptureTimerSetting = .off
@@ -1112,7 +1193,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor
     func applyZoomFactor(_ factor: Double) {
         pauseAutomaticFraming()
-        let requestedFactor = CameraControlPolicy.clampedZoom(factor, maximum: maximumZoomFactor)
+        guard factor.isFinite else { return }
+        let requestedFactor = max(1, factor)
         sessionQueue.async { [weak self] in
             guard let self, let device = self.activeInput?.device else { return }
             do {
@@ -1841,11 +1923,15 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                 startingZoom, maximum: Double(device.activeFormat.videoMaxZoomFactor)))
             device.unlockForConfiguration()
             let maximumZoom = Double(device.activeFormat.videoMaxZoomFactor)
+            let appliedStartingZoom = CameraControlPolicy.clampedZoom(startingZoom, maximum: maximumZoom)
             let minExposure = Double(device.minExposureTargetBias)
             let maxExposure = Double(device.maxExposureTargetBias)
             Task { @MainActor [weak self] in
-                self?.currentZoomFactor = startingZoom
+                self?.currentZoomFactor = appliedStartingZoom
                 self?.maximumZoomFactor = max(1, maximumZoom)
+                if position == .back, rearLens == .wide {
+                    self?.maximumRearWideZoomFactor = max(1, maximumZoom)
+                }
                 self?.exposureBiasRange = minExposure...maxExposure
                 self?.exposureBias = Double(device.exposureTargetBias)
             }
@@ -2570,53 +2656,89 @@ private struct LiveFrameTreatment: View {
     }
 }
 
-private struct CameraZoomDial: View {
+private struct RadialZoomWheel: View {
     let value: Double
     let range: ClosedRange<Double>
     let onChange: (Double) -> Void
-    @State private var dragStartValue: Double?
-
-    private var tickPosition: Double {
-        log2(max(value, 0.001)) * 12
-    }
+    let onDismiss: () -> Void
 
     var body: some View {
         GeometryReader { geometry in
+            let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height + 2)
+            let radius = min(geometry.size.width * 0.49, geometry.size.height - 12)
+            let lowerLog = log2(max(range.lowerBound, 0.001))
+            let upperLog = log2(max(range.upperBound, range.lowerBound + 0.001))
             ZStack {
-                ForEach(-24...48, id: \.self) { tick in
-                    let tickValue = pow(2, Double(tick) / 12)
-                    let x = geometry.size.width / 2 + (Double(tick) - tickPosition) * 8
-                    if range.contains(tickValue) && x >= -1 && x <= geometry.size.width + 1 {
-                        Capsule()
-                            .fill(tick.isMultiple(of: 6) ? .white.opacity(0.82) : .white.opacity(0.32))
-                            .frame(width: 1, height: tick.isMultiple(of: 6) ? 13 : 6)
-                            .position(x: x, y: 34)
+                ZoomWheelArcBand(center: center, radius: radius)
+                    .fill(.black.opacity(0.76))
+                    .overlay {
+                        ZoomWheelArc(center: center, radius: radius)
+                            .stroke(.white.opacity(0.28), style: StrokeStyle(lineWidth: 1))
                     }
+                ForEach(0...48, id: \.self) { index in
+                    let angle = Double.pi + Double.pi * Double(index) / 48
+                    let major = index.isMultiple(of: 4)
+                    Capsule()
+                        .fill(major ? .white.opacity(0.86) : .white.opacity(0.38))
+                        .frame(width: major ? 1.5 : 1, height: major ? 12 : 6)
+                        .rotationEffect(.radians(angle - 1.5 * .pi))
+                        .position(x: center.x + cos(angle) * (radius - 8),
+                                  y: center.y + sin(angle) * (radius - 8))
                 }
-                Rectangle()
-                    .fill(Color.cyan)
-                    .frame(width: 2, height: 21)
-                    .position(x: geometry.size.width / 2, y: 34)
+                ForEach([0.5, 1.0, 2.0, 5.0].filter { range.contains($0) }, id: \.self) { stop in
+                    let progress = upperLog > lowerLog ? (log2(stop) - lowerLog) / (upperLog - lowerLog) : 0.5
+                    let angle = .pi + .pi * progress
+                    Text("\(stop, format: .number.precision(.fractionLength(stop < 1 ? 1 : 0)))×")
+                        .font(.system(size: 11, weight: .medium, design: .rounded).monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.84))
+                        .position(x: center.x + cos(angle) * (radius - 33),
+                                  y: center.y + sin(angle) * (radius - 33))
+                }
+                let progress = upperLog > lowerLog
+                    ? min(max((log2(max(value, range.lowerBound)) - lowerLog) / (upperLog - lowerLog), 0), 1)
+                    : 0.5
+                let pointerAngle = .pi + .pi * progress
+                Capsule()
+                    .fill(Color.yellow)
+                    .frame(width: 3, height: 23)
+                    .rotationEffect(.radians(pointerAngle - 1.5 * .pi))
+                    .position(x: center.x + cos(pointerAngle) * (radius - 8),
+                              y: center.y + sin(pointerAngle) * (radius - 8))
                 Text("\(value, format: .number.precision(.fractionLength(1)))×")
-                    .font(.caption2.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(.white)
-                    .position(x: geometry.size.width / 2, y: 10)
+                    .font(.system(size: 19, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.yellow)
+                    .position(x: geometry.size.width / 2, y: 82)
+                Text("DRAG TO ADJUST")
+                    .font(.system(size: 8, weight: .semibold, design: .rounded))
+                    .tracking(1.5)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .position(x: geometry.size.width / 2, y: 101)
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .frame(width: 32, height: 32)
+                        .background(.white.opacity(0.12), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close zoom wheel")
+                .position(x: geometry.size.width - 27, y: 28)
             }
             .contentShape(Rectangle())
-            .gesture(
+            .simultaneousGesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { gesture in
-                        if dragStartValue == nil { dragStartValue = value }
-                        guard let dragStartValue else { return }
-                        let requested = dragStartValue * pow(2, -gesture.translation.width / 230)
-                        onChange(min(max(requested, range.lowerBound), range.upperBound))
+                        var angle = atan2(gesture.location.y - center.y, gesture.location.x - center.x)
+                        if angle < 0 { angle += 2 * .pi }
+                        angle = min(max(angle, .pi), 2 * .pi)
+                        let nextProgress = (angle - .pi) / .pi
+                        onChange(pow(2, lowerLog + nextProgress * (upperLog - lowerLog)))
                     }
-                    .onEnded { _ in dragStartValue = nil }
             )
             .accessibilityElement()
-            .accessibilityLabel("Camera zoom")
+            .accessibilityLabel("Camera zoom wheel")
             .accessibilityValue("\(value.formatted(.number.precision(.fractionLength(1)))) times")
-            .accessibilityHint("Drag horizontally to adjust zoom")
+            .accessibilityHint("Drag around the arc to change camera zoom")
             .accessibilityAdjustableAction { direction in
                 let step = pow(2, 1.0 / 12.0)
                 switch direction {
@@ -2626,7 +2748,36 @@ private struct CameraZoomDial: View {
                 }
             }
         }
-        .frame(height: 48)
+        .frame(height: 205)
+    }
+}
+
+private struct ZoomWheelArc: Shape {
+    let center: CGPoint
+    let radius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        for step in 0...64 {
+            let angle = Double.pi + Double.pi * Double(step) / 64
+            let point = CGPoint(x: center.x + cos(angle) * radius,
+                                y: center.y + sin(angle) * radius)
+            if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        }
+        return path
+    }
+}
+
+private struct ZoomWheelArcBand: Shape {
+    let center: CGPoint
+    let radius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = ZoomWheelArc(center: center, radius: radius).path(in: rect)
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
 

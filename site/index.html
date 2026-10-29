@@ -86,9 +86,20 @@
                   <div class="focus-ring" aria-hidden="true"><i></i></div>
                   <div class="camera-topbar"><span id="lensLabel">REAR CAMERA</span><span>4:3 <b>⌄</b></span></div>
                   <div class="guidance-pill" id="guidancePill"><span class="guidance-mark" aria-hidden="true">⌖</span><span id="guidanceText">Try moving a little left</span></div>
-                  <div class="demo-zoom" id="demoZoom" tabindex="0" role="slider" aria-label="Sample camera zoom" aria-valuemin="0.5" aria-valuemax="4" aria-valuenow="1" aria-valuetext="1.0 times">
-                    <span class="demo-zoom-value" id="demoZoomValue">1.0×</span>
-                    <div class="demo-zoom-ruler" id="demoZoomRuler" aria-hidden="true"></div>
+                  <div class="demo-zoom-wheel" id="demoZoomDial" hidden tabindex="0" role="slider" aria-label="Sample camera zoom" aria-valuemin="0.5" aria-valuemax="5" aria-valuenow="1" aria-valuetext="1.0 times">
+                    <svg viewBox="0 0 280 155" role="presentation" aria-hidden="true">
+                      <path class="zoom-wheel-band" d="M 5 155 A 135 135 0 0 1 275 155 L 275 160 L 5 160 Z"></path>
+                      <path class="zoom-wheel-track" d="M 5 155 A 135 135 0 0 1 275 155"></path>
+                      <g id="demoZoomTicks"></g>
+                      <path id="demoZoomPointer" class="zoom-wheel-pointer" d="M 140 22 L 140 38"></path>
+                      <text id="demoZoomValue" class="zoom-wheel-value" x="140" y="91">1.0×</text>
+                    </svg>
+                    <button id="closeDemoZoom" class="zoom-wheel-close" type="button" aria-label="Close sample zoom wheel">×</button>
+                  </div>
+                  <div class="sample-zoom-stops" id="demoZoomStops" role="group" aria-label="Sample zoom stops">
+                    <button type="button" data-zoom-stop="0.5" aria-label="Set sample zoom to 0.5 times">0.5</button>
+                    <button type="button" data-zoom-stop="1" aria-label="Set sample zoom to 1 times">1×</button>
+                    <button type="button" data-zoom-stop="2" aria-label="Set sample zoom to 2 times">2×</button>
                   </div>
                   <div class="camera-bottom">
                     <button class="mini-control" id="switchLens" type="button" aria-label="Switch between rear and front camera" aria-pressed="false"><span aria-hidden="true">⇄</span></button>
@@ -160,7 +171,7 @@
       <div class="feature-grid">
         <article class="feature-card feature-camera">
           <div class="feature-art camera-art" aria-hidden="true"><div class="mini-photo"><img src="assets/sample-coast.svg" alt=""><span class="mini-grid"></span><span class="mini-reticle"></span><span class="mini-advice">Try moving left</span></div><span class="art-signal signal-a"></span><span class="art-signal signal-b"></span><span class="art-axis"></span></div>
-          <div class="feature-copy"><p class="feature-kicker">01 / COMPOSE</p><h3>A guide, never a rule.</h3><p>Local subject detection, a smooth zoom dial, and explainable framing hints help you notice what could move. The shutter stays yours.</p><details class="feature-details"><summary>What can it notice?</summary><p>Subject position, headroom, edge spacing, horizon tilt, highlight clipping, and low-light shadows. Tap a subject to keep guidance with it; optional haptics stay subtle. Focus, exposure, and white balance stay automatic unless you adjust them. Suggestions are advisory—never “the best frame.”</p></details></div>
+          <div class="feature-copy"><p class="feature-kicker">01 / COMPOSE</p><h3>A guide, never a rule.</h3><p>Local subject detection, quick zoom stops, and a hold-to-open camera-style zoom wheel make framing feel natural. The shutter stays yours.</p><details class="feature-details"><summary>What can it notice?</summary><p>Subject position, headroom, edge spacing, horizon tilt, highlight clipping, and low-light shadows. Tap a subject to keep guidance with it; optional haptics stay subtle. Focus, exposure, and white balance stay automatic unless you adjust them. Suggestions are advisory—never “the best frame.”</p></details></div>
         </article>
 
         <article class="feature-card feature-film">
@@ -178,7 +189,7 @@
     <section class="flow-section section-shell" id="how">
       <div class="flow-heading"><p class="eyebrow">A softer workflow</p><h2>Notice. Shape.<br><span>Keep.</span></h2></div>
       <ol class="flow-steps">
-        <li><span class="step-number">01</span><div><h3>Find the frame</h3><p>Use the front or rear camera, adjust zoom with a smooth dial, and turn on quiet composition hints—or ignore them and shoot.</p></div><span class="step-line" aria-hidden="true"></span></li>
+        <li><span class="step-number">01</span><div><h3>Find the frame</h3><p>Tap a 0.5×, 1×, or 2× zoom stop. Hold one to open the arc dial, then drag around it for a finer adjustment.</p></div><span class="step-line" aria-hidden="true"></span></li>
         <li><span class="step-number">02</span><div><h3>Make it yours</h3><p>Try a local look, reposition a crop, choose a border, and add a date if it feels right.</p></div><span class="step-line" aria-hidden="true"></span></li>
         <li><span class="step-number">03</span><div><h3>Save a fresh copy</h3><p>Export a new JPEG to Photos. Your original capture or selected photo stays as it was.</p></div></li>
       </ol>

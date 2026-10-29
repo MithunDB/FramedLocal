@@ -17,7 +17,7 @@ FramedLocal is a local-first camera and photo editor for iPhone. Compose with op
 
 ## What it does
 
-- **Compose:** front and rear cameras, supported lens switching, a smooth zoom dial, tap focus/exposure, and optional subject framing and guidance.
+- **Compose:** front and rear cameras, supported lens switching, tap-to-set 0.5×/1×/2× zoom, and a camera-style arc dial revealed by holding a zoom stop. Pinch zoom, tap focus/exposure, and optional subject framing remain available.
 - **Shape:** Natural, Warm Print, Soft Mono, Faded Color, and Night Grain looks; Original, Square, 4:3, and 16:9 crops; optional borders and date stamp.
 - **Keep it yours:** on-device processing, add-only Photos access, and a separate exported copy. No cloud AI, photo uploads, analytics, or network dependency in the app.
 
