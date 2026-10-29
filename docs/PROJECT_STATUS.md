@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Reset guidance haptic de-duplication when the camera analysis stream pauses. Re-entering “Hold steady” after a stop, lens switch, or recovery can now trigger its entry haptic again; added nil-previous-message policy coverage.
+- Verification: iOS 27.1 simulator suite passed (50 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Physical haptic behavior is still pending.
+- Changed files: `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/PROJECT_STATUS.md`.
+- Exact next smallest step: commit and push the haptic lifecycle reset; continue local audit afterward.
+
 - Reset live guidance and analyzer state whenever analysis pauses for stop, interruption, recovery, startup, or lens change. The visible prompt returns to “Searching for a subject”; analyzer selection, tracking request, guidance debounce, and rate-limit state reset before the next stream.
 - Verification: iOS 27.1 simulator suite passed (50 tests, 0 failures); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Actual camera restart/scene transitions still need physical validation.
 - Changed files: `FramedLocal/ContentView.swift`, `FramedLocal/CompositionAnalysis.swift`, `docs/TEST_MATRIX.md`, `docs/PROJECT_STATUS.md`.

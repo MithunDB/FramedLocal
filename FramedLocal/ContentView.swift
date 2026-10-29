@@ -630,6 +630,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     private func pauseAnalysis() {
         analysisDelegate.pause(on: analysisQueue)
         guidanceText = "Searching for a subject"
+        lastGuidanceHapticMessage = nil
     }
 
     @MainActor

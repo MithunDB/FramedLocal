@@ -60,6 +60,7 @@ final class GuidanceEngineTests: XCTestCase {
     }
 
     func testGuidanceHapticsAreOptionalAndOnlyTriggerOnEntry() {
+        XCTAssertTrue(GuidanceHaptics.shouldTrigger(message: "Hold steady", previousMessage: nil, enabled: true))
         XCTAssertTrue(GuidanceHaptics.shouldTrigger(message: "Hold steady", previousMessage: "Suggested framing", enabled: true))
         XCTAssertFalse(GuidanceHaptics.shouldTrigger(message: "Hold steady", previousMessage: "Hold steady", enabled: true))
         XCTAssertFalse(GuidanceHaptics.shouldTrigger(message: "Hold steady", previousMessage: "Suggested framing", enabled: false))
