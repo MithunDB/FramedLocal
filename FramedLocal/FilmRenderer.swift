@@ -206,8 +206,14 @@ public actor FilmRenderer {
     }
 
     private static func seededNoise(extent: CGRect, seed: UInt32) throws -> CIImage {
-        let width = max(Int(extent.width.rounded(.up)), 1)
-        let height = max(Int(extent.height.rounded(.up)), 1)
+        let dimensionLimit = CGFloat(FrameRenderer.maximumPixelDimension + 1)
+        guard extent.width.isFinite, extent.height.isFinite,
+              extent.width > 0, extent.height > 0,
+              extent.width <= dimensionLimit, extent.height <= dimensionLimit else {
+            throw RenderError.invalidImage
+        }
+        let width = Int(extent.width.rounded(.up))
+        let height = Int(extent.height.rounded(.up))
         var state = seed
         let (pixelCount, pixelCountOverflow) = width.multipliedReportingOverflow(by: height)
         let (byteCount, byteCountOverflow) = pixelCount.multipliedReportingOverflow(by: 4)

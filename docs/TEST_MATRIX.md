@@ -3,11 +3,11 @@
 | Area | Scenario | Expected result | Status |
 |---|---|---|---|
 | Build | iOS 27.1 simulator | App builds without signing | Passed |
-| Compatibility tests | iOS 26.2 iPhone 17 Pro simulator | Hosted app unit suite runs on an earlier available iOS runtime | Passed (52 tests, 0 failures, 0 skipped) |
+| Compatibility tests | iOS 26.2 iPhone 17 Pro simulator | Hosted app unit suite runs on an earlier available iOS runtime | Passed (53 tests, 0 failures, 0 skipped) |
 | Build | Generic iOS device destination | App builds without signing | Passed |
 | Device signing | Pair iPhone 12, select its development team, and provision the app | Xcode produces an installable signed build for `local.mithundb.framed` | Valid Apple Development identity installed; generic signed build confirms no provisioning profile exists; device not connected; allow Xcode provisioning after pairing |
 | App icon | iOS asset catalog | Universal 1024×1024 icon is included and compiles for simulator/device | Passed asset-catalog builds; physical home-screen appearance pending |
-| Unit tests | iOS 27.1 simulator | Guidance, camera/session policies, renderer, import orientation/bounds, crop, cancellation, and PhotoKit transaction logic | Passed (52 tests, 0 failures; latest run after monotonic elapsed-time source update) |
+| Unit tests | iOS 27.1 simulator | Guidance, camera/session policies, renderer, import orientation/bounds, crop, cancellation, and PhotoKit transaction logic | Passed (53 tests, 0 failures; latest run after bounded Night Grain allocation guard) |
 | Launch | iOS 27.1 simulator | App installs and launches; permission prompt and camera-unavailable fallback are presented | Passed simulator install/launch; simulator has no camera; physical launch/capture pending |
 | Privacy configuration | Built Info.plist, source, and project dependency scan | Camera and add-only Photos prompts only; picker import without full library authorization; no app network client/analytics dependency | Static inspection passed; physical permission flow pending |
 | Camera permission | First launch, allow | Live preview appears | Runtime device check pending |
@@ -69,4 +69,4 @@
 | Guidance recovery | Selected subject disappears / confidence remains low | Detection and manual tracking use distinct confidence thresholds and recovery messages | Passed in simulator GuidanceEngine tests; live tracking-loss check pending |
 | Exposure cues | Bright clipping and low-light shadow clipping | Offer explainable lower-exposure or add-light suggestions after focus/framing checks | Passed in simulator unit tests; physical scene tuning pending |
 | Guidance haptics | Haptics enabled/disabled and stable guidance across analysis pause/resume | Haptic fires only on entry to “Hold steady” when enabled; resets across camera analysis pause so advice can trigger on re-entry; visual advice remains visible when disabled | Entry policy and lifecycle reset passed in simulator unit tests; physical haptic pending |
-| Preset determinism and allocation | Render same source twice with Night Grain | Identical input produces identical JPEG output; seeded RGBA pixels use one checked-size `Data` buffer and retain periodic cancellation checks | Output determinism passed in simulator tests; physical peak-memory/latency measurement pending |
+| Preset determinism and allocation | Render same and large sources with Night Grain | Identical input produces identical JPEG output; non-finite/oversized extents are rejected before integer conversion/allocation; seeded RGBA pixels use one checked-size `Data` buffer with periodic cancellation; final source output stays at or below 2,400 px | Determinism and 3,200×1,800 source bound passed in simulator tests; physical peak-memory/latency measurement pending |

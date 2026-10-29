@@ -216,6 +216,14 @@ final class RendererTests: XCTestCase {
         XCTAssertLessThanOrEqual(max(size.width, size.height), CGFloat(FrameRenderer.maximumPixelDimension))
     }
 
+    func testNightGrainBoundsNoiseAllocationForLargeSource() async throws {
+        let source = try sampleJPEG(size: CGSize(width: 3_200, height: 1_800), scale: 1)
+        let output = try await FilmRenderer.shared.render(source, preset: .nightGrain)
+        let size = try imageSize(output)
+
+        XCTAssertLessThanOrEqual(max(size.width, size.height), CGFloat(FrameRenderer.maximumPixelDimension))
+    }
+
     func testFilmRendererAppliesImportedEXIFOrientationToPixels() async throws {
         let landscapePixels = try sampleJPEG(size: CGSize(width: 320, height: 180))
         let rotatedSource = try jpegWithEXIFOrientation(landscapePixels, orientation: 6)

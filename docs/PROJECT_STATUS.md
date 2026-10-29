@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Hardened the Night Grain allocation boundary: validate that the Core Image extent is finite, positive, and within the renderer's 2,400-pixel bound (allowing one pixel for rounding) before converting to `Int`; then retain checked pixel/byte multiplication. Added a 3,200×1,800 source regression test proving the Night Grain render path remains capped.
+- Verification: iOS 27.1 simulator suite passed (53 tests, 0 failures, 0 skipped); iOS 26.2 simulator suite passed (53 tests, 0 failures, 0 skipped); generic unsigned iOS device build passed; `git diff --check` passed. Recurring Xcode simulator metadata `invalidDigitCount` diagnostics only. Physical memory behavior remains unmeasured.
+- Changed files: `FramedLocal/FilmRenderer.swift`, `FramedLocalTests/RendererTests.swift`, `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.
+- Exact next smallest step: commit and push this renderer-boundary fix; later profile peak memory and Night Grain latency on iPhone 12.
+
 - Switched guidance debounce, horizon-hint stability, and the analysis rate limiter to monotonic process uptime instead of wall-clock time. System date/time adjustments can no longer stall or prematurely advance these elapsed-time intervals. Added a finite/nondecreasing clock unit check.
 - Verification: iOS 27.1 simulator suite passed (52 tests, 0 failures, 0 skipped); iOS 26.2 simulator suite passed (52 tests, 0 failures, 0 skipped); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Physical cadence and sensor behavior remain unmeasured.
 - Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.
