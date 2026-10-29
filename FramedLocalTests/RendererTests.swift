@@ -169,7 +169,7 @@ final class RendererTests: XCTestCase {
         XCTAssertEqual(rotatedSource, original)
     }
 
-    func testDateStampAddsCanvasSpaceWithoutChangingOrientation() async throws {
+    func testFullBleedDateStampDoesNotAddBorderCanvas() async throws {
         let source = try sampleJPEG(size: CGSize(width: 320, height: 240))
         let withoutDate = try await FrameRenderer.shared.render(source, layout: .fullBleed, dateStamp: false)
         let withDate = try await FrameRenderer.shared.render(source, layout: .fullBleed, dateStamp: true)
@@ -177,7 +177,10 @@ final class RendererTests: XCTestCase {
         let datedSize = try imageSize(withDate)
 
         XCTAssertEqual(plainSize.width, datedSize.width)
-        XCTAssertGreaterThan(datedSize.height, plainSize.height)
+        XCTAssertEqual(plainSize.height, datedSize.height)
+
+        let bordered = try await FrameRenderer.shared.render(source, layout: .whiteBorder, dateStamp: true)
+        XCTAssertGreaterThan(try imageSize(bordered).height, plainSize.height)
     }
 
     func testFrameDateStampIsDeterministicForTheSelectedEditorDate() async throws {
@@ -214,6 +217,19 @@ final class RendererTests: XCTestCase {
 
         XCTAssertEqual(size.width, CGFloat(FrameRenderer.maximumPixelDimension))
         XCTAssertLessThanOrEqual(max(size.width, size.height), CGFloat(FrameRenderer.maximumPixelDimension))
+    }
+
+    func testDigitalFramingCropsAroundNormalizedSubjectWithoutChangingSource() async throws {
+        let source = try sampleJPEG(size: CGSize(width: 800, height: 600), scale: 1)
+        let original = source
+        let output = try await FilmRenderer.shared.render(
+            source, preset: .natural,
+            digitalFraming: DigitalFraming(scale: 2, center: CGPoint(x: 0.25, y: 0.75)))
+        let size = try imageSize(output)
+
+        XCTAssertEqual(size.width, 400, accuracy: 2)
+        XCTAssertEqual(size.height, 300, accuracy: 2)
+        XCTAssertEqual(source, original)
     }
 
     func testNightGrainBoundsNoiseAllocationForLargeSource() async throws {

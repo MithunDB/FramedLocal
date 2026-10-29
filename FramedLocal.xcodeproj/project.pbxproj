@@ -1,58 +1,593 @@
 // !$*UTF8*$!
 {
 	archiveVersion = 1;
-	classes = {};
-	objectVersion = 77;
+	classes = {
+	};
+	objectVersion = 71;
 	objects = {
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		A10000000000000000000001 /* FramedLocal */ = {isa = PBXFileSystemSynchronizedRootGroup; path = FramedLocal; sourceTree = "<group>"; };
-/* End PBXFileSystemSynchronizedRootGroup section */
-/* Begin PBXGroup section */
-		A10000000000000000000002 = {isa = PBXGroup; children = (A10000000000000000000001 /* FramedLocal */, A10000000000000000000020 /* FramedLocalTests */, A10000000000000000000003 /* Products */); sourceTree = "<group>"; };
-		A10000000000000000000020 /* FramedLocalTests */ = {isa = PBXGroup; children = (A10000000000000000000032 /* GuidanceEngineTests.swift */, A10000000000000000000034 /* RendererTests.swift */,); path = FramedLocalTests; sourceTree = "<group>"; };
-		A10000000000000000000003 /* Products */ = {isa = PBXGroup; children = (A10000000000000000000004 /* FramedLocal.app */,); name = Products; sourceTree = "<group>"; };
-/* End PBXGroup section */
+
 /* Begin PBXBuildFile section */
-		A10000000000000000000005 /* FramedLocal.app in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000004 /* FramedLocal.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A10000000000000000000031 /* GuidanceEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000032 /* GuidanceEngineTests.swift */; };
 		A10000000000000000000033 /* RendererTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000034 /* RendererTests.swift */; };
+		F10000000000000000000001 /* FramedLocalCapture.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = F10000000000000000000002 /* FramedLocalCapture.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		F10000000000000000000003 /* FramedLocalCaptureWidget.appex in Embed Widget Extension */ = {isa = PBXBuildFile; fileRef = F10000000000000000000004 /* FramedLocalCaptureWidget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A10000000000000000000028 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000007 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000006;
+			remoteInfo = FramedLocal;
+		};
+		F10000000000000000000005 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000007 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F10000000000000000000006;
+			remoteInfo = FramedLocalCapture;
+		};
+		F10000000000000000000007 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000007 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F10000000000000000000008;
+			remoteInfo = FramedLocalCaptureWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F1000000000000000000000D /* Embed Widget Extension */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F10000000000000000000003 /* FramedLocalCaptureWidget.appex in Embed Widget Extension */,
+			);
+			name = "Embed Widget Extension";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F1000000000000000000002A /* Embed ExtensionKit Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+				F10000000000000000000001 /* FramedLocalCapture.appex in Embed ExtensionKit Extensions */,
+			);
+			name = "Embed ExtensionKit Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		A10000000000000000000004 /* FramedLocal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FramedLocal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000021 /* FramedLocalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FramedLocalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000032 /* GuidanceEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidanceEngineTests.swift; sourceTree = "<group>"; };
 		A10000000000000000000034 /* RendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RendererTests.swift; sourceTree = "<group>"; };
+		F10000000000000000000002 /* FramedLocalCapture.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FramedLocalCapture.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F10000000000000000000004 /* FramedLocalCaptureWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FramedLocalCaptureWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		F10000000000000000000028 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = F10000000000000000000006 /* FramedLocalCapture */;
+		};
+		F10000000000000000000029 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = F10000000000000000000008 /* FramedLocalCaptureWidget */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		A10000000000000000000001 /* FramedLocal */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FramedLocal; sourceTree = "<group>"; };
+		F10000000000000000000009 /* FramedLocalCapture */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (F10000000000000000000028 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = FramedLocalCapture; sourceTree = "<group>"; };
+		F1000000000000000000000A /* FramedLocalCaptureWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (F10000000000000000000029 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = FramedLocalCaptureWidget; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A10000000000000000000012 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000025 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F1000000000000000000000B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F1000000000000000000000C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A10000000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000001 /* FramedLocal */,
+				A10000000000000000000020 /* FramedLocalTests */,
+				A10000000000000000000003 /* Products */,
+				F10000000000000000000009 /* FramedLocalCapture */,
+				F1000000000000000000000A /* FramedLocalCaptureWidget */,
+			);
+			sourceTree = "<group>";
+		};
+		A10000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000004 /* FramedLocal.app */,
+				A10000000000000000000021 /* FramedLocalTests.xctest */,
+				F10000000000000000000002 /* FramedLocalCapture.appex */,
+				F10000000000000000000004 /* FramedLocalCaptureWidget.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000020 /* FramedLocalTests */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000032 /* GuidanceEngineTests.swift */,
+				A10000000000000000000034 /* RendererTests.swift */,
+			);
+			path = FramedLocalTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
 /* Begin PBXNativeTarget section */
-		A10000000000000000000006 /* FramedLocal */ = {isa = PBXNativeTarget; buildConfigurationList = A10000000000000000000010; buildPhases = (A10000000000000000000011 /* Sources */, A10000000000000000000012 /* Frameworks */, A10000000000000000000013 /* Resources */, ); buildRules = (); dependencies = (); fileSystemSynchronizedGroups = (A10000000000000000000001 /* FramedLocal */,); name = FramedLocal; packageProductDependencies = (); productName = FramedLocal; productReference = A10000000000000000000004 /* FramedLocal.app */; productType = "com.apple.product-type.application"; };
-		A10000000000000000000022 /* FramedLocalTests */ = {isa = PBXNativeTarget; buildConfigurationList = A10000000000000000000023; buildPhases = (A10000000000000000000024 /* Test Sources */, A10000000000000000000025 /* Test Frameworks */, A10000000000000000000026 /* Test Resources */,); buildRules = (); dependencies = (A10000000000000000000027 /* Test dependency */,); fileSystemSynchronizedGroups = (A10000000000000000000020 /* FramedLocalTests */,); name = FramedLocalTests; productName = FramedLocalTests; productReference = A10000000000000000000021 /* FramedLocalTests.xctest */; productType = "com.apple.product-type.bundle.unit-test"; };
+		A10000000000000000000006 /* FramedLocal */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000010 /* Build configuration list for PBXNativeTarget "FramedLocal" */;
+			buildPhases = (
+				A10000000000000000000011 /* Sources */,
+				A10000000000000000000012 /* Frameworks */,
+				A10000000000000000000013 /* Resources */,
+				F1000000000000000000000D /* Embed Widget Extension */,
+				F1000000000000000000002A /* Embed ExtensionKit Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F10000000000000000000016 /* PBXTargetDependency */,
+				F10000000000000000000017 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000001 /* FramedLocal */,
+			);
+			name = FramedLocal;
+			packageProductDependencies = (
+			);
+			productName = FramedLocal;
+			productReference = A10000000000000000000004 /* FramedLocal.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A10000000000000000000022 /* FramedLocalTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000023 /* Build configuration list for PBXNativeTarget "FramedLocalTests" */;
+			buildPhases = (
+				A10000000000000000000024 /* Sources */,
+				A10000000000000000000025 /* Frameworks */,
+				A10000000000000000000026 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A10000000000000000000027 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000020 /* FramedLocalTests */,
+			);
+			name = FramedLocalTests;
+			productName = FramedLocalTests;
+			productReference = A10000000000000000000021 /* FramedLocalTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		F10000000000000000000006 /* FramedLocalCapture */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F10000000000000000000010 /* Build configuration list for PBXNativeTarget "FramedLocalCapture" */;
+			buildPhases = (
+				F10000000000000000000011 /* Sources */,
+				F1000000000000000000000B /* Frameworks */,
+				F10000000000000000000012 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F10000000000000000000009 /* FramedLocalCapture */,
+			);
+			name = FramedLocalCapture;
+			productName = FramedLocalCapture;
+			productReference = F10000000000000000000002 /* FramedLocalCapture.appex */;
+			productType = "com.apple.product-type.extensionkit-extension";
+		};
+		F10000000000000000000008 /* FramedLocalCaptureWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F10000000000000000000013 /* Build configuration list for PBXNativeTarget "FramedLocalCaptureWidget" */;
+			buildPhases = (
+				F10000000000000000000014 /* Sources */,
+				F1000000000000000000000C /* Frameworks */,
+				F10000000000000000000015 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F1000000000000000000000A /* FramedLocalCaptureWidget */,
+			);
+			name = FramedLocalCaptureWidget;
+			productName = FramedLocalCaptureWidget;
+			productReference = F10000000000000000000004 /* FramedLocalCaptureWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
+
 /* Begin PBXProject section */
-		A10000000000000000000007 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2710; LastUpgradeCheck = 2710; TargetAttributes = {A10000000000000000000006 = {CreatedOnToolsVersion = 27.1; }; }; }; buildConfigurationList = A10000000000000000000008; compatibilityVersion = "Xcode 16.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base, ); mainGroup = A10000000000000000000002; productRefGroup = A10000000000000000000003 /* Products */; projectDirPath = ""; projectRoot = ""; targets = (A10000000000000000000006 /* FramedLocal */, A10000000000000000000022 /* FramedLocalTests */,); };
-		A10000000000000000000028 /* Container proxy */ = {isa = PBXContainerItemProxy; containerPortal = A10000000000000000000007 /* Project object */; proxyType = 1; remoteGlobalIDString = A10000000000000000000006; remoteInfo = FramedLocal; };
-		A10000000000000000000027 /* Test dependency */ = {isa = PBXTargetDependency; target = A10000000000000000000006 /* FramedLocal */; targetProxy = A10000000000000000000028 /* Container proxy */; };
+		A10000000000000000000007 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2710;
+				LastUpgradeCheck = 2710;
+				TargetAttributes = {
+					A10000000000000000000006 = {
+						CreatedOnToolsVersion = 27.1;
+					};
+				};
+			};
+			buildConfigurationList = A10000000000000000000008 /* Build configuration list for PBXProject "FramedLocal" */;
+			compatibilityVersion = "Xcode 16.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A10000000000000000000002;
+			productRefGroup = A10000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A10000000000000000000006 /* FramedLocal */,
+				A10000000000000000000022 /* FramedLocalTests */,
+				F10000000000000000000006 /* FramedLocalCapture */,
+				F10000000000000000000008 /* FramedLocalCaptureWidget */,
+			);
+		};
 /* End PBXProject section */
-/* Begin PBXBuildPhase section */
-		A10000000000000000000011 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		A10000000000000000000012 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		A10000000000000000000013 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		A10000000000000000000024 /* Test Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000031 /* GuidanceEngineTests.swift in Sources */, A10000000000000000000033 /* RendererTests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
-		A10000000000000000000025 /* Test Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		A10000000000000000000026 /* Test Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-/* End PBXBuildPhase section */
-/* Begin XCConfigurationList section */
-		A10000000000000000000008 /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000014 /* Debug */, A10000000000000000000015 /* Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		A10000000000000000000010 /* Build configuration list for PBXNativeTarget */ = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000016 /* Debug */, A10000000000000000000017 /* Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		A10000000000000000000023 /* Build configuration list for FramedLocalTests */ = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000029 /* Debug tests */, A10000000000000000000030 /* Release tests */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-/* End XCConfigurationList section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A10000000000000000000013 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000026 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F10000000000000000000012 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F10000000000000000000015 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A10000000000000000000011 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000024 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000031 /* GuidanceEngineTests.swift in Sources */,
+				A10000000000000000000033 /* RendererTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F10000000000000000000011 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F10000000000000000000014 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A10000000000000000000027 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000006 /* FramedLocal */;
+			targetProxy = A10000000000000000000028 /* PBXContainerItemProxy */;
+		};
+		F10000000000000000000016 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F10000000000000000000006 /* FramedLocalCapture */;
+			targetProxy = F10000000000000000000005 /* PBXContainerItemProxy */;
+		};
+		F10000000000000000000017 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F10000000000000000000008 /* FramedLocalCaptureWidget */;
+			targetProxy = F10000000000000000000007 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
-		A10000000000000000000014 /* Debug project */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 6.0; }; name = Debug; };
-		A10000000000000000000015 /* Release project */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 6.0; }; name = Release; };
-		A10000000000000000000016 /* Debug target */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; ENABLE_TESTABILITY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_NSCameraUsageDescription = "Framed uses the camera to preview and capture photos."; INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Framed saves captured photos as new items in your Photos library."; INFOPLIST_KEY_CFBundleDisplayName = Framed; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"; INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = local.mithundb.framed; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; TARGETED_DEVICE_FAMILY = 1; }; name = Debug; };
-		A10000000000000000000029 /* Debug tests */ = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = local.mithundb.framed.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = 1; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FramedLocal.app/FramedLocal";}; name = Debug; };
-		A10000000000000000000030 /* Release tests */ = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = local.mithundb.framed.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = 1; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FramedLocal.app/FramedLocal";}; name = Release; };
-		A10000000000000000000017 /* Release target */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_NSCameraUsageDescription = "Framed uses the camera to preview and capture photos."; INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Framed saves captured photos as new items in your Photos library."; INFOPLIST_KEY_CFBundleDisplayName = Framed; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"; INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = local.mithundb.framed; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; TARGETED_DEVICE_FAMILY = 1; }; name = Release; };
+		A10000000000000000000014 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		A10000000000000000000015 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		A10000000000000000000016 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BK7H8FHGLF;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Framed;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Framed uses the camera to preview and capture photos.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Framed saves captured photos as new items in your Photos library.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = local.mithundb.framed;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A10000000000000000000017 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BK7H8FHGLF;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Framed;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Framed uses the camera to preview and capture photos.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Framed saves captured photos as new items in your Photos library.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = local.mithundb.framed;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		A10000000000000000000029 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = local.mithundb.framed.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FramedLocal.app/FramedLocal";
+			};
+			name = Debug;
+		};
+		A10000000000000000000030 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = local.mithundb.framed.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FramedLocal.app/FramedLocal";
+			};
+			name = Release;
+		};
+		F10000000000000000000018 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BK7H8FHGLF;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FramedLocalCapture/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = local.mithundb.framed.capture;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		F10000000000000000000019 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BK7H8FHGLF;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FramedLocalCapture/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = local.mithundb.framed.capture;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		F1000000000000000000001A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BK7H8FHGLF;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FramedLocalCaptureWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = local.mithundb.framed.controls;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		F1000000000000000000001B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BK7H8FHGLF;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FramedLocalCaptureWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = local.mithundb.framed.controls;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A10000000000000000000008 /* Build configuration list for PBXProject "FramedLocal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000014 /* Debug */,
+				A10000000000000000000015 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000000000000000000010 /* Build configuration list for PBXNativeTarget "FramedLocal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000016 /* Debug */,
+				A10000000000000000000017 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000000000000000000023 /* Build configuration list for PBXNativeTarget "FramedLocalTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000029 /* Debug */,
+				A10000000000000000000030 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F10000000000000000000010 /* Build configuration list for PBXNativeTarget "FramedLocalCapture" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F10000000000000000000018 /* Debug */,
+				F10000000000000000000019 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F10000000000000000000013 /* Build configuration list for PBXNativeTarget "FramedLocalCaptureWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F1000000000000000000001A /* Debug */,
+				F1000000000000000000001B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
 	};
 	rootObject = A10000000000000000000007 /* Project object */;
 }

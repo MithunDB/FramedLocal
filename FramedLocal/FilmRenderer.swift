@@ -188,13 +188,16 @@ public actor FilmRenderer {
     private let context = CIContext(options: [.cacheIntermediates: true])
 
     public func render(_ data: Data, preset: FilmPreset, cropAspect: CropAspect = .original,
-                       cropPosition: CropPosition = .center) throws -> Data {
+                       cropPosition: CropPosition = .center,
+                       digitalFraming: DigitalFraming = .identity,
+                       autoEnhance: Bool = false) throws -> Data {
         try Task.checkCancellation()
         guard let source = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
             throw RenderError.invalidImage
         }
         try Task.checkCancellation()
-        let croppedSource = Self.centerCrop(source, aspect: cropAspect.ratio, position: cropPosition)
+        let ratioCroppedSource = Self.centerCrop(source, aspect: cropAspect.ratio, position: cropPosition)
+        let croppedSource = Self.apply(digitalFraming, to: ratioCroppedSource)
         let sourceLongEdge = max(croppedSource.extent.width, croppedSource.extent.height)
         let scale = min(1, CGFloat(FrameRenderer.maximumPixelDimension) / sourceLongEdge)
         let boundedSource = scale < 1
@@ -204,7 +207,8 @@ public actor FilmRenderer {
                                     width: croppedSource.extent.width * scale,
                                     height: croppedSource.extent.height * scale))
             : croppedSource
-        let image = try apply(preset, to: boundedSource)
+        let balancedSource = autoEnhance ? Self.autoEnhance(boundedSource) : boundedSource
+        let image = try apply(preset, to: balancedSource)
         try Task.checkCancellation()
         guard let jpeg = context.jpegRepresentation(of: image, colorSpace: CGColorSpaceCreateDeviceRGB(), options: [:]) else {
             throw RenderError.encodingFailed
@@ -222,6 +226,33 @@ public actor FilmRenderer {
         let crop = CropGeometry.cropRect(in: image.extent, aspect: aspect, position: position)
         let centered = image.cropped(to: crop)
         return centered.transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
+    }
+
+    static func apply(_ framing: DigitalFraming, to image: CIImage) -> CIImage {
+        let extent = image.extent
+        let scale = min(max(framing.scale, 1), 2.4)
+        guard scale > 1.001, extent.width > 0, extent.height > 0 else { return image }
+        let cropWidth = extent.width / scale
+        let cropHeight = extent.height / scale
+        // CIImage uses a bottom-left origin; DigitalFraming is expressed in view coordinates.
+        let centerX = extent.minX + framing.center.x * extent.width
+        let centerY = extent.minY + (1 - framing.center.y) * extent.height
+        let originX = min(max(centerX - cropWidth / 2, extent.minX), extent.maxX - cropWidth)
+        let originY = min(max(centerY - cropHeight / 2, extent.minY), extent.maxY - cropHeight)
+        let crop = CGRect(x: originX, y: originY, width: cropWidth, height: cropHeight)
+        return image.cropped(to: crop)
+            .transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
+    }
+
+    /// Applies Apple's image-content-aware corrections to the new rendered copy.
+    /// The captured/imported source data remains untouched; the option is deliberately
+    /// off by default at this renderer boundary so callers choose when to apply it.
+    static func autoEnhance(_ source: CIImage) -> CIImage {
+        let filters = source.autoAdjustmentFilters(options: [.enhance: true, .redEye: false])
+        return filters.reduce(source) { image, filter in
+            filter.setValue(image, forKey: kCIInputImageKey)
+            return filter.outputImage?.cropped(to: source.extent) ?? image
+        }
     }
 
     private func apply(_ preset: FilmPreset, to source: CIImage) throws -> CIImage {

@@ -4,8 +4,8 @@ This is the living status record for the local-first FramedLocal iOS app.
 
 ## Current State
 
-- Date: 2026-10-28
-- Phase: 7 — native low-latency default preview, demand-only Metal/Core Image live looks and crop, automatic subject tracking, and idle-work gating implemented; simulator tests pass; physical performance acceptance remains
+- Date: 2026-10-29
+- Phase: 9 — camera essentials, dial-style zoom, digital auto-framing, Original border cleanup, and camera launch intent implemented; simulator suite passes; latest signed iPhone 12 build installed/launched; physical feature acceptance remains
 - Branch: `main`, tracking `origin/main` (GitHub `MithunDB/FramedLocal`; repository made public at the user's request on 2026-10-28)
 - Xcode version: 27.1 (Build 27A9275)
 - Swift version: 6.4 (swift-driver 1.168.6)
@@ -14,13 +14,57 @@ This is the living status record for the local-first FramedLocal iOS app.
 - macOS: 27.0.1 (Build 26A434)
 - Development Mac/device details: user target is base M5 MacBook Pro, 16 GB; host hardware not independently verified
 - Signing identity: Xcode automatic signing successfully provisioned and signed `local.mithundb.framed` for the user's Personal Team (`BK7H8FHGLF`)
-- Physical iPhone connected: unavailable at latest check — iPhone 12 `00008101-001C15880128001E`, iOS 27.0
-- Last known-good builds: current simulator test product at `build/DerivedData/Build/Products/Debug-iphonesimulator/FramedLocal.app`; current unsigned generic-device product at `build/DeviceDerivedData/Build/Products/Debug-iphoneos/FramedLocal.app`. The last signed/installed phone build predates this GPU preview change.
+- Physical iPhone connected: iPhone 12 `00008101-001C15880128001E`, iOS 27.0; latest signed build installed and launched, process remained running
+- Last known-good builds: simulator test product at `build/DerivedData/Build/Products/Debug-iphonesimulator/FramedLocal.app`; signed device product at `build/DeviceDerivedData/Build/Products/Debug-iphoneos/FramedLocal.app` (installed/launched 2026-10-29)
 - Status: in-progress
+
+## Active Follow-up — 2026-10-29 (automatic photo improvements and composition guide cleanup)
+
+- User observed that only exposure seemed to adjust automatically and that the center composition frame felt static/disconnected. Confirmed the camera input did not explicitly restore continuous focus/exposure/white-balance after lens changes, and `LiveRecommendedFrameGuide` was a fixed center overlay that did not describe crop bounds or a tracked subject.
+- Camera inputs now explicitly enable continuous autofocus, auto-exposure, and auto-white-balance when each mode is supported. Capture requests retain `.quality` prioritization and now request supported auto red-eye reduction and content-aware distortion correction. Camera-tools sheet explains these auto camera behaviors.
+- Added an on-device Core Image auto-enhancement option, on by default, for the editable/rendered copy after capture/import. It applies Apple's selected tone/contrast/face-aware corrections before the chosen film look; red-eye is left to AVFoundation's capture correction. User can toggle it in the controls sheet, and originals remain unchanged. This is a post-capture render, not a live filter, to avoid adding work to the camera preview path.
+- Removed the fixed centered decorative target frame. The only composition outline is now the Vision subject brackets, which follow the tracked subject and the live crop transform; explicit crop/frame treatments remain separate.
+- Verification: signed generic iOS build passed; iOS 26.2 iPhone 17 Pro simulator suite passed 69/69 (0 failed); latest build installed and launched on the connected iPhone 12; `git diff --check` passed. Xcode emits the known non-fatal simulator metadata `invalidDigitCount(94232)` diagnostic.
+- Changed files: `FramedLocal/ContentView.swift`, `FramedLocal/FilmRenderer.swift`, and this status file. No new tests were added; the existing simulator suite was rerun.
+- Remaining check: the auto-enhance rendering and composition-guide behavior have not been visually evaluated on the physical phone. Auto correction cannot recover clipped detail or remove reflected glare that is absent from the captured data.
+- Exact next smallest step: inspect one capture with Auto improve on/off and verify the subject brackets feel correctly placed while changing zoom/crop on iPhone 12; adjust only from that observed feedback.
+
+## Active Follow-up — 2026-10-29 (rotary zoom dial and clean GitHub project page)
+
+- Replaced the three fixed 0.5×/1×/2× zoom chips with a compact camera-style zoom wheel: the 0.5× and 1× lens shortcuts remain; drag moves the tick ruler under a fixed cyan indicator and smoothly ramps AVFoundation zoom. The readout follows the selected lens; VoiceOver can adjust zoom in 1/12-stop increments. Pinch zoom remains available.
+- Updated the interactive GitHub Pages sample with a draggable, wheel-scrollable, keyboard-accessible zoom dial and zoomed sample preview. Updated the site feature copy and rebuilt README as a clean project landing page with the site link, concise feature list, local/privacy notes, build instructions, and current-status link.
+- Verification: signed generic iOS build passed; simulator suite passed 69/69; website JavaScript syntax check and `git diff --check` passed. The build was installed and FramedLocal relaunched on the connected iPhone 12.
+- Changed files include `FramedLocal/ContentView.swift`, `README.md`, `site/index.html`, `site/styles.css`, `site/app.js`, and this status file, alongside the previously recorded in-progress camera and extension changes.
+- Exact next smallest step: commit/push the reviewed current work, set the GitHub repository description/homepage to match the project site, then confirm GitHub Pages deployment completes. The physical feel of the dial still needs user feedback on the iPhone.
 
 ## Current Objective
 
-Continue the local-first FramedLocal implementation through physical iPhone validation of camera capture, orientation, live look/crop/frame preview, guidance, editing, and Photos export. The user reported severe lag and a crash before the GPU preview change; do not call runtime performance accepted until the current build is installed and checked. Keep this file current so work can resume after context or usage limits.
+Continue the local-first FramedLocal implementation with physical iPhone acceptance of camera capture, zoom/lens/focus/exposure/flash/timer, auto-framing, Lock Screen handoff, orientation, live look/crop/frame preview, guidance, editing, and Photos export. Latest signed app launch survived on iPhone 12; detailed camera behavior has not yet been manually exercised. Keep this file current so work can resume after context or usage limits.
+
+## Active Follow-up — 2026-10-29 (photo essentials, automatic digital framing, and clean Original)
+
+- User approved photo essentials with automatic framing/exposure and manual override. Implemented rear wide/ultra-wide switching where supported, bounded pinch and step zoom with AVFoundation ramps, tap focus/exposure points, bounded exposure compensation, flash off/auto/on, and off/3s/10s capture timer.
+- Added Vision-driven, smoothed digital subject framing. Drag/pinch and step zoom pause automatic framing; an explicit resume control restores it. The saved JPEG gets the same crop transform as the live preview. On iPhone 12 this is a digital crop, not optical panning.
+- Added bounded highlight/shadow exposure compensation while native autofocus, autoexposure and white balance remain enabled by default. Existing Vision analysis suggests a reposition when glare is likely; a single capture cannot guarantee reflected-glare removal.
+- Original crop now defaults to full bleed, no date stamp, and no decorative white border. A subtle temporary composition outline remains a live viewfinder guide and is not baked into exports unless an explicit frame treatment is selected.
+- Repaired `CameraCaptureIntent` to request immediate foreground presentation on iOS 26+ and return a result, retaining the Lock Screen capture extension’s independent viewfinder and file handoff. A temporary URL-based deep-link experiment prompted an extra system confirmation on simulator; that route and its temporary plist/project edits were removed. Control placement and iOS routing still need physical confirmation.
+- Physical launch found a concrete startup crash: `NSInvalidArgumentException: -[AVCaptureDevice setAutoVideoFrameRateEnabled:] Not supported by this device - use -[AVCaptureDeviceFormat isAutoVideoFrameRateSupported]`. Removed the unsupported setter and now select a format-supported 30–60 fps range (or 60-only when available). Latest signed rebuild installed and launched on iPhone 12; app process remained running.
+- Verification: iOS 27.0 simulator suite passed 69/69 (0 failures); signed generic-device build passed; installed and launched on iPhone 12; `git diff --check` passed. Xcode continues to emit non-fatal simulator metadata `invalidDigitCount(94232)` diagnostics.
+- Changed files: `FramedLocal/CameraControls.swift` (new), `FramedLocal/ContentView.swift`, `FramedLocal/CompositionAnalysis.swift`, `FramedLocal/FilmRenderer.swift`, `FramedLocal/FrameRenderer.swift`, three `FramedLocalCameraCaptureIntent.swift` files (app/capture/control targets), `FramedLocalTests/GuidanceEngineTests.swift`, `FramedLocalTests/RendererTests.swift`, and this status file. Existing project/Xcode configuration changes and camera/widget targets were preserved.
+- Remaining blockers: detailed physical checks are still needed for both cameras/lenses, zoom smoothness and limits, focus/exposure, flash/timer, tracking/manual override, saved crop/frame output, Lock Screen control routing/handoff, and Photos export. The connected-device launch check confirms no immediate crash but is not a substitute for those tests.
+- Exact next smallest step: on the iPhone 12, verify the live preview opens and test wide/ultra-wide switching plus zoom and tap focus; then check timer/flash, auto-frame override/resume, and an Original capture has no border. If the camera shortcut does not open FramedLocal, collect the control location and iOS response for its intent-routing adjustment.
+
+## Active Follow-up — 2026-10-28 (60 fps subject lock, minimal camera UI, Lock Screen access)
+
+- User approved implementing the 60 fps preview goal, stable subject outline, compact live UI, and iOS 18+ Lock Screen camera control. Manual iPhone testing remains deferred at the user's request.
+- Implemented: processed `MTKView` targets 60 fps and skips repeat draws without a new camera frame; camera setup chooses a preview format that supports 60 fps at up to 1080p, uses adaptive AVFoundation cadence on iOS 18+, and uses a 30–60 fps range on earlier systems. Live view now shows only the subject brackets (no thirds grid), eases between Vision observations, and holds through a 0.22-second tracking dropout before clearing. Live settings are grouped into a compact “Looks & frame” sheet. Zoom remains an explicit camera adjustment.
+- Lock Screen implementation: added the iOS 18+ `CameraCaptureIntent`, ExtensionKit locked-camera target, and WidgetKit Control Center/Lock Screen control. The capture viewfinder supports front/rear switching and hardware capture events, writes JPEGs into LockedCameraCapture session content, and routes users into FramedLocal to import and edit a new copy. Xcode embeds the capture extension under `.app/Extensions` and the control under `.app/PlugIns`. The app consumes the newest JPEG from session content.
+- Verification: clean iOS Simulator build passed; generic unsigned iOS device build passed; final iOS 27.0 simulator suite passed 64/64 (0 failed, 0 skipped; result at `build/DerivedData/Logs/Test/Test-FramedLocal-2026.10.28_23-24-17--0700.xcresult`); project plist validation and `git diff --check` passed. Xcode emitted non-fatal simulator metadata `invalidDigitCount(94232)` diagnostics. The latest build was installed and launched in the iOS 27.0 simulator; its camera permission prompt is awaiting a response. The Simulator GUI app is absent from this Xcode installation, but `simctl` can install, launch, and capture a simulator screenshot.
+- Errors and fixes during this follow-up: corrected the AVFoundation adaptive-frame-rate property spelling to `isAutoVideoFrameRateEnabled`; decomposed `ContentView.body` after SwiftUI type-check timeouts; excluded explicit extension `Info.plist` files from synchronized resource membership after duplicate-output errors; moved camera session work and JPEG writes into a serial capture pipeline after Swift 6 reported an actor-isolated photo delegate; used `$(EXTENSIONS_FOLDER_PATH)` for ExtensionKit embedding after Xcode warned about the wrong bundle directory. Initial smoother tests failed on exact floating-point rectangle equality and an incorrect short-loss expectation; assertions now use tolerance and model the intended 0.22-second dropout grace, and the full suite passes.
+- CodeRabbit CLI reviewed the uncommitted diff and raised two minor issues: the processed Metal preview was still set to 30 fps, and the camera-switch icon lacked a VoiceOver label. Both were fixed; the simulator suite and generic iOS build passed again.
+- Changed files for this follow-up: `FramedLocal/ContentView.swift`, `FramedLocal/CompositionAnalysis.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `FramedLocal.xcodeproj/project.pbxproj`, new files under `FramedLocalCapture/` and `FramedLocalCaptureWidget/`, and this status file. The pre-existing local signing/team edits in the project file were preserved.
+- Physical-device camera cadence, latency, front/rear capture, Lock Screen control discovery, and capture handoff remain unverified because the iPhone is unavailable for manual testing.
+- Exact next smallest step: when available, respond to the camera permission prompt and confirm the latest app starts on device; then exercise both cameras and the Lock Screen capture-to-editor handoff on the iPhone 12.
 
 ## Latest Update — 2026-10-28
 

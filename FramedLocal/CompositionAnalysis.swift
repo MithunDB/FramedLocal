@@ -163,6 +163,62 @@ struct AnalysisRateLimiter {
     }
 }
 
+enum LivePreviewFrameRatePolicy {
+    static let targetFramesPerSecond = 60.0
+
+    static func supportsTargetFrameRate(_ ranges: [ClosedRange<Double>]) -> Bool {
+        ranges.contains { $0.upperBound >= targetFramesPerSecond }
+    }
+
+    static func fallbackFrameRateRange(for ranges: [ClosedRange<Double>]) -> ClosedRange<Double>? {
+        guard let supported = ranges.first(where: { $0.upperBound >= targetFramesPerSecond }) else { return nil }
+        let slowest = supported.lowerBound <= 30 ? 30.0 : targetFramesPerSecond
+        return slowest...targetFramesPerSecond
+    }
+}
+
+/// Stabilizes the small, asynchronous Vision updates without holding a stale
+/// subject outline indefinitely when tracking genuinely loses the subject.
+struct SubjectRectSmoother {
+    private(set) var currentRect: CGRect?
+    private var lastObservationTime: TimeInterval?
+
+    let interpolation: CGFloat
+    let lossGracePeriod: TimeInterval
+
+    init(interpolation: CGFloat = 0.42, lossGracePeriod: TimeInterval = 0.22) {
+        self.interpolation = min(max(interpolation, 0), 1)
+        self.lossGracePeriod = max(lossGracePeriod, 0)
+    }
+
+    mutating func update(_ observation: CGRect?, at time: TimeInterval) -> CGRect? {
+        guard let observation else {
+            if let lastObservationTime, time - lastObservationTime > lossGracePeriod {
+                currentRect = nil
+                self.lastObservationTime = nil
+            }
+            return currentRect
+        }
+
+        guard let currentRect, let lastObservationTime,
+              time - lastObservationTime <= lossGracePeriod else {
+            currentRect = observation
+            lastObservationTime = time
+            return observation
+        }
+
+        let eased = CGRect(
+            x: currentRect.minX + (observation.minX - currentRect.minX) * interpolation,
+            y: currentRect.minY + (observation.minY - currentRect.minY) * interpolation,
+            width: currentRect.width + (observation.width - currentRect.width) * interpolation,
+            height: currentRect.height + (observation.height - currentRect.height) * interpolation
+        )
+        self.currentRect = eased
+        self.lastObservationTime = time
+        return eased
+    }
+}
+
 enum ExposureGuidance {
     static func message(brightness: Double, clippedHighlightRatio: Double,
                         clippedShadowRatio: Double) -> String? {

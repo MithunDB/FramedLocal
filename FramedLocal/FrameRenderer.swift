@@ -41,7 +41,11 @@ public actor FrameRenderer {
         case .whiteBorder: longSide * 0.055
         case .paperPrint: longSide * 0.08
         }
-        let bottomExtra: CGFloat = layout == .paperPrint ? longSide * 0.12 : (dateStamp ? longSide * 0.065 : 0)
+        let bottomExtra: CGFloat = switch layout {
+        case .fullBleed: 0
+        case .whiteBorder: dateStamp ? longSide * 0.065 : 0
+        case .paperPrint: longSide * 0.12
+        }
         let canvasSize = CGSize(width: width + border * 2, height: height + border + bottomExtra)
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         guard let context = CGContext(data: nil, width: Int(canvasSize.width), height: Int(canvasSize.height),
@@ -65,14 +69,32 @@ public actor FrameRenderer {
             formatter.dateFormat = "yyyy.MM.dd"
             let title = formatter.string(from: stampDate) as CFString
             let font = CTFontCreateWithName("Menlo-Medium" as CFString, longSide * 0.026, nil)
+            let textColor = layout == .fullBleed
+                ? UIColor.white.cgColor
+                : UIColor(red: 0.27, green: 0.20, blue: 0.13, alpha: 0.88).cgColor
             let attributes: [NSAttributedString.Key: Any] = [
                 NSAttributedString.Key(kCTFontAttributeName as String): font,
-                NSAttributedString.Key(kCTForegroundColorAttributeName as String): UIColor(red: 0.27, green: 0.20, blue: 0.13, alpha: 0.88).cgColor
+                NSAttributedString.Key(kCTForegroundColorAttributeName as String): textColor
             ]
             let line = CTLineCreateWithAttributedString(NSAttributedString(string: title as String, attributes: attributes))
             let textBounds = CTLineGetBoundsWithOptions(line, [])
-            context.textPosition = CGPoint(x: canvasSize.width - border - textBounds.width,
-                                           y: max(border * 0.45, (bottomExtra - textBounds.height) / 2))
+            if layout == .fullBleed {
+                let paddingX = longSide * 0.018
+                let paddingY = longSide * 0.012
+                let labelRect = CGRect(x: width - textBounds.width - paddingX * 2 - longSide * 0.025,
+                                       y: longSide * 0.025,
+                                       width: textBounds.width + paddingX * 2,
+                                       height: textBounds.height + paddingY * 2)
+                context.setFillColor(UIColor.black.withAlphaComponent(0.52).cgColor)
+                context.addPath(CGPath(roundedRect: labelRect, cornerWidth: paddingY * 1.5,
+                                       cornerHeight: paddingY * 1.5, transform: nil))
+                context.fillPath()
+                context.textPosition = CGPoint(x: labelRect.minX + paddingX,
+                                               y: labelRect.minY + paddingY)
+            } else {
+                context.textPosition = CGPoint(x: canvasSize.width - border - textBounds.width,
+                                               y: max(border * 0.45, (bottomExtra - textBounds.height) / 2))
+            }
             CTLineDraw(line, context)
         }
 

@@ -7,6 +7,53 @@
   const gridToggle = document.querySelector("#gridToggle");
   const dateToggle = document.querySelector("#dateToggle");
   const shutter = document.querySelector("#shutter");
+  const zoomDial = document.querySelector("#demoZoom");
+  const zoomReadout = document.querySelector("#demoZoomValue");
+  const zoomRuler = document.querySelector("#demoZoomRuler");
+  let sampleZoom = 1;
+  let zoomDragStart = null;
+
+  for (let index = -6; index <= 12; index += 1) {
+    const tick = document.createElement("i");
+    tick.dataset.tick = String(index);
+    if (index % 6 === 0) tick.classList.add("is-major");
+    zoomRuler.append(tick);
+  }
+
+  const updateZoomDial = (requested) => {
+    sampleZoom = Math.min(4, Math.max(0.5, requested));
+    const position = Math.log2(sampleZoom) * 6;
+    zoomReadout.textContent = `${sampleZoom.toFixed(1)}×`;
+    zoomDial.setAttribute("aria-valuenow", sampleZoom.toFixed(1));
+    zoomDial.setAttribute("aria-valuetext", `${sampleZoom.toFixed(1)} times`);
+    device.style.setProperty("--camera-zoom", String(Math.max(0.82, 1 + (sampleZoom - 1) * 0.36)));
+    zoomRuler.querySelectorAll("i").forEach((tick) => {
+      const index = Number(tick.dataset.tick);
+      tick.style.left = `calc(50% + ${(index - position) * 9}px)`;
+      tick.classList.toggle("is-current", Math.abs(index - position) < 0.35);
+    });
+  };
+
+  zoomDial.addEventListener("pointerdown", (event) => {
+    zoomDragStart = { x: event.clientX, value: sampleZoom };
+    zoomDial.setPointerCapture(event.pointerId);
+  });
+  zoomDial.addEventListener("pointermove", (event) => {
+    if (!zoomDragStart) return;
+    updateZoomDial(zoomDragStart.value * 2 ** ((zoomDragStart.x - event.clientX) / 140));
+  });
+  zoomDial.addEventListener("pointerup", () => { zoomDragStart = null; });
+  zoomDial.addEventListener("pointercancel", () => { zoomDragStart = null; });
+  zoomDial.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    updateZoomDial(sampleZoom * 2 ** (-event.deltaY / 480));
+  }, { passive: false });
+  zoomDial.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    updateZoomDial(sampleZoom * 2 ** (event.key === "ArrowRight" ? 1 / 12 : -1 / 12));
+  });
+  updateZoomDial(sampleZoom);
 
   const pressButtons = (selector, selectedElement) => {
     document.querySelectorAll(selector).forEach((button) => {
@@ -104,6 +151,7 @@
     device.dataset.guidance = "on";
     device.dataset.grid = "on";
     device.dataset.date = "on";
+    updateZoomDial(1);
     dateToggle.checked = true;
     guidanceToggle.classList.add("is-selected");
     guidanceToggle.setAttribute("aria-pressed", "true");

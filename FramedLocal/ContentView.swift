@@ -8,6 +8,8 @@ import CoreVideo
 import CoreMotion
 import ImageIO
 import MetalKit
+import AVKit
+import LockedCameraCapture
 
 struct ContentView: View {
     private enum EditorTool: String, CaseIterable {
@@ -21,10 +23,13 @@ struct ContentView: View {
     @State private var selectedPreset: FilmPreset = .natural
     @State private var selectedCropAspect: CropAspect = .original
     @State private var cropPosition = CropPosition.center
-    @State private var selectedFrame: FrameLayout = .whiteBorder
-    @State private var includesDateStamp = true
+    @State private var selectedFrame: FrameLayout = .fullBleed
+    @State private var includesDateStamp = false
+    @State private var autoEnhancePhotos = true
     @State private var showsCompositionGuides = true
     @State private var selectedEditorTool: EditorTool = .look
+    @State private var showsCameraTools = false
+    @State private var showsPhotoPicker = false
     @State private var editorStampDate = Date()
     @State private var previewImage: UIImage?
     @State private var photoPickerItem: PhotosPickerItem?
@@ -33,11 +38,95 @@ struct ContentView: View {
     @State private var importTaskID = UUID()
     @State private var isRendering = false
     @State private var renderTask: Task<Void, Never>?
+    @State private var pinchStartZoom: Double?
+    @State private var dragStartFrameCenter: CGPoint?
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            cameraBackground
+            reviewImageLayer
+            liveGuidanceOverlay
+            cameraChrome
+        }
+        .preferredColorScheme(.dark)
+        .sheet(isPresented: $showsCameraTools) { cameraToolsSheet }
+        .photosPicker(isPresented: $showsPhotoPicker, selection: $photoPickerItem,
+                      matching: .images, photoLibrary: .shared())
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            handleMemoryWarning()
+        }
+        .task {
+            camera.updateLivePreviewSettings(currentLivePreviewSettings)
+            camera.setCompositionGuidanceEnabled(showsCompositionGuides)
+            await camera.requestPermissionAndStart()
+            await camera.startIfAuthorized()
+        }
+        .onChange(of: camera.latestCapture) { _, data in handleLatestCaptureChange(data) }
+        .onChange(of: camera.importedImage) { _, data in handleImportedImageChange(data) }
+        .onChange(of: photoPickerItem) { _, item in if let item { importPhoto(item) } }
+        .onChange(of: selectedPreset) { _, _ in handlePreviewSettingsChange(render: true) }
+        .onChange(of: selectedCropAspect) { _, _ in
+            cropPosition = .center
+            handlePreviewSettingsChange(render: true)
+        }
+        .onChange(of: cropPosition) { _, _ in handlePreviewSettingsChange(render: false) }
+        .onChange(of: camera.isFrontCamera) { _, _ in handlePreviewSettingsChange(render: false) }
+        .onChange(of: showsCompositionGuides) { _, isEnabled in camera.setCompositionGuidanceEnabled(isEnabled) }
+        .onChange(of: selectedFrame) { _, _ in renderCurrentSource() }
+        .onChange(of: includesDateStamp) { _, _ in renderCurrentSource() }
+        .onChange(of: autoEnhancePhotos) { _, _ in renderCurrentSource() }
+        .onChange(of: scenePhase) { _, phase in handleScenePhaseChange(phase) }
+        .onDisappear {
+            importTask?.cancel()
+            importTaskID = UUID()
+            importTask = nil
+            photoPickerItem = nil
+            isImporting = false
+            renderTask?.cancel()
+            renderTask = nil
+            isRendering = false
+            camera.stop()
+        }
+        .onContinueUserActivity(lockedCaptureActivityType) { _ in
+            Task { await importLatestLockScreenCapture() }
+        }
+    }
 
+    private var lockedCaptureActivityType: String {
+        if #available(iOS 18.0, *) { return NSUserActivityTypeLockedCameraCapture }
+        return "local.mithundb.framed.lock-camera"
+    }
+
+    private func importLatestLockScreenCapture() async {
+        guard #available(iOS 18.0, *) else { return }
+        let manager = LockedCameraCaptureManager.shared
+        let fileManager = FileManager.default
+        var candidates: [(file: URL, container: URL, modified: Date)] = []
+        for container in manager.sessionContentURLs {
+            let urls = (try? fileManager.contentsOfDirectory(at: container,
+                                                             includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+            for url in urls where url.pathExtension.lowercased() == "jpg" || url.pathExtension.lowercased() == "jpeg" {
+                let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                candidates.append((url, container, modified))
+            }
+        }
+        guard let newest = candidates.max(by: { $0.modified < $1.modified }) else { return }
+        do {
+            let data = try await PhotoImportWorker.shared.editingCopy(from: newest.file)
+            try? await manager.invalidateSessionContent(at: newest.container)
+            camera.stop()
+            camera.discardCapture()
+            previewImage = nil
+            editorStampDate = Date()
+            camera.captureMessage = "Lock Screen capture · edit a new copy"
+            camera.importedImage = data
+        } catch {
+            camera.captureMessage = "Couldn’t open Lock Screen capture: \(error.localizedDescription)"
+        }
+    }
+
+    private var cameraBackground: some View {
+        Group {
             if camera.authorization == .authorized && camera.latestCapture == nil && camera.importedImage == nil {
                 cameraPreviewContent
             } else if camera.latestCapture != nil || camera.importedImage != nil {
@@ -45,49 +134,126 @@ struct ContentView: View {
             } else {
                 permissionContent
             }
+        }
+        .background(Color.black.ignoresSafeArea())
+    }
 
-            if let previewImage {
-                Image(uiImage: previewImage)
-                    .resizable()
-                    .scaledToFit()
-                    .padding(.horizontal, 28)
-                    .frame(maxHeight: .infinity)
-                    .transition(.opacity)
+    private var cameraToolsSheet: some View {
+        CameraToolsSheet {
+            VStack(spacing: 12) {
+                cameraAdjustmentControls
+                Divider().overlay(.white.opacity(0.12))
+                editorControls
             }
+        }
+            .presentationDetents([.height(330), .medium])
+            .presentationDragIndicator(.visible)
+    }
 
-            if camera.authorization == .authorized && camera.latestCapture == nil && camera.importedImage == nil {
-                VStack {
-                    Spacer()
-                    if showsCompositionGuides {
-                        VStack(spacing: 8) {
-                            Text(camera.guidanceText)
-                                .font(.caption.weight(.medium))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 12)
-                                .padding(.vertical, 9)
-                                .background(.black.opacity(0.45), in: Capsule())
-                            if let zoom = camera.suggestedZoomFactor {
-                                Button {
-                                    camera.applyZoomFactor(zoom)
-                                } label: {
-                                    Label("Zoom to \(zoom, format: .number.precision(.fractionLength(1)))×",
-                                          systemImage: "plus.magnifyingglass")
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 8)
-                                        .background(.cyan.opacity(0.38), in: Capsule())
-                                }
-                                .accessibilityHint("Adjusts camera zoom to make the detected subject larger in the preview")
-                            }
+    private var cameraAdjustmentControls: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 18) {
+                Menu {
+                    ForEach(CameraFlashSetting.allCases) { setting in
+                        Button(setting.rawValue, systemImage: camera.flashSetting == setting ? "checkmark" : "") {
+                            camera.setFlashSetting(setting)
                         }
-                        .padding(.bottom, 165)
+                    }
+                } label: {
+                    Label("Flash · \(camera.flashSetting.rawValue)", systemImage: "bolt.fill")
+                        .font(.caption.weight(.medium))
+                }
+                .disabled(camera.isFrontCamera)
+
+                Menu {
+                    ForEach(CaptureTimerSetting.allCases) { setting in
+                        Button(setting.title, systemImage: camera.timerSetting == setting ? "checkmark" : "") {
+                            camera.setTimerSetting(setting)
+                        }
+                    }
+                } label: {
+                    Label("Timer · \(camera.timerSetting.title)", systemImage: "timer")
+                        .font(.caption.weight(.medium))
+                }
+                Spacer(minLength: 0)
+                Button(camera.isAutoFramingEnabled ? "Auto frame on" : "Resume auto frame",
+                       systemImage: camera.isAutoFramingEnabled ? "viewfinder" : "viewfinder.circle") {
+                    if camera.isAutoFramingEnabled {
+                        camera.pauseAutomaticFraming()
+                    } else {
+                        camera.resumeAutomaticFraming()
                     }
                 }
-                .allowsHitTesting(false)
+                .font(.caption.weight(.medium))
             }
+            HStack(spacing: 9) {
+                Text("EV").font(.caption2.weight(.semibold)).foregroundStyle(.white.opacity(0.72))
+                Slider(value: Binding(get: { camera.exposureBias },
+                                      set: { camera.setManualExposureBias($0) }),
+                       in: camera.exposureBiasRange)
+                    .tint(.cyan)
+                    .accessibilityLabel("Exposure compensation")
+                Text(camera.exposureBias, format: .number.precision(.significantDigits(2)))
+                    .font(.caption2.monospacedDigit())
+                    .frame(width: 34, alignment: .trailing)
+                Button(camera.isAutoExposureEnabled ? "Auto" : "Reset") {
+                    camera.resumeAutomaticExposure()
+                }
+                .font(.caption2.weight(.semibold))
+            }
+            Toggle(isOn: $autoEnhancePhotos) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Auto improve photo")
+                        .font(.caption.weight(.medium))
+                    Text("Tone, contrast, and face-aware corrections after capture")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.62))
+                }
+            }
+            .tint(.cyan)
+            Label("Autofocus · exposure · white balance", systemImage: "camera.aperture")
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.62))
+        }
+        .foregroundStyle(.white)
+    }
 
+    @ViewBuilder
+    private var reviewImageLayer: some View {
+        if let previewImage {
+            Image(uiImage: previewImage)
+                .resizable()
+                .scaledToFit()
+                .padding(.horizontal, 28)
+                .frame(maxHeight: .infinity)
+                .transition(.opacity)
+        }
+    }
+
+    @ViewBuilder
+    private var liveGuidanceOverlay: some View {
+        if camera.authorization == .authorized && camera.latestCapture == nil && camera.importedImage == nil,
+           showsCompositionGuides {
             VStack {
+                Spacer()
+                LiveGuidancePanel(message: camera.guidanceText,
+                                  suggestedZoom: camera.isAutoFramingEnabled ? nil : camera.suggestedZoomFactor,
+                                  onZoom: camera.applyZoomFactor)
+                    .padding(.bottom, 165)
+            }
+        }
+        if let countdown = camera.captureCountdown {
+            Text("\(countdown)")
+                .font(.system(size: 72, weight: .light, design: .rounded).monospacedDigit())
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.75), radius: 8)
+                .transition(.opacity)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private var cameraChrome: some View {
+        VStack {
                 if camera.isSaving {
                     HStack {
                         Text("SAVING TO PHOTOS")
@@ -110,60 +276,23 @@ struct ContentView: View {
                     .padding(.horizontal, 22)
                     .padding(.top, 12)
                 } else {
-                    HStack {
-                        Text("FRAMED")
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .tracking(3)
-                        Spacer()
-                        Button {
-                            camera.toggleCamera()
-                        } label: {
-                            Image(systemName: "arrow.triangle.2.circlepath.camera")
-                                .font(.system(size: 20, weight: .regular))
-                                .frame(width: 44, height: 44)
-                        }
-                        .disabled(camera.authorization != .authorized || !camera.isSessionRunning || camera.isCapturing || isImporting)
-
-                        Button {
-                            camera.setHapticsEnabled(!camera.hapticsEnabled)
-                        } label: {
-                            Image(systemName: "hand.tap")
-                                .font(.system(size: 18, weight: .regular))
-                                .overlay(alignment: .topTrailing) {
-                                    if !camera.hapticsEnabled {
-                                        Image(systemName: "slash.circle.fill")
-                                            .font(.system(size: 11, weight: .semibold))
-                                            .offset(x: 5, y: -4)
-                                    }
-                                }
-                                .frame(width: 44, height: 44)
-                        }
-                        .accessibilityLabel(camera.hapticsEnabled ? "Turn guidance haptics off" : "Turn guidance haptics on")
-                        .accessibilityValue(camera.hapticsEnabled ? "On" : "Off")
-
-                        Button {
-                            showsCompositionGuides.toggle()
-                        } label: {
-                            Image(systemName: showsCompositionGuides ? "viewfinder" : "viewfinder.circle")
-                                .font(.system(size: 18, weight: .regular))
-                                .frame(width: 44, height: 44)
-                        }
-                        .accessibilityLabel(showsCompositionGuides ? "Hide composition guides" : "Show composition guides")
-
-                        PhotosPicker(selection: $photoPickerItem, matching: .images, photoLibrary: .shared()) {
-                            Image(systemName: "photo.on.rectangle")
-                                .font(.system(size: 19, weight: .regular))
-                                .frame(width: 44, height: 44)
-                        }
-                        .accessibilityLabel("Choose a photo to edit")
-                        .disabled(isImporting)
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 22)
-                    .padding(.top, 12)
+                    CameraLiveHeader(
+                        canSwitchCamera: camera.authorization == .authorized && camera.isSessionRunning && !camera.isCapturing && !isImporting,
+                        showsGuidance: showsCompositionGuides,
+                        hapticsEnabled: camera.hapticsEnabled,
+                        onSwitchCamera: camera.toggleCamera,
+                        onToggleGuidance: { showsCompositionGuides.toggle() },
+                        onToggleHaptics: { camera.setHapticsEnabled(!camera.hapticsEnabled) },
+                        onChoosePhoto: { showsPhotoPicker = true }
+                    )
                 }
 
                 Spacer()
+
+                if !camera.isSaving, camera.latestCapture == nil, camera.importedImage == nil, !isImporting {
+                    cameraLensZoomBar
+                        .padding(.bottom, 14)
+                }
 
                 if camera.isSaving {
                     VStack(spacing: 12) {
@@ -176,9 +305,19 @@ struct ContentView: View {
                     .padding(.vertical, 18)
                     .background(.black.opacity(0.48), in: RoundedRectangle(cornerRadius: 18))
                     .padding(.bottom, 36)
-                } else if !isImporting || camera.latestCapture != nil || camera.importedImage != nil {
+                } else if camera.latestCapture != nil || camera.importedImage != nil {
                     editorControls
                         .padding(.bottom, 14)
+                } else if !isImporting {
+                    Button { showsCameraTools = true } label: {
+                        Label("Looks & frame", systemImage: "slider.horizontal.3")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 15)
+                            .padding(.vertical, 10)
+                            .background(.black.opacity(0.38), in: Capsule())
+                    }
+                    .padding(.bottom, 10)
                 }
 
                 if !camera.isSaving, let captureMessage = camera.captureMessage {
@@ -246,106 +385,118 @@ struct ContentView: View {
                 if !camera.isSaving && camera.latestCapture == nil && camera.importedImage == nil {
                 HStack {
                     Spacer()
-                    Button {
-                        if camera.latestCapture == nil && camera.importedImage == nil {
-                            camera.capture()
-                        }
-                    } label: {
-                        Circle()
-                            .stroke(camera.isFramingAligned ? Color.cyan : Color.white.opacity(0.85), lineWidth: 3)
-                            .frame(width: 76, height: 76)
-                            .overlay {
-                                Circle().fill(.white).padding(7)
-                            }
-                    }
-                    .accessibilityLabel("Take photo")
-                    .accessibilityValue(camera.isFramingAligned ? "Composition guide aligned" : "Composition guide active")
-                    .disabled(camera.authorization != .authorized || !camera.isSessionRunning || camera.isCapturing || camera.isSaving || camera.latestCapture != nil || camera.importedImage != nil)
+                    ShutterButton(isAligned: camera.isFramingAligned,
+                                  isEnabled: camera.authorization == .authorized && camera.isSessionRunning
+                                    && !camera.isCapturing && !camera.isSaving
+                                    && camera.latestCapture == nil && camera.importedImage == nil,
+                                  action: camera.capture)
                     Spacer()
                 }
                 .padding(.bottom, 28)
                 }
-            }
         }
-        .preferredColorScheme(.dark)
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
-            handleMemoryWarning()
-        }
-        .task {
-            camera.updateLivePreviewSettings(currentLivePreviewSettings)
-            camera.setCompositionGuidanceEnabled(showsCompositionGuides)
-            await camera.requestPermissionAndStart()
-            await camera.startIfAuthorized()
-        }
-        .onChange(of: camera.latestCapture) { _, data in
-            guard let data else {
-                renderTask?.cancel()
-                isRendering = false
-                previewImage = nil
-                return
-            }
-            camera.stop()
-            editorStampDate = Date()
-            cropPosition = .center
-            renderTask?.cancel()
-            renderTask = renderPreview(data)
-        }
-        .onChange(of: camera.importedImage) { _, data in
-            guard let data else { return }
-            camera.stop()
-            editorStampDate = Date()
-            cropPosition = .center
-            renderTask?.cancel()
-            renderTask = renderPreview(data)
-        }
-        .onChange(of: photoPickerItem) { _, item in
-            guard let item else { return }
-            importPhoto(item)
-        }
-        .onChange(of: selectedPreset) { _, _ in
-            camera.updateLivePreviewSettings(currentLivePreviewSettings)
-            if let data = camera.latestCapture ?? camera.importedImage { renderTask?.cancel(); renderTask = renderPreview(data) }
-        }
-        .onChange(of: selectedCropAspect) { _, _ in
-            cropPosition = .center
-            camera.updateLivePreviewSettings(currentLivePreviewSettings)
-            if let data = camera.latestCapture ?? camera.importedImage { renderTask?.cancel(); renderTask = renderPreview(data) }
-        }
-        .onChange(of: cropPosition) { _, _ in
-            camera.updateLivePreviewSettings(currentLivePreviewSettings)
-        }
-        .onChange(of: camera.isFrontCamera) { _, _ in
-            camera.updateLivePreviewSettings(currentLivePreviewSettings)
-        }
-        .onChange(of: showsCompositionGuides) { _, isEnabled in
-            camera.setCompositionGuidanceEnabled(isEnabled)
-        }
-        .onChange(of: selectedFrame) { _, _ in
-            if let data = camera.latestCapture ?? camera.importedImage { renderTask?.cancel(); renderTask = renderPreview(data) }
-        }
-        .onChange(of: includesDateStamp) { _, _ in
-            if let data = camera.latestCapture ?? camera.importedImage { renderTask?.cancel(); renderTask = renderPreview(data) }
-        }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                Task {
-                    await camera.requestPermissionAndStart()
-                    await camera.startIfAuthorized()
+    }
+
+    private var cameraLensZoomBar: some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 7) {
+                if !camera.isFrontCamera {
+                    zoomChoice("0.5×", action: { camera.selectRearLens(.ultraWide) },
+                               selected: camera.selectedRearLens == .ultraWide && abs(camera.currentZoomFactor - 1) < 0.04)
                 }
-            } else if phase == .background {
-                camera.stop()
+                zoomChoice("1×", action: { camera.selectRearLens(camera.isFrontCamera ? nil : .wide, zoom: 1) },
+                           selected: (camera.isFrontCamera || camera.selectedRearLens == .wide) && abs(camera.currentZoomFactor - 1) < 0.04)
+                Spacer(minLength: 0)
+                Text("Drag to zoom")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.58))
+            }
+            CameraZoomDial(value: displayedZoomFactor, range: displayedZoomRange) { value in
+                let deviceFactor = !camera.isFrontCamera && camera.selectedRearLens == .ultraWide
+                    ? value * 2 : value
+                camera.applyZoomFactor(deviceFactor)
             }
         }
-        .onDisappear {
-            importTask?.cancel()
-            importTaskID = UUID()
-            importTask = nil
-            photoPickerItem = nil
-            isImporting = false
+        .padding(.horizontal, 13)
+        .padding(.vertical, 9)
+        .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 17))
+        .frame(maxWidth: 290)
+    }
+
+    private var displayedZoomFactor: Double {
+        if !camera.isFrontCamera && camera.selectedRearLens == .ultraWide {
+            return camera.currentZoomFactor * 0.5
+        }
+        return camera.currentZoomFactor
+    }
+
+    private var displayedZoomRange: ClosedRange<Double> {
+        if !camera.isFrontCamera && camera.selectedRearLens == .ultraWide {
+            return 0.5...max(0.5, camera.maximumZoomFactor * 0.5)
+        }
+        return 1...max(1, camera.maximumZoomFactor)
+    }
+
+    private func zoomChoice(_ title: String, action: @escaping () -> Void, selected: Bool) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption2.weight(.semibold).monospacedDigit())
+                .foregroundStyle(selected ? .black : .white)
+                .frame(minWidth: 38, minHeight: 30)
+                .background(selected ? Color.cyan : .clear, in: Circle())
+        }
+        .accessibilityLabel("Zoom \(title)")
+    }
+
+    private var livePinchGesture: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                if pinchStartZoom == nil { pinchStartZoom = camera.currentZoomFactor }
+                guard let pinchStartZoom else { return }
+                camera.applyZoomFactor(pinchStartZoom * value)
+            }
+            .onEnded { _ in pinchStartZoom = nil }
+    }
+
+    private func handleLatestCaptureChange(_ data: Data?) {
+        guard let data else {
             renderTask?.cancel()
-            renderTask = nil
             isRendering = false
+            previewImage = nil
+            return
+        }
+        camera.stop()
+        editorStampDate = Date()
+        cropPosition = .center
+        renderTask?.cancel()
+        renderTask = renderPreview(data)
+    }
+
+    private func handleImportedImageChange(_ data: Data?) {
+        guard let data else { return }
+        camera.stop()
+        editorStampDate = Date()
+        cropPosition = .center
+        renderTask?.cancel()
+        renderTask = renderPreview(data)
+    }
+
+    private func handlePreviewSettingsChange(render: Bool) {
+        camera.updateLivePreviewSettings(currentLivePreviewSettings)
+        if render { renderCurrentSource() }
+    }
+
+    private func handleScenePhaseChange(_ phase: ScenePhase) {
+        switch phase {
+        case .active:
+            Task {
+                await camera.requestPermissionAndStart()
+                await camera.startIfAuthorized()
+            }
+        case .background:
             camera.stop()
+        default:
+            break
         }
     }
 
@@ -520,49 +671,75 @@ struct ContentView: View {
     }
 
     private var cameraPreviewContent: some View {
-        ZStack {
-            CameraPreview(session: camera.session, rotationAngle: camera.previewRotationAngle,
-                          isMirrored: camera.isFrontCamera,
-                          isVisible: !currentLivePreviewSettings.requiresProcessedPreview) { capturePoint in
-                camera.selectSubject(atCaptureDevicePoint: capturePoint)
-            }
-            if currentLivePreviewSettings.requiresProcessedPreview {
-                MetalLivePreview(mailbox: camera.livePreviewMailbox, isActive: camera.isSessionRunning)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-            }
-
-            if selectedCropAspect == .original {
-                if showsCompositionGuides {
-                    LiveCompositionOverlay(subjectRect: camera.trackedSubjectRect,
-                                           targetThird: camera.compositionTargetThird,
-                                           isTracking: camera.isSubjectTracking,
-                                           isAligned: camera.isFramingAligned,
-                                           isMirrored: camera.isFrontCamera)
-                        .ignoresSafeArea()
+        GeometryReader { geometry in
+            let framing = camera.digitalFraming
+            ZStack {
+                CameraPreview(session: camera.session, rotationAngle: camera.previewRotationAngle,
+                              isMirrored: camera.isFrontCamera,
+                              isVisible: !currentLivePreviewSettings.requiresProcessedPreview) { capturePoint in
+                    camera.selectSubject(atCaptureDevicePoint: capturePoint)
                 }
-                LiveFrameTreatment(layout: selectedFrame, dateStamp: includesDateStamp, date: editorStampDate)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-            } else {
-                GeometryReader { geometry in
-                    let previewRect = fittedPreviewRect(in: geometry.size,
-                                                        aspect: selectedCropAspect.ratio ?? 1)
+                if currentLivePreviewSettings.requiresProcessedPreview {
+                    MetalLivePreview(mailbox: camera.livePreviewMailbox, isActive: camera.isSessionRunning)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                }
+
+                if selectedCropAspect == .original {
                     if showsCompositionGuides {
                         LiveCompositionOverlay(subjectRect: camera.trackedSubjectRect,
-                                               targetThird: camera.compositionTargetThird,
                                                isTracking: camera.isSubjectTracking,
                                                isAligned: camera.isFramingAligned,
                                                isMirrored: camera.isFrontCamera)
-                            .frame(width: previewRect.width, height: previewRect.height)
-                            .position(x: previewRect.midX, y: previewRect.midY)
+                            .ignoresSafeArea()
+                            .allowsHitTesting(false)
                     }
                     LiveFrameTreatment(layout: selectedFrame, dateStamp: includesDateStamp, date: editorStampDate)
-                        .frame(width: previewRect.width, height: previewRect.height)
-                        .position(x: previewRect.midX, y: previewRect.midY)
+                        .ignoresSafeArea()
                         .allowsHitTesting(false)
+                } else {
+                    GeometryReader { previewGeometry in
+                        let previewRect = fittedPreviewRect(in: previewGeometry.size,
+                                                            aspect: selectedCropAspect.ratio ?? 1)
+                        if showsCompositionGuides {
+                            LiveCompositionOverlay(subjectRect: camera.trackedSubjectRect,
+                                                   isTracking: camera.isSubjectTracking,
+                                                   isAligned: camera.isFramingAligned,
+                                                   isMirrored: camera.isFrontCamera)
+                                .frame(width: previewRect.width, height: previewRect.height)
+                                .position(x: previewRect.midX, y: previewRect.midY)
+                                .allowsHitTesting(false)
+                        }
+                        LiveFrameTreatment(layout: selectedFrame, dateStamp: includesDateStamp, date: editorStampDate)
+                            .frame(width: previewRect.width, height: previewRect.height)
+                            .position(x: previewRect.midX, y: previewRect.midY)
+                            .allowsHitTesting(false)
+                    }
                 }
             }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .scaleEffect(framing.scale)
+            .offset(x: (0.5 - framing.center.x) * geometry.size.width * framing.scale,
+                    y: (0.5 - framing.center.y) * geometry.size.height * framing.scale)
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipped()
+            .animation(.easeOut(duration: 0.28), value: framing)
+            .simultaneousGesture(livePinchGesture)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 14)
+                    .onChanged { value in
+                        if dragStartFrameCenter == nil {
+                            dragStartFrameCenter = camera.digitalFraming.center
+                            camera.pauseAutomaticFraming()
+                        }
+                        if let dragStartFrameCenter {
+                            camera.panManualFrame(translation: value.translation,
+                                                  viewportSize: geometry.size,
+                                                  startingCenter: dragStartFrameCenter)
+                        }
+                    }
+                    .onEnded { _ in dragStartFrameCenter = nil }
+            )
         }
         .background(Color.black)
         .ignoresSafeArea()
@@ -622,6 +799,8 @@ struct ContentView: View {
         let cropAspect = selectedCropAspect
         let cropPosition = self.cropPosition
         let frame = selectedFrame
+        let framing = camera.capturedDigitalFraming
+        let autoEnhance = autoEnhancePhotos
         let dateStamp = includesDateStamp
         let stampDate = editorStampDate
         let sourceID = camera.latestCapture.map { _ in "capture" } ?? "import"
@@ -638,7 +817,9 @@ struct ContentView: View {
             do {
                 let graded = try await FilmRenderer.shared.render(data, preset: preset,
                                                                   cropAspect: cropAspect,
-                                                                  cropPosition: cropPosition)
+                                                                  cropPosition: cropPosition,
+                                                                  digitalFraming: sourceID == "capture" ? framing : .identity,
+                                                                  autoEnhance: autoEnhance)
                 try Task.checkCancellation()
                 let framed = try await FrameRenderer.shared.render(graded, layout: frame,
                                                                    dateStamp: dateStamp, stampDate: stampDate)
@@ -684,6 +865,114 @@ struct ContentView: View {
     }
 }
 
+private struct CameraLiveHeader: View {
+    let canSwitchCamera: Bool
+    let showsGuidance: Bool
+    let hapticsEnabled: Bool
+    let onSwitchCamera: () -> Void
+    let onToggleGuidance: () -> Void
+    let onToggleHaptics: () -> Void
+    let onChoosePhoto: () -> Void
+
+    var body: some View {
+        HStack {
+            Text("FRAMED")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .tracking(3)
+            Spacer()
+            Button(action: onSwitchCamera) {
+                Image(systemName: "arrow.triangle.2.circlepath.camera")
+                    .font(.system(size: 20, weight: .regular))
+                    .frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("Switch camera")
+            .disabled(!canSwitchCamera)
+            Menu {
+                Button(showsGuidance ? "Hide guidance" : "Show guidance", systemImage: "viewfinder",
+                       action: onToggleGuidance)
+                Button(hapticsEnabled ? "Turn haptics off" : "Turn haptics on", systemImage: "hand.tap",
+                       action: onToggleHaptics)
+                Button("Choose photo to edit", systemImage: "photo.on.rectangle", action: onChoosePhoto)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 19, weight: .semibold))
+                    .frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("Camera options")
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 22)
+        .padding(.top, 12)
+    }
+}
+
+private struct CameraToolsSheet<Controls: View>: View {
+    @Environment(\.dismiss) private var dismiss
+    @ViewBuilder let controls: () -> Controls
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack {
+                Text("Camera tools").font(.headline)
+                Spacer()
+                Button("Done") { dismiss() }.font(.subheadline.weight(.semibold))
+            }
+            controls().padding(.bottom, 20)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 22)
+        .background(Color(red: 0.055, green: 0.10, blue: 0.14))
+        .preferredColorScheme(.dark)
+    }
+}
+
+private struct ShutterButton: View {
+    let isAligned: Bool
+    let isEnabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Circle()
+                .stroke(isAligned ? Color.cyan : Color.white.opacity(0.85), lineWidth: 3)
+                .frame(width: 76, height: 76)
+                .overlay { Circle().fill(.white).padding(7) }
+        }
+        .accessibilityLabel("Take photo")
+        .accessibilityValue(isAligned ? "Composition guide aligned" : "Composition guide active")
+        .disabled(!isEnabled)
+    }
+}
+
+private struct LiveGuidancePanel: View {
+    let message: String
+    let suggestedZoom: Double?
+    let onZoom: (Double) -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(message)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(.black.opacity(0.45), in: Capsule())
+            if let zoom = suggestedZoom {
+                Button { onZoom(zoom) } label: {
+                    Label("Zoom to \(zoom, format: .number.precision(.fractionLength(1)))×",
+                          systemImage: "plus.magnifyingglass")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.cyan.opacity(0.38), in: Capsule())
+                }
+                .accessibilityHint("Adjusts camera zoom to make the detected subject larger in the preview")
+            }
+        }
+    }
+}
+
 final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     enum Authorization {
         case unknown, authorized, denied
@@ -724,6 +1013,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor @Published
     var latestCapture: Data?
     @MainActor @Published
+    private(set) var capturedDigitalFraming: DigitalFraming = .identity
+    @MainActor @Published
     var isSaving = false
     @MainActor @Published
     var renderedCapture: Data?
@@ -736,12 +1027,22 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor @Published
     var guidanceText = "Searching for a subject"
     @MainActor @Published private(set) var trackedSubjectRect: CGRect?
-    @MainActor @Published private(set) var compositionTargetThird: CGPoint?
     @MainActor @Published private(set) var isSubjectTracking = false
     @MainActor @Published private(set) var isFramingAligned = false
     @MainActor @Published private(set) var suggestedZoomFactor: Double?
     @MainActor @Published private(set) var currentZoomFactor = 1.0
-    @MainActor private var maximumZoomFactor = 3.0
+    @MainActor @Published private(set) var maximumZoomFactor = 5.0
+    @MainActor @Published private(set) var selectedRearLens: RearCameraLens = .wide
+    @MainActor @Published private(set) var flashSetting: CameraFlashSetting = .automatic
+    @MainActor @Published private(set) var timerSetting: CaptureTimerSetting = .off
+    @MainActor @Published private(set) var exposureBias = 0.0
+    @MainActor @Published private(set) var exposureBiasRange: ClosedRange<Double> = -2...2
+    @MainActor @Published private(set) var isAutoExposureEnabled = true
+    @MainActor @Published private(set) var isAutoFramingEnabled = true
+    @MainActor @Published private(set) var digitalFraming: DigitalFraming = .identity
+    @MainActor @Published private(set) var captureCountdown: Int?
+    @MainActor private var timerTask: Task<Void, Never>?
+    @MainActor private var subjectRectSmoother = SubjectRectSmoother()
     @MainActor @Published
     private(set) var hapticsEnabled = UserDefaults.standard.object(forKey: "FramedLocal.guidanceHapticsEnabled") as? Bool ?? true
     @MainActor @Published
@@ -790,16 +1091,17 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     func setCompositionGuidanceEnabled(_ enabled: Bool) {
         guard compositionGuidanceEnabled != enabled else { return }
         compositionGuidanceEnabled = enabled
-        analysisDelegate.updateGuidanceEnabled(enabled, on: analysisQueue)
+        analysisDelegate.updateGuidanceEnabled(enabled || isAutoFramingEnabled, on: analysisQueue)
         updateVideoFrameDeliveryPolicy()
         if enabled {
             guidanceText = "Searching for a subject"
             if isSessionRunning, shouldRunSession { startMotionUpdates() }
-        } else {
+        } else if !isAutoFramingEnabled {
             stopMotionUpdates()
             clearSubjectSelection()
+            subjectRectSmoother = SubjectRectSmoother()
             trackedSubjectRect = nil
-            compositionTargetThird = nil
+            digitalFraming = .identity
             suggestedZoomFactor = nil
             isSubjectTracking = false
             isFramingAligned = false
@@ -809,14 +1111,16 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
 
     @MainActor
     func applyZoomFactor(_ factor: Double) {
-        let requestedFactor = min(max(factor, 1), maximumZoomFactor)
+        pauseAutomaticFraming()
+        let requestedFactor = CameraControlPolicy.clampedZoom(factor, maximum: maximumZoomFactor)
         sessionQueue.async { [weak self] in
             guard let self, let device = self.activeInput?.device else { return }
             do {
                 try device.lockForConfiguration()
                 defer { device.unlockForConfiguration() }
-                let appliedFactor = min(requestedFactor, Double(device.activeFormat.videoMaxZoomFactor))
-                device.videoZoomFactor = CGFloat(appliedFactor)
+                let appliedFactor = CameraControlPolicy.clampedZoom(
+                    requestedFactor, maximum: Double(device.activeFormat.videoMaxZoomFactor))
+                device.ramp(toVideoZoomFactor: CGFloat(appliedFactor), withRate: 6)
                 Task { @MainActor [weak self] in
                     self?.currentZoomFactor = appliedFactor
                     self?.suggestedZoomFactor = nil
@@ -827,6 +1131,97 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                 }
             }
         }
+    }
+
+    @MainActor
+    func selectRearLens(_ lens: RearCameraLens?, zoom: Double = 1) {
+        if let lens, !isFrontCamera, lens != selectedRearLens {
+            selectedRearLens = lens
+            pauseAutomaticFraming()
+            if shouldRunSession { switchCameraInput(position: .back, rearLens: lens, startingZoom: zoom) }
+        } else {
+            applyZoomFactor(zoom)
+        }
+    }
+
+    @MainActor
+    func resumeAutomaticFraming() {
+        isAutoFramingEnabled = true
+        analysisDelegate.updateGuidanceEnabled(true, on: analysisQueue)
+        updateVideoFrameDeliveryPolicy()
+        updateDigitalFraming()
+    }
+
+    @MainActor
+    func pauseAutomaticFraming() {
+        isAutoFramingEnabled = false
+        analysisDelegate.updateGuidanceEnabled(compositionGuidanceEnabled, on: analysisQueue)
+        updateVideoFrameDeliveryPolicy()
+    }
+
+    @MainActor
+    func panManualFrame(translation: CGSize, viewportSize: CGSize, startingCenter: CGPoint) {
+        isAutoFramingEnabled = false
+        let scale = max(digitalFraming.scale, 1)
+        guard viewportSize.width > 0, viewportSize.height > 0 else { return }
+        digitalFraming = DigitalFraming(scale: scale, center: CGPoint(
+            x: min(max(startingCenter.x - translation.width / viewportSize.width / scale, 0), 1),
+            y: min(max(startingCenter.y - translation.height / viewportSize.height / scale, 0), 1)
+        ))
+    }
+
+    @MainActor
+    func setFlashSetting(_ setting: CameraFlashSetting) { flashSetting = setting }
+
+    @MainActor
+    func setTimerSetting(_ setting: CaptureTimerSetting) { timerSetting = setting }
+
+    @MainActor
+    func setManualExposureBias(_ bias: Double) {
+        isAutoExposureEnabled = false
+        configureExposureBias(bias)
+    }
+
+    @MainActor
+    func resumeAutomaticExposure() {
+        isAutoExposureEnabled = true
+        configureExposureBias(0)
+    }
+
+    @MainActor
+    private func configureExposureBias(_ bias: Double) {
+        let clamped = min(max(bias, exposureBiasRange.lowerBound), exposureBiasRange.upperBound)
+        sessionQueue.async { [weak self] in
+            guard let self, let device = self.activeInput?.device else { return }
+            do {
+                try device.lockForConfiguration()
+                defer { device.unlockForConfiguration() }
+                device.setExposureTargetBias(Float(clamped))
+                Task { @MainActor [weak self] in self?.exposureBias = clamped }
+            } catch {
+                Task { @MainActor [weak self] in self?.captureMessage = "Exposure adjustment is temporarily unavailable." }
+            }
+        }
+    }
+
+    @MainActor
+    private func updateDigitalFraming() {
+        digitalFraming = CameraControlPolicy.framing(for: trackedSubjectRect,
+                                                    isMirrored: isFrontCamera,
+                                                    enabled: isAutoFramingEnabled)
+    }
+
+    @MainActor
+    private func adjustAutomaticExposure(metrics: CompositionMetrics) {
+        guard isAutoExposureEnabled else { return }
+        let target = CameraControlPolicy.exposureBias(current: exposureBias,
+                                                      brightness: metrics.brightness,
+                                                      clippedHighlights: metrics.clippedHighlightRatio,
+                                                      clippedShadows: metrics.clippedShadowRatio,
+                                                      minimum: exposureBiasRange.lowerBound,
+                                                      maximum: exposureBiasRange.upperBound)
+        guard abs(target - exposureBias) >= 0.2 else { return }
+        configureExposureBias(target)
     }
 
     @MainActor
@@ -876,8 +1271,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         analysisDelegate.pause(on: analysisQueue)
         livePreviewMailbox.clearFrame()
         guidanceText = "Searching for a subject"
+        subjectRectSmoother = SubjectRectSmoother()
         trackedSubjectRect = nil
-        compositionTargetThird = nil
         isSubjectTracking = false
         isFramingAligned = false
         suggestedZoomFactor = nil
@@ -888,7 +1283,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     private func updateVideoFrameDeliveryPolicy() {
         let shouldDeliverFrames = CameraFrameDeliveryPolicy.shouldDeliverFrames(
             sessionIsRunning: shouldRunSession,
-            guidanceEnabled: compositionGuidanceEnabled,
+            guidanceEnabled: compositionGuidanceEnabled || isAutoFramingEnabled,
             previewRequiresProcessing: livePreviewSettings.requiresProcessedPreview
         )
         sessionQueue.async { [weak self] in
@@ -996,12 +1391,14 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         let visionOrientation = self.visionOrientation
         pauseAnalysis()
         let position: AVCaptureDevice.Position = isFrontCamera ? .front : .back
+        let rearLens = selectedRearLens
         let angle = rotationAngle(for: deviceOrientation)
 
         sessionQueue.async { [weak self] in
             guard let self else { return }
             do {
-                try self.configureSession(position: position, rotationAngle: angle)
+                try self.configureSession(position: position, rearLens: rearLens,
+                                          rotationAngle: angle, startingZoom: 1)
                 guard self.sessionGeneration.isCurrent(generation) else { return }
                 self.session.startRunning()
                 guard self.sessionGeneration.isCurrent(generation) else {
@@ -1048,6 +1445,9 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         _ = sessionGeneration.advance()
         removeSessionObservers()
         pauseAnalysis()
+        timerTask?.cancel()
+        timerTask = nil
+        captureCountdown = nil
         clearSubjectSelection()
         stopMotionUpdates()
         shouldRunSession = false
@@ -1077,13 +1477,20 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
     @MainActor
     func toggleCamera() {
         isFrontCamera.toggle()
+        pauseAutomaticFraming()
         let position: AVCaptureDevice.Position = isFrontCamera ? .front : .back
-        let angle = rotationAngle(for: deviceOrientation)
         guard shouldRunSession else {
             isFrontCamera.toggle()
             captureMessage = "Start the camera before switching lenses."
             return
         }
+        switchCameraInput(position: position, rearLens: selectedRearLens, startingZoom: 1)
+    }
+
+    @MainActor
+    private func switchCameraInput(position: AVCaptureDevice.Position, rearLens: RearCameraLens,
+                                   startingZoom: Double) {
+        let angle = rotationAngle(for: deviceOrientation)
         isSessionRunning = false
         isConfiguring = true
         cameraStartupFailed = false
@@ -1095,7 +1502,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             guard let self else { return }
             guard self.sessionGeneration.isCurrent(generation) else { return }
             do {
-                try self.configureSession(position: position, rotationAngle: angle)
+                try self.configureSession(position: position, rearLens: rearLens,
+                                          rotationAngle: angle, startingZoom: startingZoom)
                 guard self.sessionGeneration.isCurrent(generation) else { return }
                 guard CaptureSessionStartOutcome.resolve(isRunning: self.session.isRunning) == .started else {
                     Task { @MainActor in
@@ -1144,13 +1552,46 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         }
         isCapturing = true
         captureMessage = nil
+        let delay = timerSetting.rawValue
+        guard delay > 0 else {
+            performCapture()
+            return
+        }
+        timerTask?.cancel()
+        timerTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for remaining in stride(from: delay, through: 1, by: -1) {
+                guard !Task.isCancelled else { return }
+                self.captureCountdown = remaining
+                try? await Task.sleep(for: .seconds(1))
+            }
+            guard !Task.isCancelled else { return }
+            self.captureCountdown = nil
+            self.timerTask = nil
+            self.performCapture()
+        }
+    }
+
+    @MainActor
+    private func performCapture() {
         let angle = rotationAngle(for: deviceOrientation)
         let mirrored = isFrontCamera
+        let framing = digitalFraming
+        let flashSetting = flashSetting
         sessionQueue.async { [weak self] in
             guard let self else { return }
             let delegate = PhotoCaptureDelegate()
             let settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
             settings.photoQualityPrioritization = .quality
+            settings.isAutoRedEyeReductionEnabled = self.photoOutput.isAutoRedEyeReductionSupported
+            if self.photoOutput.isContentAwareDistortionCorrectionSupported {
+                settings.isAutoContentAwareDistortionCorrectionEnabled = true
+            }
+            if self.photoOutput.supportedFlashModes.contains(flashSetting.captureMode) {
+                settings.flashMode = flashSetting.captureMode
+            } else {
+                settings.flashMode = .off
+            }
             let captureID = settings.uniqueID
             self.inProgressPhotoCaptures[captureID] = delegate
             delegate.didCapture = { [weak self] result in
@@ -1163,6 +1604,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                     switch result {
                     case .success(let data):
                         self.latestCapture = data
+                        self.capturedDigitalFraming = framing
                         self.captureMessage = "Photo captured — tap Save to Photos"
                     case .failure(let error):
                         self.captureMessage = error.localizedDescription
@@ -1212,7 +1654,10 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
 
     @MainActor
     func selectSubject(atCaptureDevicePoint point: CGPoint) {
-        guard isSessionRunning, compositionGuidanceEnabled else { return }
+        guard isSessionRunning else { return }
+        isAutoExposureEnabled = false
+        focusAndExpose(at: point)
+        guard compositionGuidanceEnabled else { return }
         let selectionToken = selectionGeneration.advance()
         let normalized = VisionTapPointMapper.visionPoint(fromCaptureDevicePoint: point,
                                                           orientation: visionOrientation)
@@ -1222,6 +1667,31 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             Task { @MainActor [weak self] in
                 guard let self, self.selectionGeneration.isCurrent(selectionToken) else { return }
                 self.captureMessage = SubjectSelectionFeedback.message(didSelectSubject: didSelect)
+            }
+        }
+    }
+
+    @MainActor
+    private func focusAndExpose(at point: CGPoint) {
+        sessionQueue.async { [weak self] in
+            guard let self, let device = self.activeInput?.device else { return }
+            do {
+                try device.lockForConfiguration()
+                defer { device.unlockForConfiguration() }
+                if device.isFocusPointOfInterestSupported {
+                    device.focusPointOfInterest = point
+                    if device.isFocusModeSupported(.continuousAutoFocus) {
+                        device.focusMode = .continuousAutoFocus
+                    }
+                }
+                if device.isExposurePointOfInterestSupported {
+                    device.exposurePointOfInterest = point
+                    if device.isExposureModeSupported(.continuousAutoExposure) {
+                        device.exposureMode = .continuousAutoExposure
+                    }
+                }
+            } catch {
+                Task { @MainActor [weak self] in self?.captureMessage = "Tap focus is temporarily unavailable." }
             }
         }
     }
@@ -1329,7 +1799,8 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
         }
     }
 
-    nonisolated private func configureSession(position: AVCaptureDevice.Position, rotationAngle angle: CGFloat) throws {
+    nonisolated private func configureSession(position: AVCaptureDevice.Position, rearLens: RearCameraLens,
+                                              rotationAngle angle: CGFloat, startingZoom: Double) throws {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
         do {
@@ -1343,7 +1814,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             if session.outputs.contains(analysisOutput) { session.removeOutput(analysisOutput) }
 
             let deviceTypes: [AVCaptureDevice.DeviceType] = position == .back
-                ? [.builtInWideAngleCamera]
+                ? [rearLens.deviceType]
                 : [.builtInTrueDepthCamera, .builtInWideAngleCamera]
             let discovery = AVCaptureDevice.DiscoverySession(
                 deviceTypes: deviceTypes,
@@ -1356,12 +1827,27 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             session.addInput(input)
             activeInput = input
             try device.lockForConfiguration()
-            device.videoZoomFactor = 1
+            if device.isFocusModeSupported(.continuousAutoFocus) {
+                device.focusMode = .continuousAutoFocus
+            }
+            if device.isExposureModeSupported(.continuousAutoExposure) {
+                device.exposureMode = .continuousAutoExposure
+            }
+            if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+                device.whiteBalanceMode = .continuousAutoWhiteBalance
+            }
+            configurePreviewFrameRate(for: device)
+            device.videoZoomFactor = CGFloat(CameraControlPolicy.clampedZoom(
+                startingZoom, maximum: Double(device.activeFormat.videoMaxZoomFactor)))
             device.unlockForConfiguration()
-            let maximumZoom = min(3, Double(device.activeFormat.videoMaxZoomFactor))
+            let maximumZoom = Double(device.activeFormat.videoMaxZoomFactor)
+            let minExposure = Double(device.minExposureTargetBias)
+            let maxExposure = Double(device.maxExposureTargetBias)
             Task { @MainActor [weak self] in
-                self?.currentZoomFactor = 1
+                self?.currentZoomFactor = startingZoom
                 self?.maximumZoomFactor = max(1, maximumZoom)
+                self?.exposureBiasRange = minExposure...maxExposure
+                self?.exposureBias = Double(device.exposureTargetBias)
             }
 
             if let previewConnection = session.connections.first(where: { $0.inputPorts.contains(where: { $0.mediaType == .video }) }),
@@ -1402,8 +1888,10 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                     let advice = LiveCompositionCoach.advice(for: result.metrics, fallback: fallback,
                                                              currentZoomFactor: self.currentZoomFactor,
                                                              maximumZoomFactor: self.maximumZoomFactor)
-                    self.trackedSubjectRect = advice.subjectRect
-                    self.compositionTargetThird = advice.targetThird
+                    self.trackedSubjectRect = self.subjectRectSmoother.update(
+                        advice.subjectRect, at: MonotonicClock.now)
+                    self.updateDigitalFraming()
+                    self.adjustAutomaticExposure(metrics: result.metrics)
                     self.isSubjectTracking = advice.isTracking
                     self.isFramingAligned = advice.isAligned
                     self.suggestedZoomFactor = advice.suggestedZoomFactor
@@ -1428,6 +1916,31 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             isConfigured = false
             throw error
         }
+    }
+
+    /// Selects a preview-friendly format that can reach 60 fps. On iOS 18+, let
+    /// AVFoundation adapt cadence for exposure; older systems use a 30–60 fps range.
+    nonisolated private func configurePreviewFrameRate(for device: AVCaptureDevice) {
+        let candidates = device.formats.compactMap { format -> (AVCaptureDevice.Format, Int32, Int32)? in
+            let ranges = format.videoSupportedFrameRateRanges.map {
+                Double($0.minFrameRate)...Double($0.maxFrameRate)
+            }
+            guard LivePreviewFrameRatePolicy.supportsTargetFrameRate(ranges) else { return nil }
+            let size = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
+            guard size.width <= 1920, size.height <= 1080 else { return nil }
+            return (format, size.width, size.height)
+        }
+        guard let format = candidates.max(by: {
+            Int64($0.1) * Int64($0.2) < Int64($1.1) * Int64($1.2)
+        })?.0 else { return }
+
+        device.activeFormat = format
+        let ranges = format.videoSupportedFrameRateRanges.map {
+            Double($0.minFrameRate)...Double($0.maxFrameRate)
+        }
+        guard let deliveryRange = LivePreviewFrameRatePolicy.fallbackFrameRateRange(for: ranges) else { return }
+        device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Int32(deliveryRange.upperBound))
+        device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: Int32(deliveryRange.lowerBound))
     }
 
     private enum CameraError: LocalizedError {
@@ -1924,7 +2437,7 @@ private final class LiveMetalPreviewView: MTKView, MTKViewDelegate {
         backgroundColor = .black
         clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         framebufferOnly = false
-        preferredFramesPerSecond = 30
+        preferredFramesPerSecond = Int(LivePreviewFrameRatePolicy.targetFramesPerSecond)
         isPaused = true
     }
 
@@ -2057,45 +2570,81 @@ private struct LiveFrameTreatment: View {
     }
 }
 
+private struct CameraZoomDial: View {
+    let value: Double
+    let range: ClosedRange<Double>
+    let onChange: (Double) -> Void
+    @State private var dragStartValue: Double?
+
+    private var tickPosition: Double {
+        log2(max(value, 0.001)) * 12
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                ForEach(-24...48, id: \.self) { tick in
+                    let tickValue = pow(2, Double(tick) / 12)
+                    let x = geometry.size.width / 2 + (Double(tick) - tickPosition) * 8
+                    if range.contains(tickValue) && x >= -1 && x <= geometry.size.width + 1 {
+                        Capsule()
+                            .fill(tick.isMultiple(of: 6) ? .white.opacity(0.82) : .white.opacity(0.32))
+                            .frame(width: 1, height: tick.isMultiple(of: 6) ? 13 : 6)
+                            .position(x: x, y: 34)
+                    }
+                }
+                Rectangle()
+                    .fill(Color.cyan)
+                    .frame(width: 2, height: 21)
+                    .position(x: geometry.size.width / 2, y: 34)
+                Text("\(value, format: .number.precision(.fractionLength(1)))×")
+                    .font(.caption2.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.white)
+                    .position(x: geometry.size.width / 2, y: 10)
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        if dragStartValue == nil { dragStartValue = value }
+                        guard let dragStartValue else { return }
+                        let requested = dragStartValue * pow(2, -gesture.translation.width / 230)
+                        onChange(min(max(requested, range.lowerBound), range.upperBound))
+                    }
+                    .onEnded { _ in dragStartValue = nil }
+            )
+            .accessibilityElement()
+            .accessibilityLabel("Camera zoom")
+            .accessibilityValue("\(value.formatted(.number.precision(.fractionLength(1)))) times")
+            .accessibilityHint("Drag horizontally to adjust zoom")
+            .accessibilityAdjustableAction { direction in
+                let step = pow(2, 1.0 / 12.0)
+                switch direction {
+                case .increment: onChange(min(value * step, range.upperBound))
+                case .decrement: onChange(max(value / step, range.lowerBound))
+                @unknown default: break
+                }
+            }
+        }
+        .frame(height: 48)
+    }
+}
+
 private struct LiveCompositionOverlay: View {
     let subjectRect: CGRect?
-    let targetThird: CGPoint?
     let isTracking: Bool
     let isAligned: Bool
     let isMirrored: Bool
 
     var body: some View {
-        Canvas { context, size in
-            var grid = Path()
-            for fraction in [CGFloat(1.0 / 3.0), CGFloat(2.0 / 3.0)] {
-                let x = size.width * fraction
-                let y = size.height * fraction
-                grid.move(to: CGPoint(x: x, y: 0))
-                grid.addLine(to: CGPoint(x: x, y: size.height))
-                grid.move(to: CGPoint(x: 0, y: y))
-                grid.addLine(to: CGPoint(x: size.width, y: y))
-            }
-            context.stroke(grid, with: .color(.white.opacity(0.24)), lineWidth: 0.75)
-
-            if let targetThird {
-                let targetX = isMirrored ? 1 - targetThird.x : targetThird.x
-                let point = CGPoint(x: targetX * size.width,
-                                    y: (1 - targetThird.y) * size.height)
-                var marker = Path(ellipseIn: CGRect(x: point.x - 5, y: point.y - 5, width: 10, height: 10))
-                marker.move(to: CGPoint(x: point.x - 10, y: point.y))
-                marker.addLine(to: CGPoint(x: point.x + 10, y: point.y))
-                marker.move(to: CGPoint(x: point.x, y: point.y - 10))
-                marker.addLine(to: CGPoint(x: point.x, y: point.y + 10))
-                context.stroke(marker, with: .color(.cyan.opacity(0.82)), lineWidth: 1.5)
-            }
-
-        }
-        .overlay {
+        Group {
             if let subjectRect {
                 let color: Color = isAligned ? .cyan : (isTracking ? .mint : .white)
                 LiveSubjectBrackets(rect: subjectRect, isMirrored: isMirrored)
                     .stroke(color, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    .animation(.linear(duration: 0.08), value: subjectRect)
+                    .shadow(color: .black.opacity(0.75), radius: 2)
+                    .animation(.easeOut(duration: 0.12), value: subjectRect)
+                    .transition(.opacity)
             }
         }
         .allowsHitTesting(false)

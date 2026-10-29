@@ -2,6 +2,45 @@ import XCTest
 @testable import FramedLocal
 
 final class GuidanceEngineTests: XCTestCase {
+    func testCameraZoomClampHonorsTheActiveDeviceRange() {
+        XCTAssertEqual(CameraControlPolicy.clampedZoom(2, maximum: 5), 2)
+        XCTAssertEqual(CameraControlPolicy.clampedZoom(9, maximum: 4), 4)
+        XCTAssertEqual(CameraControlPolicy.clampedZoom(0.5, maximum: 4), 1)
+        XCTAssertEqual(CameraControlPolicy.clampedZoom(.infinity, maximum: 4), 1)
+    }
+
+    func testAutomaticFramingCentersAndLimitsTheTrackedSubject() {
+        let subject = CGRect(x: 0.2, y: 0.35, width: 0.3, height: 0.2)
+        let framing = CameraControlPolicy.framing(for: subject, isMirrored: false, enabled: true)
+        XCTAssertEqual(framing.scale, 1.9, accuracy: 0.000_001)
+        XCTAssertEqual(framing.center.x, 0.35, accuracy: 0.000_001)
+        XCTAssertEqual(framing.center.y, 0.55, accuracy: 0.000_001)
+
+        let mirrored = CameraControlPolicy.framing(for: subject, isMirrored: true, enabled: true)
+        XCTAssertEqual(mirrored.center.x, 0.65, accuracy: 0.000_001)
+        XCTAssertEqual(CameraControlPolicy.framing(for: subject, isMirrored: false, enabled: false), .identity)
+    }
+
+    func testAutomaticExposureProtectsHighlightsAndRecoversFromDeepShadows() {
+        XCTAssertEqual(CameraControlPolicy.exposureBias(current: 0, brightness: 0.7,
+                                                         clippedHighlights: 0.12, clippedShadows: 0,
+                                                         minimum: -2, maximum: 2), -0.6)
+        XCTAssertEqual(CameraControlPolicy.exposureBias(current: 0, brightness: 0.3,
+                                                         clippedHighlights: 0, clippedShadows: 0.4,
+                                                         minimum: -2, maximum: 2), 0.3)
+        XCTAssertEqual(CameraControlPolicy.exposureBias(current: -0.6, brightness: 0.5,
+                                                         clippedHighlights: 0.01, clippedShadows: 0.1,
+                                                         minimum: -0.4, maximum: 1), 0)
+    }
+
+    func testCameraControlDefaultsFavorPhotoEssentialsAndNoTimer() {
+        XCTAssertEqual(CaptureTimerSetting.off.rawValue, 0)
+        XCTAssertEqual(CaptureTimerSetting.threeSeconds.rawValue, 3)
+        XCTAssertEqual(CaptureTimerSetting.tenSeconds.rawValue, 10)
+        XCTAssertEqual(CameraFlashSetting.automatic.captureMode, .auto)
+        XCTAssertEqual(RearCameraLens.allCases, [.ultraWide, .wide])
+    }
+
     func testMonotonicClockProvidesFiniteNondecreasingIntervals() {
         let first = MonotonicClock.now
         let second = MonotonicClock.now
@@ -268,6 +307,43 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertTrue(limiter.shouldAnalyze(at: 1.141))
         XCTAssertFalse(limiter.shouldAnalyze(at: 1.20))
         XCTAssertTrue(limiter.shouldAnalyze(at: 1.282))
+    }
+
+    func testLivePreviewFrameRatePolicyTargetsSixtyWhenFormatAllowsIt() {
+        XCTAssertEqual(LivePreviewFrameRatePolicy.targetFramesPerSecond, 60)
+        XCTAssertTrue(LivePreviewFrameRatePolicy.supportsTargetFrameRate([24...60]))
+        XCTAssertFalse(LivePreviewFrameRatePolicy.supportsTargetFrameRate([24...30, 30...59.94]))
+        XCTAssertEqual(LivePreviewFrameRatePolicy.fallbackFrameRateRange(for: [24...60]), 30...60)
+        XCTAssertEqual(LivePreviewFrameRatePolicy.fallbackFrameRateRange(for: [60...60]), 60...60)
+        XCTAssertNil(LivePreviewFrameRatePolicy.fallbackFrameRateRange(for: [24...30, 30...59.94]))
+    }
+
+    func testSubjectRectSmootherEasesBetweenTrackingObservations() throws {
+        var smoother = SubjectRectSmoother(interpolation: 0.5, lossGracePeriod: 0.2)
+        let initial = CGRect(x: 0.1, y: 0.2, width: 0.2, height: 0.3)
+        let moved = CGRect(x: 0.3, y: 0.4, width: 0.4, height: 0.5)
+
+        XCTAssertEqual(smoother.update(initial, at: 1), initial)
+        let eased = try XCTUnwrap(smoother.update(moved, at: 1.1))
+        XCTAssertEqual(eased.minX, 0.2, accuracy: 0.000_001)
+        XCTAssertEqual(eased.minY, 0.3, accuracy: 0.000_001)
+        XCTAssertEqual(eased.width, 0.3, accuracy: 0.000_001)
+        XCTAssertEqual(eased.height, 0.4, accuracy: 0.000_001)
+    }
+
+    func testSubjectRectSmootherHoldsBriefLossThenClearsAndReacquires() throws {
+        var smoother = SubjectRectSmoother(interpolation: 0.5, lossGracePeriod: 0.2)
+        let first = CGRect(x: 0.1, y: 0.1, width: 0.2, height: 0.2)
+        let reacquired = CGRect(x: 0.5, y: 0.5, width: 0.2, height: 0.2)
+
+        XCTAssertEqual(smoother.update(first, at: 1), first)
+        XCTAssertEqual(smoother.update(nil, at: 1.1), first)
+        let easedReacquisition = try XCTUnwrap(smoother.update(reacquired, at: 1.2))
+        XCTAssertEqual(easedReacquisition.minX, 0.3, accuracy: 0.000_001)
+        XCTAssertEqual(easedReacquisition.minY, 0.3, accuracy: 0.000_001)
+        XCTAssertEqual(smoother.update(nil, at: 1.3), easedReacquisition)
+        XCTAssertNil(smoother.update(nil, at: 1.51))
+        XCTAssertEqual(smoother.update(reacquired, at: 1.6), reacquired)
     }
 
     func testSubjectSelectionPrefersContainingBoxAndOnlyFallsBackWhenNearby() {

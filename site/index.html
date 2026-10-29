@@ -86,6 +86,10 @@
                   <div class="focus-ring" aria-hidden="true"><i></i></div>
                   <div class="camera-topbar"><span id="lensLabel">REAR CAMERA</span><span>4:3 <b>⌄</b></span></div>
                   <div class="guidance-pill" id="guidancePill"><span class="guidance-mark" aria-hidden="true">⌖</span><span id="guidanceText">Try moving a little left</span></div>
+                  <div class="demo-zoom" id="demoZoom" tabindex="0" role="slider" aria-label="Sample camera zoom" aria-valuemin="0.5" aria-valuemax="4" aria-valuenow="1" aria-valuetext="1.0 times">
+                    <span class="demo-zoom-value" id="demoZoomValue">1.0×</span>
+                    <div class="demo-zoom-ruler" id="demoZoomRuler" aria-hidden="true"></div>
+                  </div>
                   <div class="camera-bottom">
                     <button class="mini-control" id="switchLens" type="button" aria-label="Switch between rear and front camera" aria-pressed="false"><span aria-hidden="true">⇄</span></button>
                     <button class="shutter" id="shutter" type="button" aria-label="Capture sample scene"><span></span></button>
@@ -156,12 +160,12 @@
       <div class="feature-grid">
         <article class="feature-card feature-camera">
           <div class="feature-art camera-art" aria-hidden="true"><div class="mini-photo"><img src="assets/sample-coast.svg" alt=""><span class="mini-grid"></span><span class="mini-reticle"></span><span class="mini-advice">Try moving left</span></div><span class="art-signal signal-a"></span><span class="art-signal signal-b"></span><span class="art-axis"></span></div>
-          <div class="feature-copy"><p class="feature-kicker">01 / COMPOSE</p><h3>A guide, never a rule.</h3><p>Local face and subject detection, horizon cues, and explainable framing hints help you notice what could move. The shutter stays yours.</p><details class="feature-details"><summary>What can it notice?</summary><p>Subject position, headroom, edge spacing, horizon tilt, highlight clipping, and low-light shadows. Tap a subject to keep guidance with it; optional haptics stay subtle. Suggestions are advisory—never “the best frame.”</p></details></div>
+          <div class="feature-copy"><p class="feature-kicker">01 / COMPOSE</p><h3>A guide, never a rule.</h3><p>Local subject detection, a smooth zoom dial, and explainable framing hints help you notice what could move. The shutter stays yours.</p><details class="feature-details"><summary>What can it notice?</summary><p>Subject position, headroom, edge spacing, horizon tilt, highlight clipping, and low-light shadows. Tap a subject to keep guidance with it; optional haptics stay subtle. Focus, exposure, and white balance stay automatic unless you adjust them. Suggestions are advisory—never “the best frame.”</p></details></div>
         </article>
 
         <article class="feature-card feature-film">
           <div class="feature-art film-art" aria-hidden="true"><div class="swatch swatch-one"></div><div class="swatch swatch-two"></div><div class="swatch swatch-three"></div><div class="swatch swatch-four"></div><div class="swatch swatch-five"></div><span class="swatch-caption">FIVE ORIGINAL LOOKS</span></div>
-          <div class="feature-copy"><p class="feature-kicker">02 / MAKE IT YOURS</p><h3>A little color, a little character.</h3><p>Five original local presets, three frame styles, flexible crops, and an optional date stamp. Preview the result before you save.</p><details class="feature-details"><summary>What’s in the set?</summary><p>Natural, Warm Print, Soft Mono, Faded Color, and Night Grain. Choose Original, Square, 4:3, or 16:9, reposition the crop, and add a date if it feels right.</p></details></div>
+          <div class="feature-copy"><p class="feature-kicker">02 / MAKE IT YOURS</p><h3>A little color, a little character.</h3><p>Five original local presets, optional auto-improvement, three frame styles, and flexible crops. Preview the result before you save.</p><details class="feature-details"><summary>What’s in the set?</summary><p>Natural, Warm Print, Soft Mono, Faded Color, and Night Grain. Choose Original, Square, 4:3, or 16:9, reposition the crop, and add a date if it feels right. Auto-improvement applies to the new rendered copy after capture.</p></details></div>
         </article>
 
         <article class="feature-card feature-keep">
@@ -174,7 +178,7 @@
     <section class="flow-section section-shell" id="how">
       <div class="flow-heading"><p class="eyebrow">A softer workflow</p><h2>Notice. Shape.<br><span>Keep.</span></h2></div>
       <ol class="flow-steps">
-        <li><span class="step-number">01</span><div><h3>Find the frame</h3><p>Use the front or rear camera. Turn on quiet composition hints, or ignore them and shoot.</p></div><span class="step-line" aria-hidden="true"></span></li>
+        <li><span class="step-number">01</span><div><h3>Find the frame</h3><p>Use the front or rear camera, adjust zoom with a smooth dial, and turn on quiet composition hints—or ignore them and shoot.</p></div><span class="step-line" aria-hidden="true"></span></li>
         <li><span class="step-number">02</span><div><h3>Make it yours</h3><p>Try a local look, reposition a crop, choose a border, and add a date if it feels right.</p></div><span class="step-line" aria-hidden="true"></span></li>
         <li><span class="step-number">03</span><div><h3>Save a fresh copy</h3><p>Export a new JPEG to Photos. Your original capture or selected photo stays as it was.</p></div></li>
       </ol>
