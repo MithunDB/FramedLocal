@@ -2,6 +2,15 @@ import XCTest
 @testable import FramedLocal
 
 final class GuidanceEngineTests: XCTestCase {
+    func testMonotonicClockProvidesFiniteNondecreasingIntervals() {
+        let first = MonotonicClock.now
+        let second = MonotonicClock.now
+
+        XCTAssertTrue(first.isFinite)
+        XCTAssertGreaterThanOrEqual(first, 0)
+        XCTAssertGreaterThanOrEqual(second, first)
+    }
+
     func testGuidanceWaitsForStableConditionAndCooldown() {
         var engine = GuidanceEngine()
         XCTAssertEqual(engine.update(message: "Hold steady", time: 2.0, confidence: 0.8), "Searching for a subject")

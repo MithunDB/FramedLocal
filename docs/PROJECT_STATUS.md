@@ -24,6 +24,11 @@ Continue the private/local FramedLocal implementation through physical iPhone va
 
 ## Last Completed Step
 
+- Switched guidance debounce, horizon-hint stability, and the analysis rate limiter to monotonic process uptime instead of wall-clock time. System date/time adjustments can no longer stall or prematurely advance these elapsed-time intervals. Added a finite/nondecreasing clock unit check.
+- Verification: iOS 27.1 simulator suite passed (52 tests, 0 failures, 0 skipped); iOS 26.2 simulator suite passed (52 tests, 0 failures, 0 skipped); generic unsigned iOS device build passed; `git diff --check` passed. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. Physical cadence and sensor behavior remain unmeasured.
+- Changed files: `FramedLocal/CompositionAnalysis.swift`, `FramedLocal/ContentView.swift`, `FramedLocalTests/GuidanceEngineTests.swift`, `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.
+- Exact next smallest step: commit and push this verified timing-source fix; continue local reliability review while physical-device signing and acceptance await the iPhone.
+
 - Ran the full hosted simulator suite on the available iOS 26.2 iPhone 17 Pro simulator as an additional runtime-compatibility check. Result: 51 passed, 0 failed, 0 skipped. Xcode emitted its recurring simulator metadata `invalidDigitCount` diagnostic only.
 - Changed files: `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.
 - Exact next smallest step: continue source-level reliability review; install and run on iPhone 12 once device pairing and provisioning are available.

@@ -3,6 +3,10 @@ import Foundation
 import UIKit
 import Vision
 
+enum MonotonicClock {
+    static var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
+}
+
 struct EdgeDistances: Sendable {
     let top: Double
     let right: Double
@@ -207,7 +211,7 @@ final class CompositionAnalyzer: @unchecked Sendable {
 
     private func analyzeOnQueue(_ pixelBuffer: CVPixelBuffer, orientation: CGImagePropertyOrientation,
                                 completion: @Sendable (AnalysisResult?) -> Void) {
-            let now = CFAbsoluteTimeGetCurrent()
+            let now = MonotonicClock.now
             guard rateLimiter.shouldAnalyze(at: now) else {
                 completion(nil)
                 return

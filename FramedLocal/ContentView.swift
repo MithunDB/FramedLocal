@@ -1101,7 +1101,7 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
                     // invalidates its analysis generation.
                     guard self.analysisDelegate.acceptsResult(for: generation) else { return }
                     let levelHintIsStable = self.horizonGuidanceState.shouldShowLevelHint(
-                        angle: self.horizonTilt, at: CFAbsoluteTimeGetCurrent())
+                        angle: self.horizonTilt, at: MonotonicClock.now)
                     let message = levelHintIsStable && result.guidance == "Suggested framing"
                         ? "Level the phone" : result.guidance
                     self.guidanceText = message

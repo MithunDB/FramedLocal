@@ -3,11 +3,11 @@
 | Area | Scenario | Expected result | Status |
 |---|---|---|---|
 | Build | iOS 27.1 simulator | App builds without signing | Passed |
-| Compatibility tests | iOS 26.2 iPhone 17 Pro simulator | Hosted app unit suite runs on an earlier available iOS runtime | Passed (51 tests, 0 failures, 0 skipped) |
+| Compatibility tests | iOS 26.2 iPhone 17 Pro simulator | Hosted app unit suite runs on an earlier available iOS runtime | Passed (52 tests, 0 failures, 0 skipped) |
 | Build | Generic iOS device destination | App builds without signing | Passed |
 | Device signing | Pair iPhone 12, select its development team, and provision the app | Xcode produces an installable signed build for `local.mithundb.framed` | Valid Apple Development identity installed; generic signed build confirms no provisioning profile exists; device not connected; allow Xcode provisioning after pairing |
 | App icon | iOS asset catalog | Universal 1024×1024 icon is included and compiles for simulator/device | Passed asset-catalog builds; physical home-screen appearance pending |
-| Unit tests | iOS 27.1 simulator | Guidance, camera/session policies, renderer, import orientation/bounds, crop, cancellation, and PhotoKit transaction logic | Passed (51 tests, 0 failures; latest run after queued analysis UI result guard) |
+| Unit tests | iOS 27.1 simulator | Guidance, camera/session policies, renderer, import orientation/bounds, crop, cancellation, and PhotoKit transaction logic | Passed (52 tests, 0 failures; latest run after monotonic elapsed-time source update) |
 | Launch | iOS 27.1 simulator | App installs and launches; permission prompt and camera-unavailable fallback are presented | Passed simulator install/launch; simulator has no camera; physical launch/capture pending |
 | Privacy configuration | Built Info.plist, source, and project dependency scan | Camera and add-only Photos prompts only; picker import without full library authorization; no app network client/analytics dependency | Static inspection passed; physical permission flow pending |
 | Camera permission | First launch, allow | Live preview appears | Runtime device check pending |
@@ -62,6 +62,7 @@
 | Horizon sensor mapping | Level/tilted phone in portrait and landscape; invalid gravity projection | Use the active device orientation to select the gravity axis and avoid a false level hint | Mapping and 0.45-second stability/reset unit tests passed; physical sensor calibration pending |
 | Performance | Repeated capture | No freeze or memory warning | Pending |
 | Composition analysis | Face/saliency and sampled image signals | One stable advisory message; capture remains available | Preview-sized buffers, dedicated serial queue, explicit 7 Hz rate limiter, AVFoundation late-frame dropping, unrotated buffers with Vision orientation mapping; throttle unit test passed; physical-scene tuning pending |
+| Elapsed-time source | Guidance debounce, horizon stability, and analysis throttle while system date/time changes | Elapsed durations use monotonic uptime and are independent of wall-clock adjustments | Monotonic source implemented; finite/nondecreasing unit check passed; physical cadence pending |
 | Composition edge coordinates | Subject near top/bottom of Vision normalized frame | Compute top and bottom distances using Vision's bottom-left coordinate origin so vertical prompts point the correct way | Edge-distance top/bottom unit assertions passed; live guidance pending iPhone |
 | Composition analysis failure | Vision request fails for a frame or transiently during tracking | Preserve the current message through the debounce, clear failed tracking state, and show recovery guidance only after confidence remains low | Failure path uses low-confidence GuidanceEngine policy and clears stale tracker; build/tests pass; live Vision error injection pending |
 | Subject selection | Tap visible subject or empty preview area in rotated/aspect-filled preview | Map taps into capture-device coordinates; select containing/nearby subject, report no subject for distant taps, ignore stale feedback, and clear tracking on stop/lens switch | Mapping/resolution/0.12 normalized fallback/feedback unit tests passed; physical-device tolerance check pending |
