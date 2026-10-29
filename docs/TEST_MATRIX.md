@@ -3,6 +3,7 @@
 | Area | Scenario | Expected result | Status |
 |---|---|---|---|
 | Build | iOS 27.1 simulator | App builds without signing | Passed |
+| Compatibility tests | iOS 26.2 iPhone 17 Pro simulator | Hosted app unit suite runs on an earlier available iOS runtime | Passed (51 tests, 0 failures, 0 skipped) |
 | Build | Generic iOS device destination | App builds without signing | Passed |
 | Device signing | Pair iPhone 12, select its development team, and provision the app | Xcode produces an installable signed build for `local.mithundb.framed` | Valid Apple Development identity installed; generic signed build confirms no provisioning profile exists; device not connected; allow Xcode provisioning after pairing |
 | App icon | iOS asset catalog | Universal 1024×1024 icon is included and compiles for simulator/device | Passed asset-catalog builds; physical home-screen appearance pending |
