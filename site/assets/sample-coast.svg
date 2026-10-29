@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1200" fill="none">
+  <defs>
+    <linearGradient id="sky" x1="450" y1="0" x2="450" y2="810" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DB7D9"/><stop offset=".43" stop-color="#C8DDE4"/><stop offset=".72" stop-color="#F2C9A9"/><stop offset="1" stop-color="#F7C38E"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="450" y1="690" x2="450" y2="1060" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#588FA5"/><stop offset="1" stop-color="#204B63"/>
+    </linearGradient>
+    <linearGradient id="sand" x1="450" y1="810" x2="450" y2="1200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D6A985"/><stop offset="1" stop-color="#735F56"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="matrix(0 288 -288 0 620 495)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8DB" stop-opacity=".95"/><stop offset=".13" stop-color="#FFF0D3" stop-opacity=".68"/><stop offset="1" stop-color="#FFF0D3" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="table" tableValues="0 .11"/></feComponentTransfer>
+      <feBlend in="SourceGraphic" mode="soft-light"/>
+    </filter>
+  </defs>
+  <path fill="url(#sky)" d="M0 0h900v1200H0z"/>
+  <circle cx="620" cy="495" r="288" fill="url(#glow)"/>
+  <circle cx="620" cy="495" r="66" fill="#FFF2D8"/>
+  <path d="M0 678c97-28 185-16 267 4 92 22 181 23 275-7 113-36 233-34 358 10v315H0V678Z" fill="#859EA0" opacity=".75"/>
+  <path d="M0 750c114-50 230-43 339 0 105 42 207 49 310 6 82-34 166-40 251-11v293H0V750Z" fill="url(#sea)"/>
+  <path d="M0 819c110-18 213-16 306 5 101 23 194 23 282-2 105-30 209-28 312 8M0 889c99-15 190-12 273 6 100 22 195 22 283-2 117-32 231-30 344 9M0 963c124-16 218-11 301 8 91 21 178 20 262-2 107-27 219-27 337 4" stroke="#D7E5DF" stroke-opacity=".28" stroke-width="4"/>
+  <path d="M0 1003c122-48 230-57 326-27 89 27 178 48 279 37 112-12 202-59 295-86v273H0v-194Z" fill="url(#sand)"/>
+  <path d="M0 1047c131-24 229-11 321 17 105 32 186 39 275 15 109-29 190-75 304-91" stroke="#F4D2AF" stroke-opacity=".55" stroke-width="5"/>
+  <path d="M411 936c-7-34-3-67 8-89 8-17 22-25 34-17 14 8 14 30 7 48 16 18 22 49 18 86l-67-28Z" fill="#233D4A"/>
+  <circle cx="450" cy="812" r="13" fill="#233D4A"/>
+  <path d="m427 962-28 77m71-51 33 65m-64-65-9 88m25-93 30 81" stroke="#233D4A" stroke-width="11" stroke-linecap="round"/>
+  <path d="M477 916c16 18 26 48 20 77l-74-18c-2-37 5-63 18-79" fill="#D9E5E5"/>
+  <g opacity=".48" stroke="#FFF4E9" stroke-width="3"><path d="M88 1076h147M123 1100h94M652 1048h151M689 1073h101"/></g>
+  <path d="M0 0h900v1200H0z" fill="#FFF" fill-opacity=".07" filter="url(#grain)"/>
+</svg>

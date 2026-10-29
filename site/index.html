@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eaf5fb">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="description" content="FramedLocal is a private, on-device iPhone camera with thoughtful composition guidance and original film-inspired looks.">
+  <meta property="og:title" content="FramedLocal — Find your frame.">
+  <meta property="og:description" content="A calmer camera for thoughtful frames. Private by design and built to stay on your iPhone.">
+  <meta property="og:type" content="website">
+  <title>FramedLocal — Find your frame.</title>
+  <link rel="icon" type="image/svg+xml" href="assets/mark.svg">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="FramedLocal home">
+      <img src="assets/mark.svg" alt="" width="38" height="38">
+      <span>Framed<span class="brand-light">Local</span></span>
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="#features">Features</a>
+      <a href="#studio">Try the preview</a>
+      <a href="#privacy">Privacy</a>
+    </nav>
+    <a class="header-link" href="#studio">Explore <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span> A thoughtful camera for iPhone</p>
+        <h1>Find your<br><span>frame.</span></h1>
+        <p class="hero-lead">A little more intention before the shutter. Compose with calm, shape the light with original film looks, and keep every photo yours.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#studio">Explore the camera <span aria-hidden="true">↓</span></a>
+          <a class="button button-quiet" href="#features">See what it can do <span aria-hidden="true">↘</span></a>
+        </div>
+        <p class="hero-note"><span aria-hidden="true">✳</span> On-device by design <i></i> No uploads <i></i> Made for iPhone</p>
+      </div>
+
+      <div class="hero-art" aria-label="Illustration of a calm coastal scene framed by a camera viewfinder">
+        <div class="art-sun" aria-hidden="true"></div>
+        <div class="art-horizon" aria-hidden="true"></div>
+        <div class="art-frame art-frame-one" aria-hidden="true"></div>
+        <div class="art-frame art-frame-two" aria-hidden="true"></div>
+        <div class="art-caption"><span>01 / 05</span><span>THE QUIET HOUR</span></div>
+        <div class="art-chip"><span class="chip-sparkle" aria-hidden="true">✳</span><span>LOOK CLOSER</span></div>
+      </div>
+      <div class="hero-side-note" aria-hidden="true">A CAMERA THAT LEAVES ROOM TO SEE.</div>
+    </section>
+
+    <section class="intro-strip" aria-label="FramedLocal at a glance">
+      <p>LESS RUSH. <span>MORE NOTICE.</span></p>
+      <div class="strip-line" aria-hidden="true"></div>
+      <p>YOUR CAMERA, <span>YOUR CALL.</span></p>
+      <div class="strip-line" aria-hidden="true"></div>
+      <p>MADE TO STAY <span>LOCAL.</span></p>
+    </section>
+
+    <section class="studio-section section-shell" id="studio">
+      <div class="section-heading studio-heading">
+        <div>
+          <p class="eyebrow">A small interactive preview</p>
+          <h2>Make the moment<br><span>feel like yours.</span></h2>
+        </div>
+        <p>Try a sample scene. Switch the look, find a frame, and see how a little guidance changes the way you compose.</p>
+      </div>
+
+      <div class="studio-card">
+        <div class="studio-topline">
+          <span class="live-indicator"><i></i> PREVIEW STUDIO</span>
+          <span class="sample-label">SAMPLE SCENE · NO CAMERA ACCESS</span>
+        </div>
+        <div class="studio-layout">
+          <div class="device-wrap">
+            <div class="device" id="demoDevice" data-mode="capture" data-look="natural" data-frame="white" data-orientation="portrait" data-facing="rear" data-guidance="on" data-grid="on" data-date="on">
+              <div class="device-island" aria-hidden="true"></div>
+              <div class="device-screen">
+                <div class="camera-view">
+                  <img class="scene-image" src="assets/sample-coast.svg" alt="Illustrated coastal scene at dusk with a person standing near the water">
+                  <div class="viewfinder-grid" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+                  <div class="focus-ring" aria-hidden="true"><i></i></div>
+                  <div class="camera-topbar"><span id="lensLabel">REAR CAMERA</span><span>4:3 <b>⌄</b></span></div>
+                  <div class="guidance-pill" id="guidancePill"><span class="guidance-mark" aria-hidden="true">⌖</span><span id="guidanceText">Try moving a little left</span></div>
+                  <div class="camera-bottom">
+                    <button class="mini-control" id="switchLens" type="button" aria-label="Switch between rear and front camera" aria-pressed="false"><span aria-hidden="true">⇄</span></button>
+                    <button class="shutter" id="shutter" type="button" aria-label="Capture sample scene"><span></span></button>
+                    <button class="mini-control" id="flipOrientation" type="button" aria-label="Switch preview orientation" aria-pressed="false"><span aria-hidden="true">▱</span></button>
+                  </div>
+                </div>
+                <div class="edit-view" aria-label="Sample print preview">
+                  <div class="print-mat">
+                    <img class="print-image" src="assets/sample-coast.svg" alt="The same sample scene shown with the selected film look and frame">
+                    <span class="print-date">2026.10.28</span>
+                  </div>
+                  <span class="edit-label">A NEW COPY, READY TO SAVE</span>
+                </div>
+              </div>
+              <div class="device-home-line" aria-hidden="true"></div>
+            </div>
+            <p class="device-caption" id="deviceCaption">A quiet nudge. You still choose when to shoot.</p>
+          </div>
+
+          <div class="studio-controls">
+            <div class="mode-switch" role="group" aria-label="Preview mode">
+              <button type="button" class="mode-button is-active" data-mode-choice="capture" aria-pressed="true">Camera</button>
+              <button type="button" class="mode-button" data-mode-choice="edit" aria-pressed="false">Print preview</button>
+            </div>
+
+            <fieldset class="control-group">
+              <legend><span>01</span> Choose a look</legend>
+              <div class="look-list" role="group" aria-label="Film look">
+                <button type="button" class="look-button is-selected" data-look-choice="natural" aria-pressed="true"><i class="look-dot natural-dot"></i>Natural</button>
+                <button type="button" class="look-button" data-look-choice="warm-print" aria-pressed="false"><i class="look-dot warm-dot"></i>Warm Print</button>
+                <button type="button" class="look-button" data-look-choice="soft-mono" aria-pressed="false"><i class="look-dot mono-dot"></i>Soft Mono</button>
+                <button type="button" class="look-button" data-look-choice="faded-color" aria-pressed="false"><i class="look-dot faded-dot"></i>Faded Color</button>
+                <button type="button" class="look-button" data-look-choice="night-grain" aria-pressed="false"><i class="look-dot grain-dot"></i>Night Grain</button>
+              </div>
+            </fieldset>
+
+            <fieldset class="control-group">
+              <legend><span>02</span> Set the print</legend>
+              <div class="frame-list" role="group" aria-label="Print frame">
+                <button type="button" class="frame-button" data-frame-choice="full" aria-pressed="false"><span class="frame-icon frame-full" aria-hidden="true"></span>Full Bleed</button>
+                <button type="button" class="frame-button is-selected" data-frame-choice="white" aria-pressed="true"><span class="frame-icon frame-white" aria-hidden="true"></span>White Border</button>
+                <button type="button" class="frame-button" data-frame-choice="paper" aria-pressed="false"><span class="frame-icon frame-paper" aria-hidden="true"></span>Paper Print</button>
+              </div>
+              <label class="toggle-row"><span><b>Date stamp</b><small>Keep a little time with it</small></span><input id="dateToggle" type="checkbox" checked><span class="switch-track" aria-hidden="true"></span></label>
+            </fieldset>
+
+            <fieldset class="control-group camera-options">
+              <legend><span>03</span> Shape the view</legend>
+              <div class="option-row">
+                <button type="button" class="option-button is-selected" id="guidanceToggle" aria-pressed="true"><span aria-hidden="true">⌖</span> Guidance on</button>
+                <button type="button" class="option-button is-selected" id="gridToggle" aria-pressed="true"><span aria-hidden="true">▦</span> Grid on</button>
+              </div>
+            </fieldset>
+
+            <button type="button" class="reset-demo" id="resetDemo">Reset the preview <span aria-hidden="true">↺</span></button>
+            <p class="studio-footnote" id="studioFeedback" aria-live="polite">Sample controls only. FramedLocal never accesses your camera from this page.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features-section section-shell" id="features">
+      <div class="section-heading">
+        <div><p class="eyebrow">Built around the photograph</p><h2>Everything in service<br>of <span>the frame.</span></h2></div>
+        <p>From the first glance through the final print, FramedLocal keeps the tools simple and the choices yours.</p>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature-card feature-camera">
+          <div class="feature-art camera-art" aria-hidden="true"><div class="mini-photo"><img src="assets/sample-coast.svg" alt=""><span class="mini-grid"></span><span class="mini-reticle"></span><span class="mini-advice">Try moving left</span></div><span class="art-signal signal-a"></span><span class="art-signal signal-b"></span><span class="art-axis"></span></div>
+          <div class="feature-copy"><p class="feature-kicker">01 / COMPOSE</p><h3>A guide, never a rule.</h3><p>Local face and subject detection, horizon cues, and explainable framing hints help you notice what could move. The shutter stays yours.</p><details class="feature-details"><summary>What can it notice?</summary><p>Subject position, headroom, edge spacing, horizon tilt, highlight clipping, and low-light shadows. Tap a subject to keep guidance with it; optional haptics stay subtle. Suggestions are advisory—never “the best frame.”</p></details></div>
+        </article>
+
+        <article class="feature-card feature-film">
+          <div class="feature-art film-art" aria-hidden="true"><div class="swatch swatch-one"></div><div class="swatch swatch-two"></div><div class="swatch swatch-three"></div><div class="swatch swatch-four"></div><div class="swatch swatch-five"></div><span class="swatch-caption">FIVE ORIGINAL LOOKS</span></div>
+          <div class="feature-copy"><p class="feature-kicker">02 / MAKE IT YOURS</p><h3>A little color, a little character.</h3><p>Five original local presets, three frame styles, flexible crops, and an optional date stamp. Preview the result before you save.</p><details class="feature-details"><summary>What’s in the set?</summary><p>Natural, Warm Print, Soft Mono, Faded Color, and Night Grain. Choose Original, Square, 4:3, or 16:9, reposition the crop, and add a date if it feels right.</p></details></div>
+        </article>
+
+        <article class="feature-card feature-keep">
+          <div class="feature-art keep-art" aria-hidden="true"><div class="keep-sky"></div><div class="keep-photo"><img src="assets/sample-coast.svg" alt=""></div><div class="keep-arrow">↗</div><div class="keep-copy"><span>ORIGINAL</span><span>NEW PRINT</span></div></div>
+          <div class="feature-copy"><p class="feature-kicker">03 / KEEP THE ORIGINAL</p><h3>Make a new copy. Keep the first.</h3><p>Bring in a photo with the system picker, crop and edit locally, then export a separate JPEG. Your source image is left untouched.</p><details class="feature-details"><summary>How does it save?</summary><p>FramedLocal uses add-only Photos access. It tries the dedicated Framed album when available and reports clearly when a save goes to Recents.</p></details></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="flow-section section-shell" id="how">
+      <div class="flow-heading"><p class="eyebrow">A softer workflow</p><h2>Notice. Shape.<br><span>Keep.</span></h2></div>
+      <ol class="flow-steps">
+        <li><span class="step-number">01</span><div><h3>Find the frame</h3><p>Use the front or rear camera. Turn on quiet composition hints, or ignore them and shoot.</p></div><span class="step-line" aria-hidden="true"></span></li>
+        <li><span class="step-number">02</span><div><h3>Make it yours</h3><p>Try a local look, reposition a crop, choose a border, and add a date if it feels right.</p></div><span class="step-line" aria-hidden="true"></span></li>
+        <li><span class="step-number">03</span><div><h3>Save a fresh copy</h3><p>Export a new JPEG to Photos. Your original capture or selected photo stays as it was.</p></div></li>
+      </ol>
+    </section>
+
+    <section class="privacy-section section-shell" id="privacy">
+      <div class="privacy-card">
+        <div class="privacy-orbit" aria-hidden="true"><div class="orbit-sun"></div><div class="orbit-ring ring-one"></div><div class="orbit-ring ring-two"></div><span>LOCAL</span></div>
+        <div class="privacy-copy"><p class="eyebrow">Private by design</p><h2>Your photos stay<br><span>on your iPhone.</span></h2><p>Camera analysis, looks, and edits are designed to run on-device. No cloud AI, photo uploads, analytics, or network dependency in the app.</p><div class="privacy-points"><span><i>✓</i> Add-only Photos saving</span><span><i>✓</i> System photo picker</span><span><i>✓</i> Originals stay untouched</span></div></div>
+      </div>
+    </section>
+
+    <section class="closing-section">
+      <div class="closing-glow" aria-hidden="true"></div>
+      <p class="eyebrow">FramedLocal · iPhone camera</p>
+      <h2>Take a little more<br><span>time with it.</span></h2>
+      <p>This project is in local development. The preview above is an illustration—not a live camera or downloadable app.</p>
+      <a class="button button-primary" href="#studio">Try the sample preview <span aria-hidden="true">↑</span></a>
+    </section>
+  </main>
+
+  <footer class="site-footer"><a class="brand" href="#top"><img src="assets/mark.svg" alt="" width="30" height="30"><span>Framed<span class="brand-light">Local</span></span></a><p>A quieter camera. Made to stay yours.</p><a href="#top" class="footer-top">Back to top ↑</a></footer>
+</body>
+</html>

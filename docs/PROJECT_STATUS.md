@@ -22,6 +22,14 @@ This is the living status record for the private/local FramedLocal iOS app.
 
 Continue the private/local FramedLocal implementation through physical iPhone validation of camera capture, orientation, guidance, editing, and Photos export. Keep this file current so work can resume after context or usage limits.
 
+## Companion Website — 2026-10-28
+
+- Created a sky-blue, project-specific FramedLocal site in `site/`, following the visual clarity and interactive-preview structure of the user's ZeroClick site without reusing its palette or assets. The interactive sample supports five looks, three frames, date stamp, capture/print-preview modes, front/rear preview, orientation, grid, guidance, and reset. All illustration assets are local; the page does not access a visitor camera or make network requests.
+- Added `.github/workflows/pages.yml` to deploy only `site/` to GitHub Pages, and updated `README.md` with the intended project URL `https://mithundb.github.io/FramedLocal/`. The FramedLocal source repository remains private. GitHub Pages is not configured yet; private-source Pages depends on the account plan, so deployment outcome must be checked after push.
+- Changed files: `.github/workflows/pages.yml`, `README.md`, `site/index.html`, `site/styles.css`, `site/app.js`, `site/assets/mark.svg`, `site/assets/sample-coast.svg`, `docs/PROJECT_STATUS.md`.
+- Verification: local browser preview at desktop and mobile widths; preset, print-preview, lens-switch, sample-capture, and reset interactions worked; browser console showed no warnings/errors. `node --check site/app.js`, local HTTP checks for HTML/CSS/SVG assets (all 200), and `git diff --check` passed. No Xcode build or app test run in this website-only step.
+- Exact next smallest step: commit and push the site, then verify the Pages action and intended URL. If GitHub blocks Pages because the private repository/account plan is not eligible, keep the source repo private and choose a separate public site repository or hosting plan before making any source visibility change.
+
 ## Last Completed Step
 
 - Rechecked the remaining source-only acceptance surface after the lens-switch recovery change. Capture, local editing/import, presets/frames, Vision guidance/tracking, and save paths are implemented; no new code gap was confirmed. PhotoKit's add-only path deliberately falls back to Photos Recents when an album cannot be fetched, preserving the no-full-library-access rule. Whether the created `Framed` album can be reused under the iPhone's add-only authorization must be confirmed on-device.
