@@ -125,7 +125,7 @@
         zoomLongPressTriggered = true;
         updateZoomDial(stop);
         zoomDial.hidden = false;
-      }, 240);
+      }, 150);
     });
     button.addEventListener("pointermove", (event) => {
       if (!zoomLongPressTriggered || !holdOrigin) return;

@@ -510,7 +510,7 @@ struct ContentView: View {
             .background(selected ? Color.cyan : .clear, in: Circle())
             .contentShape(Circle())
             .gesture(
-                LongPressGesture(minimumDuration: 0.24, maximumDistance: 32)
+                LongPressGesture(minimumDuration: 0.15, maximumDistance: 32)
                     .sequenced(before: DragGesture(minimumDistance: 0,
                                                    coordinateSpace: .named("cameraChrome")))
                     .onChanged { sequence in
