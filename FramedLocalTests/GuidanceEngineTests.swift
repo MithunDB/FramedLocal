@@ -118,6 +118,17 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertFalse(gate.acceptsResult(for: rearCameraGeneration))
     }
 
+    func testAnalysisGenerationGateRejectsResultQueuedToUIBeforePause() {
+        let gate = AnalysisGenerationGate()
+        let queuedResultGeneration = gate.resume()
+
+        // The delegate may accept a result and enqueue its MainActor update just
+        // before the session pauses. The UI-side check must reject it afterward.
+        XCTAssertTrue(gate.acceptsResult(for: queuedResultGeneration))
+        gate.pause()
+        XCTAssertFalse(gate.acceptsResult(for: queuedResultGeneration))
+    }
+
     func testSessionRecoveryPolicyResumesOnlyWhenCameraWasRequested() {
         XCTAssertEqual(SessionRecoveryPolicy.interruptionEnded(shouldBeRunning: true), .resumeAutomatically)
         XCTAssertEqual(SessionRecoveryPolicy.interruptionEnded(shouldBeRunning: false), .ignore)

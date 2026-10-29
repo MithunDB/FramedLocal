@@ -1094,9 +1094,12 @@ final class CameraController: NSObject, ObservableObject, @unchecked Sendable {
             }
             guard session.canAddOutput(analysisOutput) else { throw CameraError.cannotAddAnalysisOutput }
             session.addOutput(analysisOutput)
-            analysisDelegate.onResult = { [weak self] result in
+            analysisDelegate.onResult = { [weak self] result, generation in
                 guard let self else { return }
                 Task { @MainActor in
+                    // A result may be queued to MainActor just before pauseAnalysis()
+                    // invalidates its analysis generation.
+                    guard self.analysisDelegate.acceptsResult(for: generation) else { return }
                     let levelHintIsStable = self.horizonGuidanceState.shouldShowLevelHint(
                         angle: self.horizonTilt, at: CFAbsoluteTimeGetCurrent())
                     let message = levelHintIsStable && result.guidance == "Suggested framing"
@@ -1233,7 +1236,7 @@ enum CaptureAvailability {
 
 private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
     weak var analyzer: CompositionAnalyzer?
-    var onResult: ((AnalysisResult) -> Void)?
+    var onResult: ((AnalysisResult, UInt64) -> Void)?
     private let generationGate = AnalysisGenerationGate()
     private var analysisOrientation: CGImagePropertyOrientation = .right
     private var mostRecentPixelBuffer: CVPixelBuffer?
@@ -1249,8 +1252,12 @@ private final class VideoAnalysisDelegate: NSObject, AVCaptureVideoDataOutputSam
         let orientation = analysisOrientation
         analyzer?.analyze(source, orientation: orientation) { [weak self] result in
             guard let self, let result, self.generationGate.acceptsResult(for: generation) else { return }
-            self.onResult?(result)
+            self.onResult?(result, generation)
         }
+    }
+
+    func acceptsResult(for generation: UInt64) -> Bool {
+        generationGate.acceptsResult(for: generation)
     }
 
     func pause(on queue: DispatchQueue) {
