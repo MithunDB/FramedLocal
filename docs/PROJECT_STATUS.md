@@ -13,7 +13,7 @@ This is the living status record for the private/local FramedLocal iOS app.
 - iOS deployment target: 17.0
 - macOS: 27.0.1 (Build 26A434)
 - Development Mac/device details: user target is base M5 MacBook Pro, 16 GB; host hardware not independently verified
-- Signing identity: one valid Apple Development identity is installed; team selection/provisioning not configured
+- Signing identity: one valid Apple Development identity is installed; no provisioning profile exists for `local.mithundb.framed`; project `DEVELOPMENT_TEAM` remains unset
 - Physical iPhone connected: no (no physical device listed; iPhone 12 not available)
 - Last known-good builds: `build/DerivedData/Build/Products/Debug-iphonesimulator/FramedLocal.app` (iOS 27.1 simulator, unsigned); `build/DeviceDerivedData/Build/Products/Debug-iphoneos/FramedLocal.app` (generic iOS device, unsigned)
 - Status: in-progress
@@ -23,6 +23,10 @@ This is the living status record for the private/local FramedLocal iOS app.
 Continue the private/local FramedLocal implementation through physical iPhone validation of camera capture, orientation, guidance, editing, and Photos export. Keep this file current so work can resume after context or usage limits.
 
 ## Last Completed Step
+
+- Rechecked local signing/install readiness while continuing the code audit. A valid Apple Development certificate is present, but no provisioning profile exists for `local.mithundb.framed`; the iPhone is still absent from `devicectl`. A generic signed build with a command-line team override failed with Xcode's exact error: `No profiles for 'local.mithundb.framed' were found ... Automatic signing is disabled and unable to generate a profile. To enable automatic signing, pass -allowProvisioningUpdates to xcodebuild.` Did not request portal provisioning without a connected/registered device. Unsigned generic iOS build and simulator suite remain green.
+- Changed files: `docs/PROJECT_STATUS.md`, `docs/TEST_MATRIX.md`.
+- Exact next smallest step: when the iPhone is available, connect/pair it and allow Xcode automatic provisioning, then build/install and work through the physical acceptance matrix.
 
 - Closed a camera-analysis/UI race: Vision results now carry their analysis generation into the MainActor callback, which rechecks that the camera stream is still current before updating guidance. A result accepted just before pause can no longer overwrite the reset guidance afterward.
 - Verification: iOS 27.1 simulator suite passed (51 tests, 0 failures, 0 skipped); generic unsigned iOS device build passed; `git diff --check` passed. CodeRabbit reviewed the changed files and raised 0 issues; read-only review found no actionable defects. Xcode emitted recurring simulator metadata `invalidDigitCount` diagnostics only. This remains code-level evidence; camera lifecycle behavior needs the iPhone.

@@ -4,7 +4,7 @@
 |---|---|---|---|
 | Build | iOS 27.1 simulator | App builds without signing | Passed |
 | Build | Generic iOS device destination | App builds without signing | Passed |
-| Device signing | Select a development team and provision the connected iPhone | Xcode produces an installable signed build for `local.mithundb.framed` | Automatic signing enabled; `DEVELOPMENT_TEAM` unset, device not connected; pending setup |
+| Device signing | Pair iPhone 12, select its development team, and provision the app | Xcode produces an installable signed build for `local.mithundb.framed` | Valid Apple Development identity installed; generic signed build confirms no provisioning profile exists; device not connected; allow Xcode provisioning after pairing |
 | App icon | iOS asset catalog | Universal 1024×1024 icon is included and compiles for simulator/device | Passed asset-catalog builds; physical home-screen appearance pending |
 | Unit tests | iOS 27.1 simulator | Guidance, camera/session policies, renderer, import orientation/bounds, crop, cancellation, and PhotoKit transaction logic | Passed (51 tests, 0 failures; latest run after queued analysis UI result guard) |
 | Launch | iOS 27.1 simulator | App installs and launches; permission prompt and camera-unavailable fallback are presented | Passed simulator install/launch; simulator has no camera; physical launch/capture pending |
